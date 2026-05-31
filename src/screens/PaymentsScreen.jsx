@@ -59,7 +59,7 @@ export function PaymentsScreen() {
   });
 
   useEffect(() => {
-    paymentService.listPayments().then(setPaymentRecords);
+    paymentService.listPayments().then(setPaymentRecords).catch(() => setPaymentRecords([]));
   }, []);
 
   useEffect(() => {
@@ -177,20 +177,27 @@ export function PaymentsScreen() {
       return;
     }
 
-    const savedPayment = await paymentService.saveManualPayment({
-      id: `MAN-${Date.now()}`,
-      customerName: manualPayment.customerName.trim(),
-      customerPhone: manualPayment.customerPhone.trim(),
-      receipt: generateReceipt(),
-      agentName: manualPayment.agentName.trim(),
-      serialNumber: manualPayment.serialNumber.trim() || 'Manual entry',
-      totalPayable,
-      depositCredit,
-      paygoPayment,
-      date: `${manualPayment.date}T12:00:00`,
-      status: manualPayment.status,
-      sourcePortal: 'Manual payment'
-    });
+    let savedPayment;
+
+    try {
+      savedPayment = await paymentService.saveManualPayment({
+        id: `MAN-${Date.now()}`,
+        customerName: manualPayment.customerName.trim(),
+        customerPhone: manualPayment.customerPhone.trim(),
+        receipt: generateReceipt(),
+        agentName: manualPayment.agentName.trim(),
+        serialNumber: manualPayment.serialNumber.trim() || 'Manual entry',
+        totalPayable,
+        depositCredit,
+        paygoPayment,
+        date: `${manualPayment.date}T12:00:00`,
+        status: manualPayment.status,
+        sourcePortal: 'Manual payment'
+      });
+    } catch (error) {
+      window.alert('Backend is not connected yet. Payment was not saved.');
+      return;
+    }
 
     setPaymentRecords((records) => [savedPayment, ...records]);
     setManualFormOpen(false);

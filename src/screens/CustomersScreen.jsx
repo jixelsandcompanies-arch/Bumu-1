@@ -55,7 +55,9 @@ export function CustomersScreen() {
   }, [agentPayments, query]);
 
   async function findAgentCustomers() {
-    const records = await customerService.listPaymentRecordsByAgent({ agentName, agentId });
+    const records = await customerService
+      .listPaymentRecordsByAgent({ agentName, agentId })
+      .catch(() => []);
     setAgentPayments(records);
     setHasSearched(true);
     setAgentName('');

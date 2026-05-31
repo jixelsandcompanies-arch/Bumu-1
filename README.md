@@ -11,6 +11,21 @@ npm run dev
 
 Open `http://localhost:5173/`.
 
+Temporary local login while backend/Supabase is not connected:
+
+```text
+Email: finance@bumupaygo.co.ke
+Password: Bumu@2026
+```
+
+Change these in `.env` when needed:
+
+```env
+VITE_LOCAL_AUTH_ENABLED=true
+VITE_LOCAL_FINANCE_EMAIL=finance@bumupaygo.co.ke
+VITE_LOCAL_FINANCE_PASSWORD=Bumu@2026
+```
+
 For the full app with local API routes, use:
 
 ```bash

@@ -15,7 +15,7 @@ export function ReconciliationScreen() {
   const [reconciliation, setReconciliation] = useState([]);
 
   useEffect(() => {
-    financeService.getReconciliation().then(setReconciliation);
+    financeService.getReconciliation().then(setReconciliation).catch(() => setReconciliation([]));
   }, []);
 
   return (

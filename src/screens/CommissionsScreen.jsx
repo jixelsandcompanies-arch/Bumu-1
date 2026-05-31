@@ -19,7 +19,7 @@ export function CommissionsScreen() {
     .reduce((sum, commission) => sum + commission.amount, 0);
 
   useEffect(() => {
-    commissionService.listCommissions().then(setCommissions);
+    commissionService.listCommissions().then(setCommissions).catch(() => setCommissions([]));
   }, []);
 
   return (
