@@ -86,7 +86,7 @@ export function App() {
             relatedEntityType: 'system',
             sourcePortal: 'Supabase',
             issue: health.error,
-            followUp: 'Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the backend environment, plus Supabase availability.'
+            followUp: 'Check SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY in the backend environment, plus Supabase availability.'
           },
           ...items
         ];
