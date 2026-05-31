@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, CircleAlert, LockKeyhole, LogIn, UserPlus } from 'lucide-react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { colors } from '../theme/colors.js';
@@ -68,7 +68,11 @@ export function LoginScreen({ onLogin }) {
   }
 
   return (
-    <View style={styles.root}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.rootContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.panel}>
         <View style={styles.brandRow}>
           <View style={styles.mark}>
@@ -268,7 +272,7 @@ export function LoginScreen({ onLogin }) {
           </Pressable>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -290,8 +294,12 @@ function DetectRow({ valid, label, detail }) {
 
 const styles = StyleSheet.create({
   root: {
-    height: '100dvh',
+    minHeight: '100dvh',
     backgroundColor: 'var(--app-bg)',
+    width: '100%'
+  },
+  rootContent: {
+    minHeight: '100dvh',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 18
