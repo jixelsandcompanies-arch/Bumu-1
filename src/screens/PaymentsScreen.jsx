@@ -207,33 +207,9 @@ export function PaymentsScreen() {
     });
   }
 
-  async function downloadXls() {
-    const XLSX = await import('xlsx');
+  function downloadXls() {
     const { headers, rows } = getExportRows();
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const workbook = XLSX.utils.book_new();
-
-    worksheet['!cols'] = [
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 16 }
-    ];
-    rows.forEach((_, index) => {
-      const rowNumber = index + 2;
-      worksheet[`B${rowNumber}`].t = 's';
-      worksheet[`I${rowNumber}`].t = 's';
-    });
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Payment Records');
-    XLSX.writeFile(workbook, 'payment-records.xlsx', { bookType: 'xlsx' });
+    downloadExcelTable('payment-records.xls', 'Payment Records', headers, rows);
   }
 
   return (
@@ -403,10 +379,42 @@ export function PaymentsScreen() {
 
       <View style={styles.footerActions}>
         <Button icon={Download} variant="secondary" onPress={downloadCsv}>Export CSV</Button>
-        <Button icon={Download} variant="secondary" onPress={downloadXls}>Export XLSX</Button>
+        <Button icon={Download} variant="secondary" onPress={downloadXls}>Export Excel</Button>
       </View>
     </View>
   );
+}
+
+function downloadExcelTable(filename, sheetName, headers, rows) {
+  const table = [
+    '<table>',
+    '<thead><tr>',
+    ...headers.map((header) => `<th>${escapeHtml(header)}</th>`),
+    '</tr></thead>',
+    '<tbody>',
+    ...rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`),
+    '</tbody></table>'
+  ].join('');
+  const html = `<!doctype html><html><head><meta charset="UTF-8"><title>${escapeHtml(sheetName)}</title></head><body>${table}</body></html>`;
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 export function Header({ eyebrow = 'Activity', title, subtitle, action }) {

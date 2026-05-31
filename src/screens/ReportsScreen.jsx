@@ -77,7 +77,7 @@ export function ReportsScreen() {
       <Header
         eyebrow="Review activity"
         title="Reports"
-        subtitle="Generate collection reports by date range, then export CSV, XLSX, or PDF."
+        subtitle="Generate collection reports by date range, then export CSV, Excel, or PDF."
       />
 
       <Section title="Report generation">
@@ -124,7 +124,7 @@ export function ReportsScreen() {
                 style={styles.selectInput}
               >
                 <option value="csv">CSV report</option>
-                <option value="xlsx">XLSX report</option>
+                <option value="xlsx">Excel report</option>
                 <option value="pdf">PDF report</option>
               </select>
             </View>
@@ -368,7 +368,7 @@ function exportCsv(filename, rows) {
 
 function downloadSelectedReport(type, filenameBase, title, startDate, endDate, rows, totalCollected) {
   if (type === 'xlsx') {
-    exportXlsx(`${filenameBase}.xlsx`, rows);
+    exportExcel(`${filenameBase}.xls`, rows);
     return;
   }
 
@@ -380,13 +380,23 @@ function downloadSelectedReport(type, filenameBase, title, startDate, endDate, r
   exportCsv(`${filenameBase}.csv`, rows);
 }
 
-async function exportXlsx(filename, rows) {
-  const XLSX = await import('xlsx');
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
+function exportExcel(filename, rows) {
+  const headers = Object.keys(rows[0] ?? {});
+  const table = [
+    '<table>',
+    '<thead><tr>',
+    ...headers.map((header) => `<th>${escapeHtml(header)}</th>`),
+    '</tr></thead>',
+    '<tbody>',
+    ...rows.map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`),
+    '</tbody></table>'
+  ].join('');
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-  XLSX.writeFile(workbook, filename, { bookType: 'xlsx' });
+  downloadFile(
+    filename,
+    `<!doctype html><html><head><meta charset="UTF-8"><title>Report</title></head><body>${table}</body></html>`,
+    'application/vnd.ms-excel;charset=utf-8;'
+  );
 }
 
 function exportPdf(title, startDate, endDate, rows, totalCollected) {
