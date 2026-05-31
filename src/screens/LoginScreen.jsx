@@ -21,13 +21,6 @@ export function LoginScreen({ onLogin }) {
   const [resetNotice, setResetNotice] = useState('');
   const [error, setError] = useState('');
 
-  const registrationChecks = {
-    name: registerName.trim().split(/\s+/).filter(Boolean).length >= 2,
-    phone: /^(\+254|0)[17]\d{8}$/.test(registerPhone.trim().replace(/\s+/g, '')),
-    password: /^(?=.*[A-Za-z])(?=.*\d).{6,}$/.test(registerPassword)
-  };
-
-  const canRegister = registrationChecks.name && registrationChecks.phone && registrationChecks.password;
   const resetEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim());
   const resetOtpValid = /^\d{6}$/.test(resetOtp.trim());
   const resetPasswordChecks = {
@@ -168,11 +161,6 @@ export function LoginScreen({ onLogin }) {
                   placeholder="At least 6 characters and a number"
                   placeholderTextColor={colors.muted}
                 />
-              </View>
-              <View style={styles.detectBox}>
-                <DetectRow valid={registrationChecks.name} label="Name detected" detail="Use at least first and last name" />
-                <DetectRow valid={registrationChecks.phone} label="Phone detected" detail="Kenyan format: +2547... or 07..." />
-                <DetectRow valid={registrationChecks.password} label="Password detected" detail="6+ characters with letters and numbers" />
               </View>
             </>
           ) : (
