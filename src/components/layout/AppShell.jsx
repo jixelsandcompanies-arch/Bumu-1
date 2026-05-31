@@ -1,0 +1,521 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Bell, Download, LogOut, Menu } from 'lucide-react';
+import { Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { colors } from '../../theme/colors.js';
+import { Button } from '../ui/Button.jsx';
+import { Text } from '../ui/Text.jsx';
+import { navGroups, navItems } from './navigation.js';
+
+export function AppShell({
+  activeScreen,
+  onNavigate,
+  onLogout,
+  unreadCount,
+  profilePhoto,
+  appLayout,
+  canInstall,
+  onInstall,
+  children
+}) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 860;
+  const compact = appLayout === 'Compact view';
+  const SettingsIcon = navItems.find((item) => item.key === 'settings').icon;
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const sidebarScrollRef = useRef(null);
+
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      sidebarScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [sidebarOpen]);
+
+  return (
+    <View style={styles.root}>
+      <View style={styles.topbar}>
+        <View style={styles.topBrand}>
+          <Pressable
+            onPress={() => setSidebarOpen((open) => !open)}
+            style={styles.menuButton}
+          >
+            <Menu size={21} color="#ffffff" />
+          </Pressable>
+          <View style={styles.brandMarkSmall}>
+            <Text style={styles.brandMarkSmallText}>B</Text>
+          </View>
+          <View>
+            <Text style={styles.mobileTitle}>Bumu Finance</Text>
+          </View>
+        </View>
+        <View style={styles.topActions}>
+          {canInstall && !isMobile && (
+            <Button icon={Download} variant="secondary" onPress={onInstall}>
+              Install app
+            </Button>
+          )}
+          <Pressable style={styles.bell} onPress={() => onNavigate('notifications')}>
+            <Bell size={20} color="#ffffff" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <View style={styles.profileWrap}>
+            <View style={styles.profile}>
+              <Text style={styles.profileName}>Finance Officer</Text>
+              <Text style={styles.profileRole}>BPG-FIN-001</Text>
+            </View>
+            <View style={styles.avatar}>
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>FO</Text>
+              )}
+            </View>
+          </View>
+          {isMobile && (
+            <Pressable style={styles.mobileLogout} onPress={onLogout}>
+              <LogOut size={18} color={colors.danger} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.appBody}>
+        {sidebarOpen && (
+          <View style={[styles.sidebar, isMobile && styles.mobileSidebar]}>
+            <ScrollView
+              ref={sidebarScrollRef}
+              style={styles.sidebarScroll}
+              contentContainerStyle={styles.sidebarInner}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.nav}>
+                {navGroups.map((group) => (
+                  <View key={group} style={styles.navGroup}>
+                  <Text style={styles.groupLabel}>{group}</Text>
+                    {navItems
+                      .filter((item) => item.group === group)
+                      .map((item) => (
+                        <NavButton
+                          key={item.key}
+                          item={item}
+                  active={activeScreen === item.key}
+                  dark
+                          onPress={() => {
+                            onNavigate(item.key);
+                            setSidebarOpen(false);
+                          }}
+                          unreadCount={item.key === 'notifications' ? unreadCount : 0}
+                        />
+                      ))}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.sidebarFooter}>
+                <Pressable onPress={onLogout} style={styles.logoutButton}>
+                  <LogOut size={19} color="#ffffff" />
+                  <Text style={styles.logoutText}>Logout</Text>
+              </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        <View
+          style={styles.main}
+          onPointerDown={() => {
+            if (sidebarOpen) setSidebarOpen(false);
+          }}
+        >
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={[styles.contentInner, compact && styles.contentInnerCompact]}
+          >
+            {children}
+          </ScrollView>
+        </View>
+      </View>
+
+      {isMobile && <View style={styles.mobileTabs}>
+        {navItems.slice(0, 4).map((item) => (
+          <Pressable
+            key={item.key}
+            onPress={() => onNavigate(item.key)}
+            style={styles.mobileTab}
+          >
+            <item.icon size={19} color={activeScreen === item.key ? colors.primary : colors.muted} />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.mobileTabText,
+                activeScreen === item.key && { color: colors.primary, fontWeight: '500' }
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
+        ))}
+        <Pressable onPress={() => onNavigate('settings')} style={styles.mobileTab}>
+          <SettingsIcon size={19} color={activeScreen === 'settings' ? colors.primary : colors.muted} />
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.mobileTabText,
+              activeScreen === 'settings' && { color: colors.primary, fontWeight: '500' }
+            ]}
+          >
+            Settings
+          </Text>
+        </Pressable>
+        {canInstall && (
+          <Pressable onPress={onInstall} style={styles.mobileTab}>
+            <Download size={19} color={colors.primary} />
+            <Text numberOfLines={1} style={[styles.mobileTabText, { color: colors.primary, fontWeight: '500' }]}>
+              Install
+            </Text>
+          </Pressable>
+        )}
+      </View>}
+    </View>
+  );
+}
+
+function NavButton({ item, active, onPress, unreadCount, dark = false }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.navButton, active && styles.navButtonActive]}>
+      <item.icon size={19} color={dark ? '#ffffff' : active ? colors.primary : colors.slate} />
+      <Text style={[styles.navText, dark && styles.navTextDark, active && styles.navTextActive]}>
+        {item.label}
+      </Text>
+      {unreadCount > 0 && (
+        <View style={styles.navBadge}>
+          <Text style={styles.navBadgeText}>{unreadCount}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    height: '100dvh',
+    width: '100vw',
+    flexDirection: 'column',
+    backgroundColor: 'var(--app-bg)',
+    overflow: 'hidden'
+  },
+  appBody: {
+    flex: 1,
+    flexDirection: 'row',
+    minHeight: 0,
+    overflow: 'hidden'
+  },
+  sidebar: {
+    width: 262,
+    height: 'calc(100dvh - 66px)',
+    backgroundImage: `linear-gradient(180deg, ${colors.primary} 0%, #086c8f 55%, ${colors.teal} 100%)`,
+    borderRightWidth: 1,
+    borderRightColor: colors.primaryDark,
+    overflow: 'hidden'
+  },
+  sidebarScroll: {
+    flex: 1
+  },
+  sidebarInner: {
+    minHeight: '100%',
+    padding: 18
+  },
+  mobileSidebar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 20,
+    width: 286,
+    boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)'
+  },
+  brand: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 26
+  },
+  brandMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  brandMarkText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '500'
+  },
+  brandName: {
+    fontSize: 17,
+    fontWeight: '500'
+  },
+  brandSub: {
+    fontSize: 12,
+    color: 'var(--app-muted)',
+    marginTop: 2
+  },
+  nav: {
+    gap: 16,
+    flex: 1
+  },
+  navGroup: {
+    gap: 6
+  },
+  groupLabel: {
+    color: '#b9d4ff',
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 12,
+    marginBottom: 2
+  },
+  navButton: {
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  navButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)'
+  },
+  navText: {
+    flex: 1,
+    fontSize: 14,
+    color: 'var(--app-muted)',
+    fontWeight: '500'
+  },
+  navTextActive: {
+    color: '#ffffff'
+  },
+  navTextDark: {
+    color: '#ffffff'
+  },
+  navBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5
+  },
+  navBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '500'
+  },
+  sidebarFooter: {
+    gap: 10,
+    marginTop: 46
+  },
+  logoutButton: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  logoutText: {
+    color: '#ffffff',
+    fontWeight: '500'
+  },
+  main: {
+    flex: 1,
+    minWidth: 0,
+    height: 'calc(100dvh - 66px)',
+    overflow: 'hidden'
+  },
+  topbar: {
+    minHeight: 66,
+    backgroundColor: colors.primary,
+    backgroundImage: `linear-gradient(to right, ${colors.primary} 0%, #086c8f 58%, ${colors.teal} 100%)`,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primaryDark,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  topBrand: {
+    width: 262,
+    minHeight: 66,
+    paddingHorizontal: 24,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)'
+  },
+  brandMarkSmall: {
+    width: 34,
+    height: 34,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  brandMarkSmallText: {
+    color: '#ffffff',
+    fontWeight: '500',
+    fontSize: 16
+  },
+  mobileTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#ffffff'
+  },
+  headerSub: {
+    color: 'var(--app-muted)',
+    fontSize: 11,
+    marginTop: 1
+  },
+  topActions: {
+    paddingRight: 24,
+    paddingLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  bell: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative'
+  },
+  badge: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 999,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '500'
+  },
+  profile: {
+    alignItems: 'flex-end'
+  },
+  profileWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  profileName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#ffffff'
+  },
+  profileRole: {
+    color: 'rgba(255, 255, 255, 0.76)',
+    fontSize: 11
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden'
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%'
+  },
+  avatarText: {
+    color: colors.primary,
+    fontWeight: '500',
+    fontSize: 13
+  },
+  mobileLogout: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f1b6b6',
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  content: {
+    flex: 1,
+    height: 'calc(100dvh - 66px)'
+  },
+  contentInner: {
+    flexGrow: 1,
+    padding: 24,
+    paddingBottom: 104,
+    maxWidth: 1440,
+    width: '100%',
+    alignSelf: 'center'
+  },
+  contentInnerCompact: {
+    padding: 14,
+    paddingBottom: 84,
+    maxWidth: 1180
+  },
+  mobileTabs: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 68,
+    backgroundColor: 'var(--app-surface)',
+    borderTopWidth: 1,
+    borderTopColor: 'var(--app-border)',
+    flexDirection: 'row',
+    paddingHorizontal: 6,
+    zIndex: 10
+  },
+  mobileTab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    minWidth: 0
+  },
+  mobileTabText: {
+    color: 'var(--app-muted)',
+    fontSize: 10,
+    maxWidth: '100%'
+  }
+});
