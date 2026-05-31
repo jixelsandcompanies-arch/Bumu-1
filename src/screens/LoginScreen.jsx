@@ -8,7 +8,7 @@ import { authService } from '../services/authService.js';
 
 export function LoginScreen({ onLogin }) {
   const [identifier, setIdentifier] = useState('finance@bumupaygo.co.ke');
-  const [password, setPassword] = useState('123456');
+  const [password, setPassword] = useState('');
   const [mode, setMode] = useState('login');
   const [registerName, setRegisterName] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
@@ -56,33 +56,15 @@ export function LoginScreen({ onLogin }) {
   }
 
   function handleRegister() {
-    if (!canRegister) {
-      setError('Complete the detected name, phone, and password checks first.');
-      return;
-    }
-
-    setError('');
-    setIdentifier(registerPhone);
-    setPassword(registerPassword);
-    onLogin();
+    setError('Account creation is disabled here. Create finance users in Supabase Auth, then set their role to finance.');
   }
 
   function sendResetOtp() {
-    if (!resetEmailValid) {
-      setResetNotice('Enter a valid email to receive OTP.');
-      return;
-    }
-    setResetOtpSent(true);
-    setResetNotice(`OTP sent to ${resetEmail}. If it does not arrive, go back and resend it.`);
+    setResetNotice('Password reset is managed in Supabase Auth. Ask an admin to send a recovery email.');
   }
 
   function handleResetPassword() {
-    if (!resetEmailValid || !resetOtpValid || !resetPasswordValid || !resetPasswordsMatch) {
-      setResetNotice('Complete all security checks before changing password.');
-      return;
-    }
-    setResetNotice('Password changed successfully. You can sign in now.');
-    setPassword(resetPassword);
+    setResetNotice('Password reset is managed in Supabase Auth. Ask an admin to send a recovery email.');
   }
 
   return (

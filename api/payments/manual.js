@@ -1,5 +1,5 @@
 import { handleError, json, methodNotAllowed } from '../_lib/respond.js';
-import { getSupabase } from '../_lib/supabase.js';
+import { getSupabase, requireFinanceUser } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    await requireFinanceUser(req);
     const payment = req.body ?? {};
     const totalPayable = Number(payment.totalPayable ?? 0);
     const depositCredit = Number(payment.depositCredit ?? 0);

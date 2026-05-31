@@ -1,11 +1,23 @@
 import { isValidPhoneOrEmail } from '../utils/validation.js';
+import { apiGet, apiPost, setAuthToken } from './api.js';
 
 export const authService = {
   async login(identifier, password) {
-    if (!isValidPhoneOrEmail(identifier) || password.length < 4) {
+    if (!isValidPhoneOrEmail(identifier) || password.length < 8) {
       throw new Error('Enter valid finance credentials.');
     }
 
-    return { id: 'USR-FIN-001', fullName: 'Finance Officer', role: 'finance' };
+    const result = await apiPost('/auth/login', { identifier, password });
+
+    setAuthToken(result.accessToken);
+    return result.user;
+  },
+
+  async currentUser() {
+    return apiGet('/auth/me');
+  },
+
+  logout() {
+    setAuthToken('');
   }
 };

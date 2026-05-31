@@ -13,11 +13,12 @@ import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { agentPortalService } from './services/agentPortalService.js';
+import { authService } from './services/authService.js';
+import { getAuthToken } from './services/api.js';
 
 export function App() {
-  const [authenticated, setAuthenticated] = useState(
-    () => window.localStorage.getItem('bumu-authenticated') === 'true'
-  );
+  const [authenticated, setAuthenticated] = useState(() => Boolean(getAuthToken()));
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeScreen, setActiveScreen] = useState(
     () => window.localStorage.getItem('bumu-active-screen') || 'dashboard'
   );
@@ -46,6 +47,26 @@ export function App() {
   }, [profilePhoto]);
 
   useEffect(() => {
+    if (!getAuthToken()) {
+      setAuthChecked(true);
+      setAuthenticated(false);
+      return;
+    }
+
+    authService.currentUser()
+      .then((user) => {
+        setAuthenticated(user.role === 'finance');
+      })
+      .catch(() => {
+        authService.logout();
+        setAuthenticated(false);
+      })
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated) return;
+
     agentPortalService.healthCheck().then((health) => {
       if (health.ok) return;
 
@@ -59,7 +80,7 @@ export function App() {
             id: 'SYS-AGENT-PORTAL-SYNC',
             type: 'integration',
             title: 'Supabase connection issue',
-            message: 'Finance could not reach the Supabase database. Check the project URL, anon key, and table policies.',
+            message: 'Finance could not reach the secured backend database. Check Vercel environment variables and Supabase availability.',
             createdAt: new Date().toISOString(),
             isRead: false,
             relatedEntityType: 'system',
@@ -71,7 +92,7 @@ export function App() {
         ];
       });
     });
-  }, []);
+  }, [authenticated]);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
@@ -79,15 +100,18 @@ export function App() {
   );
 
   function handleLogout() {
-    window.localStorage.removeItem('bumu-authenticated');
+    authService.logout();
     window.localStorage.removeItem('bumu-active-screen');
     setAuthenticated(false);
     setActiveScreen('dashboard');
   }
 
   function handleLogin() {
-    window.localStorage.setItem('bumu-authenticated', 'true');
     setAuthenticated(true);
+  }
+
+  if (!authChecked) {
+    return null;
   }
 
   if (!authenticated) {

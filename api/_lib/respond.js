@@ -9,6 +9,6 @@ export function methodNotAllowed(res, methods) {
 
 export function handleError(res, error) {
   const message = error?.message || 'Unexpected server error.';
-  const status = message.includes('Supabase environment') ? 500 : 400;
+  const status = error?.statusCode || (message.includes('Supabase') && message.includes('environment') ? 500 : 400);
   json(res, status, { error: message });
 }

@@ -1,5 +1,5 @@
 import { handleError, json, methodNotAllowed } from './_lib/respond.js';
-import { getSupabase } from './_lib/supabase.js';
+import { getSupabase, requireFinanceUser } from './_lib/supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    await requireFinanceUser(req);
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('commissions')

@@ -27,6 +27,7 @@ npm run dev:full
 
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
@@ -47,6 +48,7 @@ Add these Environment Variables in Vercel Project Settings:
 
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ```
 
@@ -59,3 +61,15 @@ VITE_API_BASE_URL=
 The included `vercel.json` handles API routing, SPA refresh routing, and PWA cache headers.
 
 Never put `SUPABASE_SERVICE_ROLE_KEY` in frontend code. It belongs only in `.env` locally and Vercel Environment Variables in production.
+
+## Finance Login
+
+Create finance users in Supabase Auth, then mark them with a finance role. In Supabase SQL Editor, replace the email and run:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"finance"}'::jsonb
+where email = 'finance@example.com';
+```
+
+Only users with `role = finance` can sign in or call the backend API.
