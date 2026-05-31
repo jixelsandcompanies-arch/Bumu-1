@@ -72,6 +72,7 @@ export function LoginScreen({ onLogin }) {
       style={styles.root}
       contentContainerStyle={styles.rootContent}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
     >
       <View style={styles.panel}>
         <View style={styles.brandRow}>
@@ -294,15 +295,18 @@ function DetectRow({ valid, label, detail }) {
 
 const styles = StyleSheet.create({
   root: {
-    minHeight: '100dvh',
+    height: '100dvh',
     backgroundColor: 'var(--app-bg)',
-    width: '100%'
+    width: '100%',
+    overflowY: 'auto'
   },
   rootContent: {
-    minHeight: '100dvh',
+    minHeight: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18
+    padding: 18,
+    paddingTop: 32,
+    paddingBottom: 32
   },
   panel: {
     width: '100%',
