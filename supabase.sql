@@ -105,19 +105,18 @@ alter table public.commissions enable row level security;
 alter table public.reconciliation enable row level security;
 
 drop policy if exists "finance read customers" on public.customers;
-create policy "finance read customers" on public.customers for select to anon, authenticated using (true);
-
 drop policy if exists "finance read payments" on public.payments;
-create policy "finance read payments" on public.payments for select to anon, authenticated using (true);
-
 drop policy if exists "finance insert payments" on public.payments;
-create policy "finance insert payments" on public.payments for insert to anon, authenticated with check (true);
-
 drop policy if exists "finance read commissions" on public.commissions;
-create policy "finance read commissions" on public.commissions for select to anon, authenticated using (true);
-
 drop policy if exists "finance read reconciliation" on public.reconciliation;
-create policy "finance read reconciliation" on public.reconciliation for select to anon, authenticated using (true);
+
+revoke all on table public.customers from anon, authenticated;
+revoke all on table public.payments from anon, authenticated;
+revoke all on table public.commissions from anon, authenticated;
+revoke all on table public.reconciliation from anon, authenticated;
+
+-- The app reads and writes these tables only through the secured Vercel API.
+-- Vercel uses SUPABASE_SERVICE_ROLE_KEY server-side, so no public table policy is required.
 
 insert into public.customers (
   id, customer_name, customer_phone, bike_model, serial_number, agent_name, agent_id,
