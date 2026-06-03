@@ -254,9 +254,11 @@ create table if not exists public.reconciliation (
 
 create table if not exists public.agent_notifications (
   id text primary key default ('AGN-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  agent_id text,
   agent_name text,
   agent_code text,
   agent_phone text,
+  customer_id text references public.customers(id) on delete cascade,
   customer_name text,
   message text not null,
   status text not null default 'queued' check (status in ('queued', 'sent', 'failed', 'read')),
@@ -382,6 +384,8 @@ alter table public.customers add column if not exists application_status text no
 alter table public.customers add column if not exists screening_reason text;
 alter table public.customers add column if not exists screened_at timestamptz;
 alter table public.customers add column if not exists screened_by uuid references auth.users(id) on delete set null;
+alter table public.agent_notifications add column if not exists agent_id text;
+alter table public.agent_notifications add column if not exists customer_id text references public.customers(id) on delete cascade;
 alter table public.customers drop constraint if exists customers_status_check;
 alter table public.customers add constraint customers_status_check
   check (status in ('active', 'defaulted', 'paid', 'not_registered', 'next_of_kin_pending', 'pending_screening', 'rejected'));
@@ -576,6 +580,7 @@ create index if not exists idx_reconciliation_status_date on public.reconciliati
 create index if not exists idx_reconciliation_receipt on public.reconciliation (receipt);
 create index if not exists idx_agent_notifications_agent on public.agent_notifications (lower(agent_code), lower(agent_name));
 create index if not exists idx_agent_notifications_status_created on public.agent_notifications (status, created_at desc);
+create index if not exists idx_agent_notifications_customer on public.agent_notifications (customer_id, created_at desc);
 create unique index if not exists idx_agents_auth_user_unique on public.agents (auth_user_id) where auth_user_id is not null;
 create unique index if not exists idx_agents_code_unique on public.agents (agent_code);
 create unique index if not exists idx_agents_email_unique on public.agents (lower(email));

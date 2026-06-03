@@ -1384,7 +1384,7 @@ export async function createAgentCustomerDepositRequest(user, customerId, body) 
       customer_id: customer.id,
       customer_name: customer.customer_name,
       message: `Deposit prompt for KES ${amount.toLocaleString('en-KE')} was sent to ${phone}.`,
-      status: 'unread',
+      status: 'queued',
       source_portal: 'agent'
     });
 
