@@ -1,5 +1,11 @@
 import { getAuthToken, setAuthToken } from './authSession.js';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+function buildUrl(path) {
+  return new URL(`${API_BASE_URL}${path}`, window.location.origin).toString();
+}
+
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
@@ -16,7 +22,7 @@ function isStrongPassword(value) {
 
 async function apiRequest(path, { method = 'GET', body } = {}) {
   const token = getAuthToken();
-  const response = await fetch(path, {
+  const response = await fetch(buildUrl(path), {
     method,
     headers: {
       Accept: 'application/json',

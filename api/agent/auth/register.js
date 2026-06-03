@@ -67,7 +67,6 @@ export default async function handler(req, res) {
       email,
       password,
       email_confirm: true,
-      phone: phone || undefined,
       user_metadata: {
         full_name: fullName,
         phone,
@@ -83,11 +82,17 @@ export default async function handler(req, res) {
       return;
     }
 
+    const authUserId = auth.data.user.id;
+
+    async function rollbackAuthUser() {
+      await getSupabase().auth.admin.deleteUser(authUserId).catch(() => {});
+    }
+
     if (existing.data) {
       const linked = await getSupabase()
         .from('agents')
         .update({
-          auth_user_id: auth.data.user.id,
+          auth_user_id: authUserId,
           full_name: existing.data.full_name || fullName,
           national_id: existing.data.national_id || nationalId || null,
           phone: existing.data.phone || phone,
@@ -100,6 +105,7 @@ export default async function handler(req, res) {
         .single();
 
       if (linked.error) {
+        await rollbackAuthUser();
         sendJson(res, 400, { message: linked.error.message || 'Could not link agent profile.' });
         return;
       }
@@ -110,7 +116,7 @@ export default async function handler(req, res) {
       const inserted = await getSupabase()
         .from('agents')
         .insert({
-          auth_user_id: auth.data.user.id,
+          auth_user_id: authUserId,
           agent_code: code,
           full_name: fullName,
           national_id: nationalId || null,
@@ -123,6 +129,7 @@ export default async function handler(req, res) {
         .single();
 
       if (inserted.error) {
+        await rollbackAuthUser();
         sendJson(res, 400, { message: inserted.error.message || 'Could not create agent profile.' });
         return;
       }
@@ -132,7 +139,7 @@ export default async function handler(req, res) {
 
     sendJson(res, 201, {
       user: {
-        id: auth.data.user.id,
+        id: authUserId,
         email,
         role: 'agent',
         agentId: profile.id,

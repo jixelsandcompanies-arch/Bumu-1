@@ -43,7 +43,6 @@ export default async function handler(req, res) {
       email,
       password,
       email_confirm: true,
-      phone: phone || undefined,
       user_metadata: {
         full_name: fullName,
         phone,

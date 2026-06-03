@@ -59,7 +59,6 @@ export default async function handler(req, res) {
       email,
       password,
       email_confirm: true,
-      phone: phone || undefined,
       user_metadata: {
         full_name: fullName,
         phone,
@@ -75,11 +74,17 @@ export default async function handler(req, res) {
       return;
     }
 
+    const authUserId = auth.data.user.id;
+
+    async function rollbackAuthUser() {
+      await getSupabase().auth.admin.deleteUser(authUserId).catch(() => {});
+    }
+
     if (existing.data) {
       const linked = await getSupabase()
         .from('customers')
         .update({
-          auth_user_id: auth.data.user.id,
+          auth_user_id: authUserId,
           customer_name: existing.data.customer_name || fullName,
           customer_phone: existing.data.customer_phone || phone,
           national_id: existing.data.national_id || nationalId || null,
@@ -90,6 +95,7 @@ export default async function handler(req, res) {
         .single();
 
       if (linked.error) {
+        await rollbackAuthUser();
         sendJson(res, 400, { message: linked.error.message || 'Could not link customer profile.' });
         return;
       }
@@ -99,7 +105,7 @@ export default async function handler(req, res) {
       const inserted = await getSupabase()
         .from('customers')
         .insert({
-          auth_user_id: auth.data.user.id,
+          auth_user_id: authUserId,
           customer_name: fullName,
           customer_phone: phone,
           national_id: nationalId || null,
@@ -115,6 +121,7 @@ export default async function handler(req, res) {
         .single();
 
       if (inserted.error) {
+        await rollbackAuthUser();
         sendJson(res, 400, { message: inserted.error.message || 'Could not create customer profile.' });
         return;
       }
@@ -124,7 +131,7 @@ export default async function handler(req, res) {
 
     sendJson(res, 201, {
       user: {
-        id: auth.data.user.id,
+        id: authUserId,
         email,
         role: 'customer',
         customerId: profile.id,
