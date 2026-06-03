@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Bell,
   Bike,
+  Camera,
   CheckCircle2,
   ClipboardList,
   CreditCard,
@@ -605,41 +606,79 @@ function RegisterTab({ onRefresh }) {
 }
 
 function MediaCapture({ field, label, value, onUploaded }) {
-  const inputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [message, setMessage] = useState('');
 
-  async function uploadFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    setMessage('');
+  function stopCamera() {
+    streamRef.current?.getTracks?.().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }
 
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setMessage('Capture a valid image.');
+  useEffect(() => () => stopCamera(), []);
+
+  async function openCamera() {
+    setMessage('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMessage('Camera capture is not supported by this browser. Use Chrome, Edge, or Safari on HTTPS.');
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      setMessage('Use a clear image under 3 MB.');
+
+    try {
+      stopCamera();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        }
+      });
+      streamRef.current = stream;
+      setCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play?.().catch(() => {});
+        }
+      }, 0);
+    } catch {
+      setMessage('Camera permission is required to capture this document.');
+    }
+  }
+
+  async function capturePhoto() {
+    setMessage('');
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video?.videoHeight) {
+      setMessage('Camera is still loading. Try again.');
       return;
     }
+
+    const canvas = document.createElement('canvas');
+    const maxWidth = 1280;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
 
     setUploading(true);
     try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Could not read captured image.'));
-        reader.readAsDataURL(file);
-      });
       const result = await agentWorkspaceService.uploadCustomerMedia({
         field,
-        fileName: file.name,
-        mimeType: file.type,
+        fileName: `${field}-${Date.now()}.jpg`,
+        mimeType: 'image/jpeg',
         dataUrl
       });
       onUploaded(result.reference);
       setMessage('Captured and uploaded.');
+      setCameraOpen(false);
+      stopCamera();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -657,18 +696,23 @@ function MediaCapture({ field, label, value, onUploaded }) {
           </Text>
           {message ? <Text style={styles.greenText}>{message}</Text> : null}
         </View>
-        <Button variant="secondary" onPress={() => inputRef.current?.click()} disabled={uploading}>
-          {uploading ? 'Uploading...' : value ? 'Replace' : 'Capture'}
+        <Button icon={Camera} variant="secondary" onPress={openCamera} disabled={uploading}>
+          {uploading ? 'Uploading...' : value ? 'Retake' : 'Open camera'}
         </Button>
       </View>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={uploadFile}
-        style={{ display: 'none' }}
-      />
+      {cameraOpen && (
+        <View style={styles.cameraPanel}>
+          <video ref={videoRef} playsInline muted style={styles.cameraPreview} />
+          <View style={styles.cameraActions}>
+            <Button icon={Camera} onPress={capturePhoto} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Capture document'}
+            </Button>
+            <Button variant="secondary" onPress={() => { setCameraOpen(false); stopCamera(); }} disabled={uploading}>
+              Cancel
+            </Button>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -919,6 +963,9 @@ const styles = StyleSheet.create({
   gridField: { flexGrow: 1, flexBasis: 230, width: 'auto' },
   mediaField: { flexGrow: 1, flexBasis: 230, width: 'auto', gap: 6 },
   mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
+  cameraPanel: { borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, gap: 8, backgroundColor: '#f8fbff' },
+  cameraPreview: { width: '100%', maxHeight: 360, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 8, backgroundColor: '#0f172a' },
+  cameraActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
   mediaName: { color: colors.text, fontSize: 13, fontWeight: '600' },
   mediaPlaceholder: { color: colors.muted, fontSize: 13 },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600' },
