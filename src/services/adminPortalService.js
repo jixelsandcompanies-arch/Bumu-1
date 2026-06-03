@@ -1,6 +1,7 @@
 const ADMIN_TOKEN_KEY = 'bumu-admin-token';
 const ADMIN_USER_KEY = 'bumu-admin-user';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const REQUEST_TIMEOUT_MS = 20000;
 
 function buildUrl(path) {
   return new URL(`${API_BASE_URL}${path}`, window.location.origin).toString();
@@ -22,6 +23,8 @@ function clearSession() {
 
 async function request(path, { method = 'GET', body } = {}) {
   const token = getToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response;
 
   try {
@@ -32,10 +35,15 @@ async function request(path, { method = 'GET', body } = {}) {
         ...(body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
-      ...(body ? { body: JSON.stringify(body) } : {})
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: controller.signal
     });
-  } catch {
-    throw new Error('Backend API is not reachable. Leave VITE_API_BASE_URL blank on Vercel or check the backend domain/CORS/CSP settings.');
+  } catch (error) {
+    throw new Error(error.name === 'AbortError'
+      ? 'Backend request timed out. Check Vercel API logs and Supabase environment variables.'
+      : 'Backend API is not reachable. Leave VITE_API_BASE_URL blank on Vercel or check the backend domain/CORS/CSP settings.');
+  } finally {
+    clearTimeout(timeout);
   }
 
   const text = await response.text();
