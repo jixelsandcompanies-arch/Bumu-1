@@ -23,6 +23,7 @@ SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
 PUBLIC_APP_URL=https://bumu-beta.vercel.app
 ADMIN_MAX_ACCOUNTS=10
+CRON_SECRET=generate-a-long-random-secret
 PAYMENT_PROVIDER=africastalking
 COMMISSION_PAYOUT_PROVIDER=africastalking
 ```
@@ -83,6 +84,10 @@ For Africa's Talking payments, configure these callback URLs in the Africa's Tal
 Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/callback
 Commission payout callback: https://your-vercel-domain.vercel.app/api/commissions/payout-callback
 ```
+
+## Automated Follow-Ups
+
+Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The job updates customer overdue status, creates customer notifications, creates agent follow-up notifications, creates finance risk alerts, and sends Africa's Talking SMS reminders. Set `CRON_SECRET` in Vercel so Vercel cron signs the request and outsiders cannot trigger reminder SMS.
 
 ## Payments
 

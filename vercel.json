@@ -3,6 +3,16 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "crons": [
+    {
+      "path": "/api/system/follow-ups",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/system/follow-ups",
+      "schedule": "0 14 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

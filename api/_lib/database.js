@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendScreeningSms } from './africastalking.js';
+import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendAgentFollowUpSms, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendPaymentReminderSms, sendScreeningSms } from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -1634,6 +1634,262 @@ export async function listFinanceNotifications(query = {}) {
 
   if (error) throw mapSupabaseError(error);
   return { notifications: data || [] };
+}
+
+function daysBetween(dateValue, now = new Date()) {
+  if (!dateValue) return 0;
+  const today = new Date(`${now.toISOString().slice(0, 10)}T12:00:00.000Z`);
+  const target = new Date(`${String(dateValue).slice(0, 10)}T12:00:00.000Z`);
+  if (Number.isNaN(target.getTime())) return 0;
+  return Math.floor((today - target) / (24 * 60 * 60 * 1000));
+}
+
+function customerReminderAmount(customer) {
+  const dailyInstallment = Number(customer.daily_installment || 0);
+  const balance = Number(customer.balance || 0);
+  if (dailyInstallment > 0 && balance > 0) return Math.min(dailyInstallment, balance);
+  return balance;
+}
+
+async function hasFinanceNotificationToday(type, customerId, since) {
+  const result = await getSupabase()
+    .from('finance_notifications')
+    .select('id')
+    .eq('type', type)
+    .eq('customer_id', customerId)
+    .gte('created_at', since)
+    .limit(1);
+
+  if (result.error) throw mapSupabaseError(result.error);
+  return Boolean(result.data?.length);
+}
+
+async function insertCustomerNotificationOnce({ customerId, title, message, type, since }) {
+  const existing = await getSupabase()
+    .from('customer_notifications')
+    .select('id')
+    .eq('customer_id', customerId)
+    .eq('type', type)
+    .gte('created_at', since)
+    .limit(1);
+
+  if (existing.error) throw mapSupabaseError(existing.error);
+  if (existing.data?.length) return null;
+
+  const inserted = await getSupabase()
+    .from('customer_notifications')
+    .insert({ customer_id: customerId, title, message, type, status: 'unread', source_portal: 'backend' })
+    .select()
+    .single();
+
+  if (inserted.error) throw mapSupabaseError(inserted.error);
+  return inserted.data;
+}
+
+async function insertAgentNotificationOnce({ customer, message, since }) {
+  const existing = await getSupabase()
+    .from('agent_notifications')
+    .select('id')
+    .eq('agent_code', customer.agent_id || '')
+    .eq('customer_name', customer.customer_name || '')
+    .eq('message', message)
+    .gte('created_at', since)
+    .limit(1);
+
+  if (existing.error) throw mapSupabaseError(existing.error);
+  if (existing.data?.length) return null;
+
+  const inserted = await getSupabase()
+    .from('agent_notifications')
+    .insert({
+      agent_name: customer.agent_name || null,
+      agent_code: customer.agent_id || null,
+      customer_name: customer.customer_name,
+      message,
+      status: 'queued',
+      source_portal: 'backend'
+    })
+    .select()
+    .single();
+
+  if (inserted.error) throw mapSupabaseError(inserted.error);
+  return inserted.data;
+}
+
+async function createFinanceFollowUpNotification({ customer, type, title, message, issue, followUp, severity, amount, overdueDays, since }) {
+  if (await hasFinanceNotificationToday(type, customer.id, since)) return null;
+
+  const inserted = await getSupabase()
+    .from('finance_notifications')
+    .insert({
+      type,
+      title,
+      message,
+      issue,
+      follow_up: followUp,
+      customer_id: customer.id,
+      customer_name: customer.customer_name,
+      customer_phone: customer.customer_phone,
+      agent_name: customer.agent_name,
+      agent_code: customer.agent_id,
+      amount,
+      balance: Number(customer.balance || 0),
+      overdue_days: overdueDays,
+      source_portal: 'backend',
+      severity,
+      status: 'unread'
+    })
+    .select()
+    .single();
+
+  if (inserted.error) throw mapSupabaseError(inserted.error);
+  return inserted.data;
+}
+
+export async function runAutomatedFollowUps({ dryRun = false } = {}) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const since = `${today}T00:00:00.000Z`;
+  const customers = await getSupabase()
+    .from('customers')
+    .select('*')
+    .in('status', ['active', 'defaulted', 'next_of_kin_pending', 'pending_screening'])
+    .limit(1000);
+
+  if (customers.error) throw mapSupabaseError(customers.error);
+
+  const summary = {
+    checked: customers.data?.length || 0,
+    customerNotifications: 0,
+    agentNotifications: 0,
+    financeNotifications: 0,
+    smsSent: 0,
+    smsFailed: 0,
+    statusUpdates: 0,
+    dryRun
+  };
+
+  for (const customer of customers.data || []) {
+    const overdueDays = Math.max(0, daysBetween(customer.due_date, now));
+    const dueToday = String(customer.due_date || '').slice(0, 10) === today;
+    const balance = Number(customer.balance || 0);
+    const amount = customerReminderAmount(customer);
+
+    if (!dryRun && Number(customer.overdue_days || 0) !== overdueDays) {
+      const nextStatus = balance <= 0 ? 'paid' : overdueDays >= 3 ? 'defaulted' : customer.status;
+      const update = await getSupabase()
+        .from('customers')
+        .update({ overdue_days: overdueDays, status: nextStatus })
+        .eq('id', customer.id);
+      if (update.error) throw mapSupabaseError(update.error);
+      summary.statusUpdates += 1;
+      customer.overdue_days = overdueDays;
+      customer.status = nextStatus;
+    }
+
+    if (customer.status === 'next_of_kin_pending') {
+      const type = 'next_of_kin_pending';
+      const message = `${customer.customer_name} is waiting for next-of-kin acceptance.`;
+      if (!dryRun) {
+        const finance = await createFinanceFollowUpNotification({
+          customer,
+          type,
+          title: 'Next-of-kin acceptance pending',
+          message,
+          issue: 'Customer onboarding cannot continue until next-of-kin accepts.',
+          followUp: 'Agent should contact the next-of-kin and confirm they received the SMS link.',
+          severity: 'warning',
+          amount: 0,
+          overdueDays: 0,
+          since
+        });
+        if (finance) summary.financeNotifications += 1;
+        const agent = await insertAgentNotificationOnce({ customer, message, since });
+        if (agent) summary.agentNotifications += 1;
+      }
+      continue;
+    }
+
+    if (customer.status === 'pending_screening') {
+      const type = 'screening_pending';
+      if (!dryRun) {
+        const finance = await createFinanceFollowUpNotification({
+          customer,
+          type,
+          title: 'Screening still pending',
+          message: `${customer.customer_name} is still pending automatic screening completion.`,
+          issue: 'Automatic screening did not complete as expected.',
+          followUp: 'Review KYC, next-of-kin acceptance, and SMS delivery status.',
+          severity: 'warning',
+          amount: 0,
+          overdueDays: 0,
+          since
+        });
+        if (finance) summary.financeNotifications += 1;
+      }
+      continue;
+    }
+
+    if (balance <= 0 || (!dueToday && overdueDays <= 0)) continue;
+
+    const notificationType = overdueDays > 0 ? 'payment_overdue' : 'payment_due';
+    const title = overdueDays > 0 ? 'Payment overdue' : 'Payment due today';
+    const customerMessage = overdueDays > 0
+      ? `Your Bumu Paygo payment is ${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue. Pay KES ${amount.toLocaleString('en-KE')} to keep your account active.`
+      : `Your Bumu Paygo payment of KES ${amount.toLocaleString('en-KE')} is due today.`;
+    const agentMessage = overdueDays > 0
+      ? `${customer.customer_name} is ${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue. Follow up payment of KES ${amount.toLocaleString('en-KE')}.`
+      : `${customer.customer_name} has a payment due today. Follow up payment of KES ${amount.toLocaleString('en-KE')}.`;
+
+    if (dryRun) continue;
+
+    const customerNotification = await insertCustomerNotificationOnce({
+      customerId: customer.id,
+      title,
+      message: customerMessage,
+      type: notificationType,
+      since
+    });
+    if (customerNotification) summary.customerNotifications += 1;
+
+    const financeNotification = await createFinanceFollowUpNotification({
+      customer,
+      type: notificationType,
+      title,
+      message: `${customer.customer_name}: ${customerMessage}`,
+      issue: overdueDays > 0 ? 'Customer has missed expected repayment.' : 'Customer has repayment due today.',
+      followUp: 'Agent should confirm payment prompt, Paybill payment, or customer support action.',
+      severity: overdueDays >= 3 ? 'critical' : overdueDays > 0 ? 'warning' : 'info',
+      amount,
+      overdueDays,
+      since
+    });
+    if (financeNotification) summary.financeNotifications += 1;
+
+    const agentNotification = await insertAgentNotificationOnce({ customer, message: agentMessage, since });
+    if (agentNotification) summary.agentNotifications += 1;
+
+    const [customerSms, agentSms] = await Promise.all([
+      sendPaymentReminderSms({ customer, amount, dueDate: customer.due_date, overdueDays }).catch(() => ({ delivered: false })),
+      customer.agent_id
+        ? getSupabase().from('agents').select('phone').eq('agent_code', customer.agent_id).maybeSingle()
+            .then((agentResult) => agentResult.data?.phone
+              ? sendAgentFollowUpSms({
+                  agentPhone: agentResult.data.phone,
+                  customerName: customer.customer_name,
+                  customerPhone: customer.customer_phone,
+                  overdueDays
+                })
+              : { delivered: false })
+            .catch(() => ({ delivered: false }))
+        : Promise.resolve({ delivered: false })
+    ]);
+
+    summary.smsSent += [customerSms, agentSms].filter((item) => item?.delivered).length;
+    summary.smsFailed += [customerSms, agentSms].filter((item) => item && item.delivered === false).length;
+  }
+
+  return summary;
 }
 
 export async function getDashboard() {

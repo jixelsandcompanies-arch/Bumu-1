@@ -170,6 +170,25 @@ export async function sendPaymentConfirmedSms({ customer, amount, receipt, balan
   });
 }
 
+export async function sendPaymentReminderSms({ customer, amount, dueDate, overdueDays }) {
+  const overdue = Number(overdueDays || 0);
+  const message = overdue > 0
+    ? `Bumu Paygo reminder: your payment is ${overdue} day${overdue === 1 ? '' : 's'} overdue. Pay KES ${Number(amount || 0).toLocaleString('en-KE')} through your customer portal to keep your account active.`
+    : `Bumu Paygo reminder: your payment of KES ${Number(amount || 0).toLocaleString('en-KE')} is due${dueDate ? ` on ${dueDate}` : ''}. Pay through your customer portal to keep your account active.`;
+
+  return sendSms({
+    to: customer?.customer_phone,
+    message
+  });
+}
+
+export async function sendAgentFollowUpSms({ agentPhone, customerName, customerPhone, overdueDays }) {
+  return sendSms({
+    to: agentPhone,
+    message: `Bumu Paygo follow-up: ${customerName || 'Customer'} (${customerPhone || 'no phone'}) needs payment follow-up${Number(overdueDays || 0) > 0 ? `, ${overdueDays} days overdue` : ''}. Check your agent portal.`
+  });
+}
+
 export async function sendCommissionPaidSms({ commission }) {
   return sendSms({
     to: commission?.agent_phone,
