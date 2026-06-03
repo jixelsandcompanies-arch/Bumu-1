@@ -1174,8 +1174,13 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
     .eq('id', customerId);
 
   if (!agent) {
-    const customerResult = await customerQuery.single();
+    const customerResult = await customerQuery.maybeSingle();
     if (customerResult.error) throw mapSupabaseError(customerResult.error);
+    if (!customerResult.data) {
+      const error = new Error('Next-of-kin request was not found.');
+      error.statusCode = 404;
+      throw error;
+    }
     const foundAgent = customerResult.data.agent_id
       ? await getSupabase().from('agents').select('*').eq('agent_code', customerResult.data.agent_id).maybeSingle()
       : { data: null };
@@ -1193,9 +1198,14 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
     customerQuery.eq('agent_id', agent.agent_code || agent.agent_id);
   }
 
-  const customerResult = await customerQuery.single();
+  const customerResult = await customerQuery.maybeSingle();
 
   if (customerResult.error) throw mapSupabaseError(customerResult.error);
+  if (!customerResult.data) {
+    const error = new Error('Next-of-kin request was not found.');
+    error.statusCode = 404;
+    throw error;
+  }
   const customer = customerResult.data;
   const phone = customer.next_of_kin_phone || '';
 
