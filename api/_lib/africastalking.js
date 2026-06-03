@@ -114,6 +114,13 @@ export async function sendOtpSms({ phone, otp }) {
   });
 }
 
+export async function sendNextOfKinAcceptanceSms({ phone, otp, customerName }) {
+  return sendSms({
+    to: phone,
+    message: `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. If you accept, give OTP ${otp} to the agent. Valid for 10 minutes.`
+  });
+}
+
 export async function sendScreeningSms({ action, customer, agent, reason, activationOtp }) {
   const customerName = customer?.customer_name || 'Customer';
   const customerId = customer?.id || '';

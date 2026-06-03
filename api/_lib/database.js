@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendCommissionPaidSms, sendOtpSms, sendScreeningSms } from './africastalking.js';
+import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendScreeningSms } from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -1005,7 +1005,7 @@ export async function createAgentCustomer(user, body) {
   const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
   const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
   const nextOfKinOtpDelivery = nextOfKinOtp
-    ? await sendOtpSms({ phone: nextOfKinPhone, otp: nextOfKinOtp }).catch((error) => ({
+    ? await sendNextOfKinAcceptanceSms({ phone: nextOfKinPhone, otp: nextOfKinOtp, customerName }).catch((error) => ({
         configured: true,
         delivered: false,
         provider: 'africastalking',
