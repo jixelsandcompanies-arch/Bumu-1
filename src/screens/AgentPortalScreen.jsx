@@ -149,7 +149,7 @@ export function AgentPortalScreen() {
           <View style={styles.pageHeader}>
             <View style={{ minWidth: 0 }}>
               <Text style={styles.kicker}>Agent workspace</Text>
-              <Text style={styles.pageTitle}>{fallback(portal.agent?.name, 'Agent account')}</Text>
+              <Text style={styles.pageTitle}>Bumu Paygo</Text>
               <Text style={styles.pageSubtitle}>Register customers, track follow-up, and view commissions from the centralized CRM.</Text>
             </View>
             <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
