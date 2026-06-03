@@ -80,13 +80,21 @@ create table if not exists public.customers (
   next_of_kin_name text,
   next_of_kin_phone text,
   next_of_kin_relationship text,
+  next_of_kin_passport_photo_url text,
+  next_of_kin_id_front_url text,
+  next_of_kin_id_back_url text,
+  next_of_kin_otp_hash text,
+  next_of_kin_otp_expires_at timestamptz,
+  next_of_kin_otp_sent_at timestamptz,
+  next_of_kin_otp_verified_at timestamptz,
+  next_of_kin_otp_status text not null default 'not_sent' check (next_of_kin_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed')),
   customer_phone_verified_at timestamptz,
   next_of_kin_verified_at timestamptz,
-  application_status text not null default 'active' check (application_status in ('draft', 'pending_screening', 'info_required', 'approved', 'rejected', 'active')),
+  application_status text not null default 'active' check (application_status in ('draft', 'next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected', 'active')),
   screening_reason text,
   screened_at timestamptz,
   screened_by uuid references auth.users(id) on delete set null,
-  status text not null default 'active' check (status in ('active', 'defaulted', 'paid', 'not_registered', 'pending_screening', 'rejected')),
+  status text not null default 'active' check (status in ('active', 'defaulted', 'paid', 'not_registered', 'next_of_kin_pending', 'pending_screening', 'rejected')),
   overdue_days integer not null default 0,
   registration_status text generated always as (status) stored,
   source_portal text not null default 'finance',
@@ -100,7 +108,7 @@ create table if not exists public.customer_applications (
   agent_id text,
   agent_name text,
   national_id text,
-  status text not null default 'pending_screening' check (status in ('pending_screening', 'info_required', 'approved', 'rejected')),
+  status text not null default 'pending_screening' check (status in ('next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected')),
   duplicate_national_id boolean not null default false,
   review_reason text,
   reviewed_by uuid references auth.users(id) on delete set null,
@@ -329,6 +337,14 @@ alter table public.customers add column if not exists id_back_url text;
 alter table public.customers add column if not exists next_of_kin_name text;
 alter table public.customers add column if not exists next_of_kin_phone text;
 alter table public.customers add column if not exists next_of_kin_relationship text;
+alter table public.customers add column if not exists next_of_kin_passport_photo_url text;
+alter table public.customers add column if not exists next_of_kin_id_front_url text;
+alter table public.customers add column if not exists next_of_kin_id_back_url text;
+alter table public.customers add column if not exists next_of_kin_otp_hash text;
+alter table public.customers add column if not exists next_of_kin_otp_expires_at timestamptz;
+alter table public.customers add column if not exists next_of_kin_otp_sent_at timestamptz;
+alter table public.customers add column if not exists next_of_kin_otp_verified_at timestamptz;
+alter table public.customers add column if not exists next_of_kin_otp_status text not null default 'not_sent';
 alter table public.customers add column if not exists customer_phone_verified_at timestamptz;
 alter table public.customers add column if not exists next_of_kin_verified_at timestamptz;
 alter table public.customers add column if not exists application_status text not null default 'active';
@@ -337,10 +353,16 @@ alter table public.customers add column if not exists screened_at timestamptz;
 alter table public.customers add column if not exists screened_by uuid references auth.users(id) on delete set null;
 alter table public.customers drop constraint if exists customers_status_check;
 alter table public.customers add constraint customers_status_check
-  check (status in ('active', 'defaulted', 'paid', 'not_registered', 'pending_screening', 'rejected'));
+  check (status in ('active', 'defaulted', 'paid', 'not_registered', 'next_of_kin_pending', 'pending_screening', 'rejected'));
 alter table public.customers drop constraint if exists customers_application_status_check;
 alter table public.customers add constraint customers_application_status_check
-  check (application_status in ('draft', 'pending_screening', 'info_required', 'approved', 'rejected', 'active'));
+  check (application_status in ('draft', 'next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected', 'active'));
+alter table public.customers drop constraint if exists customers_next_of_kin_otp_status_check;
+alter table public.customers add constraint customers_next_of_kin_otp_status_check
+  check (next_of_kin_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed'));
+alter table public.customer_applications drop constraint if exists customer_applications_status_check;
+alter table public.customer_applications add constraint customer_applications_status_check
+  check (status in ('next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected'));
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;

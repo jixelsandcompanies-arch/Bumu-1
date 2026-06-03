@@ -907,6 +907,23 @@ export async function createAgentCustomer(user, body) {
   const productType = body.productType || 'product';
   const productModel = body.productModel || body.bikeModel || null;
   const nationalId = String(body.nationalId || '').trim();
+  const nextOfKinPhone = String(body.nextOfKinPhone || body.next_of_kin_phone || '').trim();
+  const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
+  const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
+  const nextOfKinOtpDelivery = nextOfKinOtp
+    ? await sendOtpSms({ phone: nextOfKinPhone, otp: nextOfKinOtp }).catch((error) => ({
+        configured: true,
+        delivered: false,
+        provider: 'africastalking',
+        error: error.message
+      }))
+    : { configured: false, delivered: false, provider: 'africastalking' };
+
+  if (nextOfKinOtp && !nextOfKinOtpDelivery.delivered) {
+    const error = new Error('Next-of-kin OTP could not be sent. Check Africa\'s Talking SMS settings before submitting this application.');
+    error.statusCode = 502;
+    throw error;
+  }
   const duplicateCheck = nationalId
     ? await getSupabase()
         .from('customers')
@@ -933,8 +950,15 @@ export async function createAgentCustomer(user, body) {
       id_front_url: body.idFrontUrl || body.id_front_url || null,
       id_back_url: body.idBackUrl || body.id_back_url || null,
       next_of_kin_name: body.nextOfKinName || body.next_of_kin_name || null,
-      next_of_kin_phone: body.nextOfKinPhone || body.next_of_kin_phone || null,
+      next_of_kin_phone: nextOfKinPhone || null,
       next_of_kin_relationship: body.nextOfKinRelationship || body.next_of_kin_relationship || null,
+      next_of_kin_passport_photo_url: body.nextOfKinPassportPhotoUrl || body.next_of_kin_passport_photo_url || null,
+      next_of_kin_id_front_url: body.nextOfKinIdFrontUrl || body.next_of_kin_id_front_url || null,
+      next_of_kin_id_back_url: body.nextOfKinIdBackUrl || body.next_of_kin_id_back_url || null,
+      next_of_kin_otp_hash: nextOfKinOtp ? hashOtp(nextOfKinPhone, nextOfKinOtp) : null,
+      next_of_kin_otp_expires_at: nextOfKinOtpExpiresAt,
+      next_of_kin_otp_sent_at: nextOfKinOtp ? new Date().toISOString() : null,
+      next_of_kin_otp_status: nextOfKinOtpDelivery.delivered ? 'sent' : 'not_sent',
       product_type: productType,
       product_model: productModel,
       bike_model: productType === 'bike' ? productModel : null,
@@ -947,8 +971,8 @@ export async function createAgentCustomer(user, body) {
       balance: Math.max(totalPayable - paidAmount, 0),
       due_date: body.dueDate || null,
       daily_installment: Number(body.dailyInstallment || 0),
-      application_status: 'pending_screening',
-      status: 'not_registered',
+      application_status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
+      status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
       source_portal: 'agent'
     })
     .select()
@@ -962,7 +986,7 @@ export async function createAgentCustomer(user, body) {
       agent_id: agentCode,
       agent_name: agent.full_name || agent.agent_name,
       national_id: nationalId || null,
-      status: 'pending_screening',
+      status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
       duplicate_national_id: duplicateNationalId,
       source_portal: 'agent'
     })
@@ -971,24 +995,101 @@ export async function createAgentCustomer(user, body) {
 
   if (application.error) throw mapSupabaseError(application.error);
 
+  if (!nextOfKinOtp) {
+    await createScreeningNotification({ customer: data, agent, duplicateNationalId, agentCode });
+  }
+
+  return { customer: data, nextOfKinOtpRequired: Boolean(nextOfKinOtp), otpDelivery: nextOfKinOtpDelivery };
+}
+
+async function createScreeningNotification({ customer, agent, duplicateNationalId, agentCode }) {
   await getSupabase()
     .from('finance_notifications')
     .insert({
       type: duplicateNationalId ? 'screening_duplicate' : 'screening_pending',
       title: duplicateNationalId ? 'Duplicate national ID flagged' : 'Customer screening required',
-      message: `${customerName} was submitted by ${agent.full_name || agent.agent_name || 'agent'} for screening.`,
+      message: `${customer.customer_name} was submitted by ${agent.full_name || agent.agent_name || 'agent'} for screening.`,
       issue: duplicateNationalId ? 'National ID already exists in customer records.' : 'Review KYC details and approve, reject, or request more information.',
       follow_up: 'Open Admin portal screening queue.',
-      customer_id: data.id,
-      customer_name: customerName,
-      customer_phone: customerPhone,
+      customer_id: customer.id,
+      customer_name: customer.customer_name,
+      customer_phone: customer.customer_phone,
       agent_name: agent.full_name || agent.agent_name,
       agent_code: agentCode,
       severity: duplicateNationalId ? 'critical' : 'info',
       source_portal: 'agent'
     });
+}
 
-  return { customer: data };
+export async function verifyNextOfKinOtp(user, customerId, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const otp = String(body.otp || '').trim();
+  if (!/^\d{6}$/.test(otp)) {
+    const error = new Error('Enter the 6-digit next-of-kin OTP.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const customerResult = await getSupabase()
+    .from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .eq('agent_id', agent.agent_code || agent.agent_id)
+    .single();
+
+  if (customerResult.error) throw mapSupabaseError(customerResult.error);
+  const customer = customerResult.data;
+  const phone = customer.next_of_kin_phone || '';
+
+  if (
+    !customer.next_of_kin_otp_hash ||
+    customer.next_of_kin_otp_hash !== hashOtp(phone, otp) ||
+    new Date(customer.next_of_kin_otp_expires_at).getTime() < Date.now()
+  ) {
+    const invalid = new Error('Invalid or expired next-of-kin OTP.');
+    invalid.statusCode = 400;
+    throw invalid;
+  }
+
+  const verifiedAt = new Date().toISOString();
+  const updateCustomer = await getSupabase()
+    .from('customers')
+    .update({
+      next_of_kin_otp_status: 'verified',
+      next_of_kin_otp_verified_at: verifiedAt,
+      next_of_kin_verified_at: verifiedAt,
+      application_status: 'pending_screening',
+      status: 'pending_screening'
+    })
+    .eq('id', customerId)
+    .select()
+    .single();
+
+  if (updateCustomer.error) throw mapSupabaseError(updateCustomer.error);
+
+  const application = await getSupabase()
+    .from('customer_applications')
+    .update({ status: 'pending_screening' })
+    .eq('customer_id', customerId)
+    .select()
+    .single();
+
+  if (application.error) throw mapSupabaseError(application.error);
+
+  await createScreeningNotification({
+    customer: updateCustomer.data,
+    agent,
+    duplicateNationalId: Boolean(application.data.duplicate_national_id),
+    agentCode: agent.agent_code || agent.agent_id
+  });
+
+  return { customer: updateCustomer.data, application: application.data };
 }
 
 export async function createAgentTask(user, body) {
