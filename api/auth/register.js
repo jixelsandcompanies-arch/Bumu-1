@@ -1,0 +1,54 @@
+import { readJson, sendJson } from '../_lib/http.js';
+import { getSupabase } from '../_lib/supabase.js';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    sendJson(res, 405, { message: 'Method not allowed.' });
+    return;
+  }
+
+  try {
+    const body = await readJson(req);
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
+    const fullName = String(body.fullName || '').trim();
+    const phone = String(body.phone || '').trim();
+
+    if (!fullName || !email || password.length < 8) {
+      sendJson(res, 400, { message: 'Enter a name, email, and password with at least 8 characters.' });
+      return;
+    }
+
+    const { data, error } = await getSupabase().auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      phone: phone || undefined,
+      user_metadata: {
+        full_name: fullName,
+        phone,
+        role: 'finance'
+      },
+      app_metadata: {
+        role: 'finance'
+      }
+    });
+
+    if (error) {
+      sendJson(res, 400, { message: error.message || 'Could not create finance account.' });
+      return;
+    }
+
+    sendJson(res, 201, {
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        fullName,
+        role: 'finance'
+      }
+    });
+  } catch (error) {
+    sendJson(res, 500, { message: error.message });
+  }
+}

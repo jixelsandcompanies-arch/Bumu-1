@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, Clock3, ServerCrash } from 'lucide-react';
+import { AlertTriangle, Banknote, Clock3, CreditCard, ServerCrash } from 'lucide-react';
 import { colors } from '../../theme/colors.js';
 import { formatDate } from '../../utils/dates.js';
 
@@ -9,6 +9,13 @@ export const activityMeta = {
     soft: colors.dangerSoft,
     icon: AlertTriangle,
     action: 'Follow up with customer'
+  },
+  payment_daily: {
+    label: 'Daily payment',
+    tone: colors.primary,
+    soft: colors.primarySoft,
+    icon: CreditCard,
+    action: 'Review paid and unpaid payment records'
   },
   overdue: {
     label: 'Overdue',

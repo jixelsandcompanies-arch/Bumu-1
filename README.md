@@ -1,6 +1,8 @@
 # Bumu Paygo Finance
 
-Finance operations portal for Bumu Paygo motorcycle PAYGO accounts.
+Finance operations portal for the Bumu Paygo distributed CRM system.
+
+The frontend is a Vite app. In production it reads and writes PAYGO customers, payments, commissions, and reconciliation data through Vercel API routes backed by a shared Supabase database. Admin, agent, customer, and finance portals should use the same Supabase project so every portal works from one centralized CRM dataset.
 
 ## Local Setup
 
@@ -11,100 +13,151 @@ npm run dev
 
 Open `http://localhost:5173/`.
 
-Temporary local login while backend/Supabase is not connected:
-
-```text
-Email: finance@bumupaygo.co.ke
-Password: Bumu@2026
-```
-
-Change these in `.env` when needed:
+To test database-backed mode locally, copy `.env.production.template` to `.env.local` and set:
 
 ```env
-VITE_LOCAL_AUTH_ENABLED=true
-VITE_LOCAL_FINANCE_EMAIL=finance@bumupaygo.co.ke
-VITE_LOCAL_FINANCE_PASSWORD=Bumu@2026
-```
-
-For the full app with local API routes, use:
-
-```bash
-npm run dev:full
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_AUTH_REQUIRED=true
+VITE_API_BASE_URL=
 ```
 
 ## Supabase Setup
 
-1. Create a Supabase project.
-2. Open Supabase SQL Editor.
-3. Paste and run `supabase.sql`.
-4. Create a finance user in Supabase Auth.
-5. Mark that user with the finance role using the SQL in the Finance Login section.
-6. Copy `.env.example` to `.env`.
-7. Set:
+1. Create a Supabase project for the shared Bumu Paygo CRM database.
+2. Open the Supabase SQL Editor.
+3. Run `supabase.sql` once.
+4. Keep `SUPABASE_SERVICE_ROLE_KEY` only in server environments such as Vercel. Do not expose it as a `VITE_*` variable.
 
-```env
-SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+The schema creates shared CRM tables:
+
+```text
+customers
+payments
+commissions
+agent_payout_requests
+reconciliation
+agent_notifications
+finance_notifications
 ```
 
-Restart the dev server after changing `.env`.
+If you previously experimented with public policies, run `supabase_hardening.sql` to lock the tables back down for server-side API access.
 
-If you already ran an older SQL file, run `supabase_hardening.sql` once. It removes public `anon` table access so data only flows through the secured backend API.
+For an existing Supabase project, rerun `supabase.sql` after pulling updates. It uses `create index if not exists` and `create or replace function`, so it safely adds the performance indexes and dashboard summary function without deleting existing data.
 
 ## Vercel Deployment
 
-Use these Vercel settings:
+Deploy the repo to Vercel with the included `vercel.json`.
 
-```text
-Framework Preset: Vite
-Install Command: npm install
-Build Command: npm run build
-Output Directory: dist
-```
-
-Add these Environment Variables in Vercel Project Settings:
+Required Vercel environment variables:
 
 ```env
+VITE_LOCAL_AUTH_ENABLED=false
 SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-```
-
-Optional frontend API variable. Leave blank unless the API is hosted somewhere else:
-
-```env
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
 ```
 
-The included `vercel.json` handles API routing, SPA refresh routing, and PWA cache headers.
-
-Never put `SUPABASE_SERVICE_ROLE_KEY` in frontend code. It belongs only in `.env` locally and Vercel Environment Variables in production.
-
-## Finance Login
-
-Create finance users in **Supabase → Authentication → Users**, then mark them with a finance role. In Supabase SQL Editor, replace the email and run:
+Create finance users in Supabase Auth, then mark them as finance users:
 
 ```sql
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"finance"}'::jsonb
-where email = 'finance@example.com';
+where email = 'name@bumupaygo.co.ke';
 ```
 
-Only users with `role = finance` can sign in or call the backend API.
+If a separate backend is later deployed, set `BACKEND_API_URL` and the Vercel routes will proxy to that backend instead of using Supabase directly.
 
-## Integration Check
+## Customer Payments
 
-After deployment, check:
+Customers can pay through a common Paybill or through the customer portal, but that collection flow must be implemented in the backend. The finance portal is prepared to read the result after the backend records it.
+
+Recommended backend flow:
 
 ```text
-https://your-vercel-domain.vercel.app/api/health
+1. Customer pays through customer portal, SIM toolkit, or *334#.
+2. Payment provider sends confirmation/callback to your backend.
+3. Backend validates provider signature, receipt, account reference, amount, and customer.
+4. Backend upserts the payment into Supabase `payments`.
+5. Backend updates customer balance, overdue state, reconciliation, and commissions.
+6. Backend writes finance alerts into `finance_notifications` when payment is received, missing, late, mismatched, or needs follow-up.
+7. Finance portal refreshes `/api/payments`, `/api/reconciliation`, and `/api/notifications`.
 ```
 
-Expected without login:
+New provider records should use generic fields such as `provider_reference`, `provider_transaction_id`, `provider_account_reference`, `provider_payer_phone`, and `provider_paid_at`. The common Paybill number, callbacks, and transaction validation must remain in the backend.
+
+## Agent Commission Payments
+
+The finance portal does not transfer money from the browser. When finance clicks a commission payment action:
+
+```text
+POST /api/commissions/:id/pay
+POST /api/commissions/agent-payment-approvals
+```
+
+Vercel either proxies the request to `BACKEND_API_URL`, or, if no backend is connected yet, records a queued payout request in Supabase. The Supabase-only fallback sets the commission to `processing` with `payout_status = queued`; it does not mark the commission as paid and it does not call any payment provider.
+
+Your production backend should implement:
+
+```text
+POST /commissions/:id/pay
+```
+
+Backend responsibilities:
+
+```text
+1. Validate the finance user is authorized.
+2. Validate the commission exists.
+3. Validate the agent details and amount.
+4. Reject commissions that are already paid or already processing.
+5. Send the money through the payment provider from the backend only.
+6. Update Supabase with status, paid_at, payout reference, and provider response.
+7. Return the updated commission to the finance portal.
+```
+
+The backend can use `agent_payout_requests` as its payout work queue, or it can complete the payout immediately and update `commissions` directly.
+
+## Load Balancing
+
+The portal is safe to run behind Vercel's managed load balancing because API routes are stateless. Auth state is carried by the user's Supabase token, and shared application data lives in Supabase or your external backend.
+
+Health check endpoint:
+
+```text
+/api/health
+```
+
+Expected healthy response includes:
 
 ```json
-{"error":"Sign in is required."}
+{
+  "ok": true,
+  "stateless": true,
+  "databaseConfigured": true
+}
 ```
 
-That means the API is protected. Then sign in through the app with the Supabase Auth finance user.
+If `BACKEND_API_URL` points to your own backend, set `BACKEND_TIMEOUT_MS` to keep slow backend instances from hanging finance requests. The default is `10000`.
+
+## Installable App
+
+The portal includes `manifest.webmanifest`, app icons, and `sw.js`, so supported browsers can install it as a standalone app. API requests are never cached by the service worker; payments, notifications, and reconciliation stay server-driven.
+
+## Auth Pages
+
+```text
+Login: http://localhost:5173/#/login
+Register: http://localhost:5173/#/register
+Forgot password: http://localhost:5173/#/forgot-password
+```
+
+Users register with their own email and password. Accounts are created in Supabase Auth through `/api/auth/register`; they are not stored in browser localStorage.
+
+Password reset OTP sending and password changes must be handled by your secure backend through `BACKEND_API_URL`.
+
+## Data Flow
+
+Finance screens call same-origin `/api/*` routes. Those routes use `SUPABASE_SERVICE_ROLE_KEY` server-side to fetch the required finance data from the centralized Supabase database. Payment-provider integrations, transaction execution, callbacks, and agent payout execution belong in the secure backend, not in this portal.

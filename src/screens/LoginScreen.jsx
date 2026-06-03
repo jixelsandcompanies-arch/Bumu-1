@@ -1,37 +1,102 @@
-import React, { useState } from 'react';
-import { CheckCircle2, CircleAlert, LockKeyhole, LogIn, UserPlus } from 'lucide-react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { KeyRound, LockKeyhole, LogIn, Mail, UserPlus } from 'lucide-react';
+import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
 import { Text } from '../components/ui/Text.jsx';
-import { colors } from '../theme/colors.js';
 import { authService } from '../services/authService.js';
+import { colors } from '../theme/colors.js';
+import bumuLogo from '../../BumuLogo.jpeg';
+
+const pages = {
+  login: '#/login',
+  register: '#/register',
+  forgot: '#/forgot-password'
+};
+
+function pageFromHash() {
+  if (window.location.hash === pages.register) return 'register';
+  if (window.location.hash === pages.forgot) return 'forgot';
+  return 'login';
+}
+
+function goToPage(page) {
+  window.history.pushState(null, '', pages[page]);
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+}
 
 export function LoginScreen({ onLogin }) {
-  const [identifier, setIdentifier] = useState('finance@bumupaygo.co.ke');
-  const [password, setPassword] = useState('');
-  const [mode, setMode] = useState('login');
-  const [registerName, setRegisterName] = useState('');
-  const [registerPhone, setRegisterPhone] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetOtpSent, setResetOtpSent] = useState(false);
-  const [resetOtp, setResetOtp] = useState('');
-  const [resetPassword, setResetPassword] = useState('');
-  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
-  const [resetNotice, setResetNotice] = useState('');
-  const [error, setError] = useState('');
+  const [page, setPage] = useState(pageFromHash);
 
-  const resetEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim());
-  const resetOtpValid = /^\d{6}$/.test(resetOtp.trim());
-  const resetPasswordChecks = {
-    length: resetPassword.length >= 8,
-    unique: new Set(resetPassword).size >= 8,
-    upper: /[A-Z]/.test(resetPassword),
-    lower: /[a-z]/.test(resetPassword),
-    number: /\d/.test(resetPassword),
-    special: /[^A-Za-z0-9]/.test(resetPassword)
-  };
-  const resetPasswordsMatch = resetPassword && resetPassword === resetConfirmPassword;
+  useEffect(() => {
+    if (!window.location.hash) {
+      window.history.replaceState(null, '', pages.login);
+    }
+
+    function handleHashChange() {
+      setPage(pageFromHash());
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  return (
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.rootContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
+    >
+      <View style={styles.shell}>
+        <AuthHeader page={page} />
+        {page === 'login' && <LoginPage onLogin={onLogin} />}
+        {page === 'register' && <RegisterPage />}
+        {page === 'forgot' && <ForgotPasswordPage />}
+      </View>
+    </ScrollView>
+  );
+}
+
+function AuthHeader({ page }) {
+  const title = {
+    login: 'Finance sign in',
+    register: 'Create finance account',
+    forgot: 'Reset password'
+  }[page];
+  const subtitle = {
+    login: 'Access payments, riders, commissions, reports, and reconciliation.',
+    register: '',
+    forgot: 'Enter your account, verify the OTP, and change your password.'
+  }[page];
+
+  return (
+    <View style={styles.header}>
+      <View style={styles.brandRow}>
+        <View style={styles.mark}>
+          <Image source={bumuLogo} style={styles.markLogo} />
+        </View>
+        <View style={{ minWidth: 0 }}>
+          <Text style={styles.brand}>Bumu Paygo</Text>
+          <Text style={styles.subBrand}>Bike payments and collections</Text>
+        </View>
+      </View>
+
+      <View style={styles.titleBlock}>
+        <View style={styles.lockRow}>
+          <LockKeyhole size={18} color={colors.primary} />
+          <Text style={styles.lockText}>Finance team only</Text>
+        </View>
+        <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+function LoginPage({ onLogin }) {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   async function handleLogin() {
     try {
@@ -47,276 +112,367 @@ export function LoginScreen({ onLogin }) {
     }
   }
 
-  function handleRegister() {
-    setError('Account creation is managed by the finance admin in Supabase Auth.');
-  }
-
-  function sendResetOtp() {
-    setResetNotice('Password reset is managed in Supabase Auth. Ask an admin to send a recovery email.');
-  }
-
-  function handleResetPassword() {
-    setResetNotice('Password reset is managed in Supabase Auth. Ask an admin to send a recovery email.');
-  }
-
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={styles.rootContent}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator
-    >
-      <View style={styles.panel}>
-        <View style={styles.brandRow}>
-          <View style={styles.mark}>
-            <Text style={styles.markText}>B</Text>
-          </View>
-          <View>
-            <Text style={styles.brand}>Bumu Paygo</Text>
-            <Text style={styles.subBrand}>Bike payments and collections</Text>
-          </View>
-        </View>
-
-        <View style={styles.lockRow}>
-          <LockKeyhole size={18} color={colors.primary} />
-          <Text style={styles.lockText}>Finance team sign-in</Text>
-        </View>
-
-        <View style={styles.modeSwitch}>
-          <Pressable
-            onPress={() => setMode('login')}
-            style={[styles.modeButton, mode === 'login' && styles.modeButtonActive]}
-          >
-            <Text style={[styles.modeText, mode === 'login' && styles.modeTextActive]}>Sign in</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setMode('register')}
-            style={[styles.modeButton, mode === 'register' && styles.modeButtonActive]}
-          >
-            <Text style={[styles.modeText, mode === 'register' && styles.modeTextActive]}>Register</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setMode('forgot')}
-            style={[styles.modeButton, mode === 'forgot' && styles.modeButtonActive]}
-          >
-            <Text style={[styles.modeText, mode === 'forgot' && styles.modeTextActive]}>Forgot</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.form}>
-          {mode === 'login' ? (
-            <>
-              <View>
-                <Text style={styles.label}>Phone or email</Text>
-                <TextInput
-                  value={identifier}
-                  onChangeText={setIdentifier}
-                  style={styles.input}
-                  placeholder="finance@bumupaygo.co.ke"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-            </>
-          ) : mode === 'register' ? (
-            <>
-              <View>
-                <Text style={styles.label}>Full name</Text>
-                <TextInput
-                  value={registerName}
-                  onChangeText={setRegisterName}
-                  style={styles.input}
-                  placeholder="e.g. Finance Officer"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View>
-                <Text style={styles.label}>Phone number</Text>
-                <TextInput
-                  value={registerPhone}
-                  onChangeText={setRegisterPhone}
-                  style={styles.input}
-                  placeholder="+254712345678"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  value={registerPassword}
-                  onChangeText={setRegisterPassword}
-                  secureTextEntry
-                  style={styles.input}
-                  placeholder="At least 6 characters and a number"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-            </>
-          ) : (
-            <>
-              {!resetOtpSent ? (
-                <>
-                  <View>
-                    <Text style={styles.label}>Email address</Text>
-                    <TextInput
-                      value={resetEmail}
-                      onChangeText={setResetEmail}
-                      style={styles.input}
-                      placeholder="finance@bumupaygo.co.ke"
-                      placeholderTextColor="var(--app-muted)"
-                    />
-                  </View>
-                  <View style={styles.resetActionRow}>
-                    <Text style={[styles.detectLabel, resetEmailValid && { color: colors.success }]}>
-                      {resetEmailValid ? 'Valid email' : 'Enter your email to receive OTP'}
-                    </Text>
-                    <Pressable onPress={sendResetOtp} style={[styles.smallAction, !resetEmailValid && styles.smallActionDisabled]}>
-                      <Text style={styles.smallActionText}>Send OTP</Text>
-                    </Pressable>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.resetActionRow}>
-                    <Pressable
-                      onPress={() => {
-                        setResetOtpSent(false);
-                        setResetNotice('No OTP received? Confirm your email and resend the code.');
-                      }}
-                      style={styles.backButton}
-                    >
-                      <Text style={styles.backButtonText}>Back to resend OTP</Text>
-                    </Pressable>
-                    <Text style={styles.detectDetail}>Enter the OTP sent to your email.</Text>
-                  </View>
-                  <TextInput
-                    value={resetOtp}
-                    onChangeText={setResetOtp}
-                    style={styles.input}
-                    placeholder="Enter 6-digit OTP"
-                    placeholderTextColor="var(--app-muted)"
-                    maxLength={6}
-                  />
-                  <TextInput
-                    value={resetPassword}
-                    onChangeText={setResetPassword}
-                    style={styles.input}
-                    placeholder="New password"
-                    placeholderTextColor="var(--app-muted)"
-                    secureTextEntry
-                  />
-                  <TextInput
-                    value={resetConfirmPassword}
-                    onChangeText={setResetConfirmPassword}
-                    style={styles.input}
-                    placeholder="Confirm password"
-                    placeholderTextColor="var(--app-muted)"
-                    secureTextEntry
-                  />
-                  <View style={styles.detectBox}>
-                    <DetectRow valid={resetOtpValid} label="OTP code" detail="Must be exactly 6 digits" />
-                    <DetectRow valid={resetPasswordChecks.length} label="8 characters" detail="Minimum password length" />
-                    <DetectRow valid={resetPasswordChecks.unique} label="8 different characters" detail="Avoid repeating the same characters" />
-                    <DetectRow valid={resetPasswordChecks.upper} label="Uppercase" detail="Add one uppercase letter" />
-                    <DetectRow valid={resetPasswordChecks.lower} label="Lowercase" detail="Add one lowercase letter" />
-                    <DetectRow valid={resetPasswordChecks.number} label="Number" detail="Add one number" />
-                    <DetectRow valid={resetPasswordChecks.special} label="Special character" detail="Add one special character" />
-                    <DetectRow valid={resetPasswordsMatch} label="Password match" detail="New password and confirmation must match" />
-                  </View>
-                </>
-              )}
-              {resetNotice ? <Text style={styles.notice}>{resetNotice}</Text> : null}
-            </>
-          )}
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          {mode === 'login' ? (
-            <Button icon={LogIn} onPress={handleLogin} style={styles.fullButton}>
-              Sign in
-            </Button>
-          ) : mode === 'register' ? (
-            <Button icon={UserPlus} onPress={handleRegister} style={styles.fullButton}>
-              Create account
-            </Button>
-          ) : (
-            <Button icon={LockKeyhole} onPress={handleResetPassword} style={styles.fullButton}>
-              Update password
-            </Button>
-          )}
-
-          <Pressable>
-            <Text style={styles.help}>OTP sign-in keeps finance access protected.</Text>
-          </Pressable>
-        </View>
-      </View>
-    </ScrollView>
-  );
-}
-
-function DetectRow({ valid, label, detail }) {
-  return (
-    <View style={styles.detectRow}>
-      {valid ? (
-        <CheckCircle2 size={17} color={colors.success} />
-      ) : (
-        <CircleAlert size={17} color={colors.warning} />
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.detectLabel, valid && { color: colors.success }]}>{label}</Text>
-        <Text style={styles.detectDetail}>{detail}</Text>
+    <View style={styles.form}>
+      <Field
+        label="Personal email or phone"
+        value={identifier}
+        onChangeText={setIdentifier}
+        placeholder="yourname@example.com"
+      />
+      <Field
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        secureTextEntry
+      />
+      {error ? <Text style={styles.successText}>{error}</Text> : null}
+      <Button icon={LogIn} onPress={handleLogin} style={styles.fullButton}>Sign in</Button>
+      <View style={styles.linkRow}>
+        <AuthLink label="Create account" onPress={() => goToPage('register')} />
+        <AuthLink label="Forgot password?" onPress={() => goToPage('forgot')} />
       </View>
     </View>
   );
 }
 
+function RegisterPage() {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const passwordChecks = usePasswordChecks(password, confirmPassword);
+  const canSubmit = fullName.trim() && email.trim() && passwordChecks.allValid;
+
+  async function handleRegister() {
+    if (!canSubmit) {
+      setError('Complete the account details and password checks.');
+      return;
+    }
+
+    try {
+      setError('');
+      await authService.register({ fullName, email, phone, password });
+      authService.logout();
+      goToPage('login');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <View style={styles.form}>
+      <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Finance Officer" />
+      <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="yourname@example.com" />
+      <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="+254712345678" />
+      <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+      <Field label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry />
+      {(password || confirmPassword) ? (
+        <Text style={styles.passwordHint}>
+          Password must include uppercase, lowercase, number, special character, and match confirmation.
+        </Text>
+      ) : null}
+      {error ? <Text style={styles.successText}>{error}</Text> : null}
+      <Button icon={UserPlus} onPress={handleRegister} style={[styles.fullButton, styles.submitButtonSpacing]}>Create account</Button>
+      <View style={styles.singleLinkRow}>
+        <AuthLink label="Back to sign in" onPress={() => goToPage('login')} />
+      </View>
+    </View>
+  );
+}
+
+function ForgotPasswordPage() {
+  const [identifier, setIdentifier] = useState('');
+  const [maskedIdentifier, setMaskedIdentifier] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpExpiresAt, setOtpExpiresAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+
+  const passwordChecks = usePasswordChecks(password, confirmPassword);
+  const otpComplete = /^\d{6}$/.test(otp.trim());
+  const otpRemainingMs = Math.max(otpExpiresAt - now, 0);
+  const otpExpired = otpSent && otpRemainingMs === 0;
+  const otpRemainingText = formatCountdown(otpRemainingMs);
+
+  useEffect(() => {
+    if (otpVerified) return;
+    setPassword('');
+    setConfirmPassword('');
+  }, [otpVerified]);
+
+  useEffect(() => {
+    if (!otpSent || otpVerified) return undefined;
+
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [otpSent, otpVerified]);
+
+  useEffect(() => {
+    if (!otpExpired) return;
+    setOtpVerified(false);
+    setOtp('');
+  }, [otpExpired]);
+
+  async function sendOtp() {
+    try {
+      setError('');
+      await authService.requestPasswordReset(identifier);
+      setMaskedIdentifier(maskAccount(identifier));
+      setOtpSent(true);
+      setOtpExpiresAt(Date.now() + 10 * 60 * 1000);
+      setNow(Date.now());
+      setNotice('');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function resetPassword() {
+    if (!otpVerified || !passwordChecks.allValid) {
+      setError('Verify the OTP and complete the password checks.');
+      return;
+    }
+
+    try {
+      setError('');
+      await authService.resetPassword({ identifier, otp, password });
+      setNotice('Password updated. You can sign in now.');
+      window.setTimeout(() => goToPage('login'), 900);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function backToResendOtp() {
+    setOtpSent(false);
+    setOtpVerified(false);
+    setOtpExpiresAt(0);
+    setOtp('');
+    setPassword('');
+    setConfirmPassword('');
+    setNotice('');
+    setError('');
+  }
+
+  async function verifyOtp() {
+    setError('');
+
+    if (otpExpired) {
+      setOtpVerified(false);
+      setError('OTP expired. Go back and resend OTP.');
+      return;
+    }
+
+    if (!otpComplete) {
+      setOtpVerified(false);
+      setError('Enter the 6-digit OTP.');
+      return;
+    }
+
+    try {
+      await authService.verifyPasswordResetOtp({ identifier, otp });
+      setOtpVerified(true);
+    } catch (err) {
+      setOtpVerified(false);
+      setError(err.message);
+    }
+  }
+
+  function updateOtp(value) {
+    setOtp(value);
+    setOtpVerified(false);
+  }
+
+  return (
+    <View style={styles.form}>
+      {!otpSent ? (
+        <>
+          <View style={styles.formGroup}>
+            <Text style={styles.formGroupTitle}>Account</Text>
+            <Text style={styles.formGroupHelp}>Enter your email to receive OTP.</Text>
+          </View>
+          <Field
+            label="Email or phone"
+            value={identifier}
+            onChangeText={setIdentifier}
+            placeholder="yourname@example.com"
+          />
+          <Button icon={Mail} onPress={sendOtp} style={styles.fullButton}>Send OTP</Button>
+        </>
+      ) : (
+        <>
+          <View style={styles.formGroup}>
+            <Text style={styles.formGroupTitle}>Password and OTP</Text>
+            {!otpVerified && (
+              <>
+                <Text style={styles.formGroupHelp}>OTP was sent to {maskedIdentifier}.</Text>
+                <Text style={otpExpired ? styles.countdownExpired : styles.countdownText}>
+                  {otpExpired ? 'OTP expired' : `OTP expires in ${otpRemainingText}`}
+                </Text>
+              </>
+            )}
+          </View>
+          {!otpVerified && (
+            <>
+              <View style={styles.compactActionRow}>
+                <Pressable onPress={backToResendOtp} style={styles.compactLinkButton}>
+                  <Text style={styles.compactLinkText}>No OTP received? Confirm your email and resend the code.</Text>
+                </Pressable>
+              </View>
+              <View>
+                <View style={styles.otpLabelRow}>
+                  <Text style={styles.otpLabel}>OTP</Text>
+                  <Text style={styles.otpInlineHint}>Enter the 6-digit OTP.</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholderTextColor={colors.muted}
+                  value={otp}
+                  onChangeText={updateOtp}
+                  placeholder="Enter OTP"
+                  maxLength={6}
+                />
+              </View>
+              <Button icon={KeyRound} onPress={verifyOtp} style={styles.fullButton}>Verify OTP</Button>
+            </>
+          )}
+          {otpVerified && (
+            <>
+              <View style={styles.formGroup}>
+                <Text style={styles.formGroupHelp}>OTP verified. Set your new password.</Text>
+              </View>
+              <Field label="New password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+              <Field label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry />
+              <Button icon={KeyRound} onPress={resetPassword} style={styles.fullButton}>Change password</Button>
+            </>
+          )}
+        </>
+      )}
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      {error ? <Text style={styles.successText}>{error}</Text> : null}
+      <View style={styles.singleLinkRow}>
+        <AuthLink label="Back to sign in" onPress={() => goToPage('login')} />
+      </View>
+    </View>
+  );
+}
+
+function maskAccount(value) {
+  const account = String(value || '').trim();
+
+  if (account.includes('@')) {
+    const [name, domain] = account.split('@');
+    const visible = name.slice(0, 2);
+    return `${visible}${'*'.repeat(Math.max(name.length - 2, 3))}@${domain}`;
+  }
+
+  const digits = account.replace(/\D/g, '');
+  if (digits.length >= 4) {
+    return `${account.slice(0, 3)}****${account.slice(-2)}`;
+  }
+
+  return 'your account';
+}
+
+function formatCountdown(milliseconds) {
+  const totalSeconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function Field({ label, ...props }) {
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput style={styles.input} placeholderTextColor={colors.muted} {...props} />
+    </View>
+  );
+}
+
+function AuthLink({ label, onPress }) {
+  return (
+    <Pressable onPress={onPress} style={styles.linkButton}>
+      <Text style={styles.linkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function usePasswordChecks(password, confirmPassword) {
+  return useMemo(() => {
+    const checks = {
+      length: password.length >= 8,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+      match: Boolean(password) && password === confirmPassword
+    };
+
+    return {
+      ...checks,
+      allValid: Object.values(checks).every(Boolean)
+    };
+  }, [password, confirmPassword]);
+}
+
 const styles = StyleSheet.create({
   root: {
-    height: '100dvh',
+    height: 'var(--app-vh)',
     backgroundColor: 'var(--app-bg)',
     width: '100%',
     overflowY: 'auto'
   },
   rootContent: {
-    minHeight: '100%',
+    minHeight: 'var(--app-vh)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
-    paddingTop: 32,
+    padding: 10,
+    paddingTop: 34,
     paddingBottom: 32
   },
-  panel: {
+  shell: {
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 460,
     backgroundColor: 'var(--app-surface)',
     borderWidth: 1,
     borderColor: 'var(--app-border)',
     borderRadius: 10,
-    padding: 24
+    padding: 14
+  },
+  header: {
+    gap: 10,
+    marginBottom: 12
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 22
+    gap: 12
   },
   mark: {
-    width: 48,
-    height: 48,
+    width: 38,
+    height: 38,
     borderRadius: 8,
     backgroundColor: colors.primary,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden'
+  },
+  markLogo: {
+    width: 34,
+    height: 34,
+    borderRadius: 6
   },
   markText: {
     color: '#ffffff',
@@ -324,14 +480,18 @@ const styles = StyleSheet.create({
     fontWeight: '500'
   },
   brand: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '500'
   },
   subBrand: {
     color: 'var(--app-muted)',
-    marginTop: 3
+    marginTop: 1
+  },
+  titleBlock: {
+    gap: 6
   },
   lockRow: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
@@ -339,79 +499,49 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cfe0fb',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 20
+    paddingHorizontal: 10,
+    minHeight: 28
   },
   lockText: {
     color: colors.primary,
+    fontWeight: '500',
+    fontSize: 13
+  },
+  title: {
+    fontSize: 21,
     fontWeight: '500'
+  },
+  subtitle: {
+    color: 'var(--app-muted)',
+    lineHeight: 18
   },
   form: {
-    gap: 14
+    gap: 11
   },
-  modeSwitch: {
-    minHeight: 42,
-    backgroundColor: 'var(--app-bg)',
-    borderWidth: 1,
-    borderColor: 'var(--app-border)',
-    borderRadius: 10,
-    padding: 3,
-    flexDirection: 'row',
-    marginBottom: 18
+  formGroup: {
+    gap: 5,
+    marginBottom: 3
   },
-  resetActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    flexWrap: 'wrap'
+  formGroupTitle: {
+    fontSize: 16,
+    fontWeight: '600'
   },
-  smallAction: {
-    minHeight: 30,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center'
+  formGroupHelp: {
+    color: 'var(--app-muted)',
+    fontSize: 13,
+    lineHeight: 18
   },
-  smallActionDisabled: {
-    opacity: 0.5
-  },
-  smallActionText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '500'
-  },
-  backButton: {
-    minHeight: 30,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: 'var(--app-border)',
-    backgroundColor: 'var(--app-surface)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  backButtonText: {
+  countdownText: {
     color: colors.primary,
     fontSize: 12,
-    fontWeight: '500'
+    fontWeight: '500',
+    textAlign: 'right'
   },
-  modeButton: {
-    flex: 1,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  modeButtonActive: {
-    backgroundColor: colors.primary
-  },
-  modeText: {
-    color: 'var(--app-muted)',
-    fontWeight: '500'
-  },
-  modeTextActive: {
-    color: '#ffffff'
+  countdownExpired: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'right'
   },
   label: {
     fontSize: 12,
@@ -420,7 +550,7 @@ const styles = StyleSheet.create({
     marginBottom: 6
   },
   input: {
-    minHeight: 44,
+    minHeight: 41,
     borderWidth: 1,
     borderColor: 'var(--app-border)',
     borderRadius: 8,
@@ -429,46 +559,85 @@ const styles = StyleSheet.create({
     color: 'var(--app-text)',
     backgroundColor: 'var(--app-surface)'
   },
-  error: {
-    color: colors.danger,
-    fontWeight: '500'
+  fullButton: {
+    width: '100%'
   },
-  notice: {
+  submitButtonSpacing: {
+    marginTop: 4
+  },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap'
+  },
+  singleLinkRow: {
+    alignItems: 'center'
+  },
+  compactActionRow: {
+    alignItems: 'flex-start',
+    marginTop: -6,
+    marginBottom: -2
+  },
+  compactLinkButton: {
+    minHeight: 18,
+    justifyContent: 'center'
+  },
+  compactLinkText: {
     color: colors.primary,
     fontSize: 12,
     fontWeight: '500'
   },
-  detectBox: {
-    borderWidth: 1,
-    borderColor: 'var(--app-border)',
-    borderRadius: 10,
-    backgroundColor: 'var(--app-bg)',
-    overflow: 'hidden'
-  },
-  detectRow: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'var(--app-border)',
+  otpLabelRow: {
     flexDirection: 'row',
-    gap: 9,
-    alignItems: 'center'
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 8
   },
-  detectLabel: {
+  otpLabel: {
+    fontSize: 12,
     color: 'var(--app-muted)',
-    fontSize: 13,
     fontWeight: '500'
   },
-  detectDetail: {
-    color: 'var(--app-muted)',
-    fontSize: 11,
-    marginTop: 2
+  otpInlineHint: {
+    color: colors.success,
+    fontSize: 12
   },
-  fullButton: {
-    width: '100%'
+  otpInlineHintSuccess: {
+    color: colors.success,
+    fontSize: 12
+  },
+  linkButton: {
+    minHeight: 32,
+    justifyContent: 'center'
+  },
+  linkText: {
+    color: colors.primary,
+    fontWeight: '500'
   },
   help: {
     textAlign: 'center',
     color: 'var(--app-muted)',
     fontSize: 12
+  },
+  error: {
+    color: colors.danger,
+    fontWeight: '500'
+  },
+  successText: {
+    color: colors.success,
+    fontWeight: '500'
+  },
+  passwordHint: {
+    color: colors.success,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: -3
+  },
+  notice: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '500'
   }
 });

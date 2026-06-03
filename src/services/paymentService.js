@@ -1,49 +1,106 @@
-import { apiGet, apiPost } from './api.js';
+import { listLocalPayments, saveLocalPayment } from './localData.js';
+import { backendClient } from './backendClient.js';
+import { getDailyTarget, getOverdueDays, getPaymentAmount, getPaymentBalance, getPaygoAccountState, getPaygoFollowUp } from '../utils/paygo.js';
 
 function normalizePaymentStatus(status) {
   return status === 'paid' || status === 'completed' ? 'paid' : 'unpaid';
 }
 
-function normalizeBackendPayment(payment) {
-  return {
+function buildPaymentSearchIndex(payment) {
+  return [
+    payment.customerName,
+    payment.customerPhone,
+    payment.agentName,
+    payment.agentId,
+    payment.receipt,
+    payment.providerReference,
+    payment.providerTransactionId,
+    payment.providerAccountReference,
+    payment.providerPayerPhone,
+    payment.bikeModel,
+    payment.serialNumber,
+    payment.chassisNumber,
+    payment.imei,
+    payment.status,
+    payment.sourcePortal
+  ].map((value) => String(value ?? '').toLowerCase()).join(' ');
+}
+
+function normalizePayment(payment) {
+  const normalizedPayment = {
     id: payment.id,
     customerName: payment.customerName ?? payment.customer_name ?? payment.name,
     customerPhone: payment.customerPhone ?? payment.customer_phone ?? payment.phone,
     agentName: payment.agentName ?? payment.agent_name,
     agentId: payment.agentId ?? payment.agent_id ?? payment.agentCode ?? payment.agent_code,
-    bikeModel: payment.bikeModel ?? payment.bike_model ?? 'Not registered',
-    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.chassisNumber ?? payment.chassis_number ?? 'Not registered',
+    bikeModel: payment.bikeModel ?? payment.bike_model ?? payment.productModel ?? payment.product_model ?? 'Not registered',
+    productType: payment.productType ?? payment.product_type ?? 'product',
+    productModel: payment.productModel ?? payment.product_model ?? payment.bikeModel ?? payment.bike_model ?? 'Not registered',
+    chassisNumber: payment.chassisNumber ?? payment.chassis_number ?? '',
+    imei: payment.imei ?? '',
+    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.imei ?? payment.chassisNumber ?? payment.chassis_number ?? 'Not registered',
     totalPayable: payment.totalPayable ?? payment.total_payable ?? 0,
-    paidAmount: payment.paidAmount ?? payment.paid_amount ?? 0,
-    balance: payment.balance ?? 0,
+    paidAmount: payment.paidAmount ?? payment.paid_amount ?? getPaymentAmount(payment),
+    balance: getPaymentBalance(payment),
     dueDate: payment.dueDate ?? payment.due_date ?? null,
     registrationStatus: payment.registrationStatus ?? payment.registration_status ?? 'registered',
     depositCredit: payment.depositCredit ?? payment.deposit_credit ?? payment.amount ?? 0,
     paygoPayment: payment.paygoPayment ?? payment.paygo_payment ?? 0,
+    dailyTarget: getDailyTarget(payment),
     date: payment.date ?? payment.createdAt ?? payment.created_at,
     receipt: payment.receipt ?? payment.receiptNumber ?? payment.receipt_number,
+    providerReference: payment.providerReference ?? payment.provider_reference,
+    providerTransactionId: payment.providerTransactionId ?? payment.provider_transaction_id,
+    providerAccountReference: payment.providerAccountReference ?? payment.provider_account_reference,
+    providerPayerPhone: payment.providerPayerPhone ?? payment.provider_payer_phone,
+    providerPaidAt: payment.providerPaidAt ?? payment.provider_paid_at,
     status: normalizePaymentStatus(payment.status),
-    sourcePortal: payment.sourcePortal ?? payment.source_portal ?? 'Backend database'
+    overdueDays: payment.overdueDays ?? payment.overdue_days ?? getOverdueDays(payment),
+    paygoState: payment.paygoState ?? payment.paygo_state ?? getPaygoAccountState(payment),
+    followUp: payment.followUp ?? payment.follow_up ?? getPaygoFollowUp(payment),
+    sourcePortal: payment.sourcePortal ?? payment.source_portal ?? 'Local app data'
+  };
+
+  return {
+    ...normalizedPayment,
+    searchIndex: buildPaymentSearchIndex(normalizedPayment)
   };
 }
 
 export const paymentService = {
   async listPayments() {
-    const payments = await apiGet('/payments');
-    return payments.map(normalizeBackendPayment);
+    let payments = listLocalPayments();
+
+    if (backendClient.isConfigured) {
+      payments = await backendClient
+        .get('/api/payments')
+        .then((data) => data.payments ?? data.records ?? data)
+        .catch(() => payments);
+    }
+
+    return payments
+      .map(normalizePayment)
+      .sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')));
   },
 
   async saveManualPayment(payment) {
     const record = {
       ...payment,
-      syncedToBackend: true
+      savedLocally: true
     };
 
-    const data = await apiPost('/payments/manual', record);
+    const data = backendClient.isConfigured
+      ? await backendClient.post('/api/payments/manual', record).catch(() => saveLocalPayment(record))
+      : saveLocalPayment(record);
+
     return {
       ...record,
-      ...normalizeBackendPayment(data),
-      syncedToBackend: true
+      ...normalizePayment(data.payment ?? data.record ?? data),
+      savedLocally: true
     };
+  },
+
+  async syncProviderPayments() {
+    return [];
   }
 };

@@ -1,4 +1,5 @@
 import { paymentService } from './paymentService.js';
+import { backendClient } from './backendClient.js';
 
 const agentDirectory = {
   'mary wanjiku': 'bumu-ag-001',
@@ -15,17 +16,41 @@ function agentIdFor(payment) {
 }
 
 export const customerService = {
+  async listPaymentRecords() {
+    if (backendClient.isConfigured) {
+      const data = await backendClient.get('/api/customers/payment-records').catch(() => null);
+
+      if (data) {
+        return data.payments ?? data.records ?? data;
+      }
+    }
+
+    return paymentService.listPayments();
+  },
+
   async listPaymentRecordsByAgent({ agentName, agentId }) {
     const name = normalize(agentName);
     const id = normalize(agentId);
 
-    if (!name || !id) {
-      return [];
+    if (!name && !id) {
+      return this.listPaymentRecords();
     }
 
-    const payments = await paymentService.listPayments();
+    if (backendClient.isConfigured) {
+      const data = await backendClient
+        .get('/api/customers/payment-records', { agentName, agentId })
+        .catch(() => null);
+
+      if (data) {
+        return data.payments ?? data.records ?? data;
+      }
+    }
+
+    const payments = await this.listPaymentRecords();
     return payments.filter(
-      (payment) => normalize(payment.agentName) === name && agentIdFor(payment) === id
+      (payment) =>
+        (!name || normalize(payment.agentName) === name) &&
+        (!id || agentIdFor(payment) === id)
     );
   }
 };

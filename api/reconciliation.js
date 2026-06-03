@@ -1,24 +1,12 @@
-import { handleError, json, methodNotAllowed } from './_lib/respond.js';
-import { getSupabase, requireFinanceUser } from './_lib/supabase.js';
+import { proxyBackend } from './_lib/backend.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
-    methodNotAllowed(res, ['GET']);
+    res.setHeader('Allow', 'GET');
+    res.statusCode = 405;
+    res.end();
     return;
   }
 
-  try {
-    await requireFinanceUser(req);
-    const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('reconciliation')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (error) throw error;
-
-    json(res, 200, data ?? []);
-  } catch (error) {
-    handleError(res, error);
-  }
+  await proxyBackend(req, res, '/reconciliation');
 }

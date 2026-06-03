@@ -1,4 +1,5 @@
-import { apiGet } from './api.js';
+import { listLocalCustomers } from './localData.js';
+import { backendClient } from './backendClient.js';
 
 let lastSyncIssue = null;
 
@@ -9,8 +10,12 @@ function normalizeRegisteredCustomer(customer) {
     customerPhone: customer.customerPhone ?? customer.customer_phone ?? customer.phone,
     agentName: customer.agentName ?? customer.agent_name,
     agentId: customer.agentId ?? customer.agent_id,
-    bikeModel: customer.bikeModel ?? customer.bike_model,
-    serialNumber: customer.serialNumber ?? customer.serial_number,
+    productType: customer.productType ?? customer.product_type ?? 'product',
+    productModel: customer.productModel ?? customer.product_model ?? customer.bikeModel ?? customer.bike_model,
+    bikeModel: customer.bikeModel ?? customer.bike_model ?? customer.productModel ?? customer.product_model,
+    chassisNumber: customer.chassisNumber ?? customer.chassis_number ?? '',
+    imei: customer.imei ?? '',
+    serialNumber: customer.serialNumber ?? customer.serial_number ?? customer.imei ?? customer.chassisNumber ?? customer.chassis_number,
     totalPayable: customer.totalPayable ?? customer.total_payable,
     paidAmount: customer.paidAmount ?? customer.paid_amount,
     balance: customer.balance,
@@ -25,7 +30,12 @@ function normalizeRegisteredCustomer(customer) {
 export const agentPortalService = {
   async listRegisteredCustomers() {
     try {
-      const customers = await apiGet('/customers');
+      const customers = backendClient.isConfigured
+        ? await backendClient
+          .get('/api/customers')
+          .then((data) => data.customers ?? data.records ?? data)
+          .catch(() => listLocalCustomers())
+        : listLocalCustomers();
       lastSyncIssue = null;
       return customers.map(normalizeRegisteredCustomer);
     } catch (error) {
@@ -38,17 +48,18 @@ export const agentPortalService = {
   },
 
   async healthCheck() {
-    try {
-      const health = await apiGet('/health');
-      lastSyncIssue = null;
-      return health;
-    } catch (error) {
-      lastSyncIssue = {
-        message: error.message,
-        checkedAt: new Date().toISOString()
-      };
-      return { ok: false, mode: 'supabase', error: error.message };
+    if (backendClient.isConfigured) {
+      return backendClient.get('/api/health').catch((error) => {
+        lastSyncIssue = {
+          message: error.message,
+          checkedAt: new Date().toISOString()
+        };
+        return { ok: false, mode: 'backend', message: error.message };
+      });
     }
+
+    lastSyncIssue = null;
+    return { ok: true, mode: 'local' };
   },
 
   getLastSyncIssue() {

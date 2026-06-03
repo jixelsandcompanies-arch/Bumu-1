@@ -13,9 +13,19 @@ import { Header } from './PaymentsScreen.jsx';
 
 export function ReconciliationScreen() {
   const [reconciliation, setReconciliation] = useState([]);
+  const [checking, setChecking] = useState(false);
+
+  function runCheck() {
+    setChecking(true);
+    financeService
+      .getReconciliation()
+      .then(setReconciliation)
+      .catch(() => setReconciliation([]))
+      .finally(() => setChecking(false));
+  }
 
   useEffect(() => {
-    financeService.getReconciliation().then(setReconciliation).catch(() => setReconciliation([]));
+    runCheck();
   }, []);
 
   return (
@@ -23,8 +33,8 @@ export function ReconciliationScreen() {
       <Header
         eyebrow="Review activity"
         title="Reconcile"
-        subtitle="Match M-Pesa receipts with saved payment records."
-        action={<Button icon={RefreshCcw}>Run check</Button>}
+        subtitle="Match provider receipts with saved payment records."
+        action={<Button icon={RefreshCcw} disabled={checking} onPress={runCheck}>{checking ? 'Checking' : 'Run check'}</Button>}
       />
       <Section title="Receipt comparison">
         <View style={styles.table}>
@@ -33,7 +43,7 @@ export function ReconciliationScreen() {
             <Text style={[styles.headerText, styles.customerCol]}>Customer</Text>
             <Text style={[styles.headerText, styles.dateCol]}>Date</Text>
             <Text style={[styles.headerText, styles.nationalIdCol, styles.nationalIdOffset]}>National ID</Text>
-            <Text style={[styles.headerText, styles.moneyCol]}>M-Pesa</Text>
+            <Text style={[styles.headerText, styles.moneyCol]}>Provider</Text>
             <Text style={[styles.headerText, styles.moneyCol]}>Recorded</Text>
             <Text style={[styles.headerText, styles.statusCol]}>Status</Text>
           </View>
@@ -45,7 +55,7 @@ export function ReconciliationScreen() {
               </View>
               <Text style={[styles.meta, styles.dateCol]}>{formatDate(record.date)}</Text>
               <Text style={[styles.nationalId, styles.nationalIdCol, styles.nationalIdOffset]}>{record.nationalId}</Text>
-              <Text style={[styles.amount, styles.moneyCol]}>{formatKes(record.mpesaAmount)}</Text>
+              <Text style={[styles.amount, styles.moneyCol]}>{formatKes(record.providerAmount)}</Text>
               <Text style={[styles.amount, styles.moneyCol]}>{record.systemAmount ? formatKes(record.systemAmount) : 'Missing'}</Text>
               <View style={styles.statusCol}>
                 <StatusPill status={record.status} />

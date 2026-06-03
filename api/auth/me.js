@@ -1,22 +1,25 @@
-import { handleError, json, methodNotAllowed } from '../_lib/respond.js';
+import { sendJson } from '../_lib/http.js';
 import { requireFinanceUser } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
-    methodNotAllowed(res, ['GET']);
+    res.setHeader('Allow', 'GET');
+    sendJson(res, 405, { message: 'Method not allowed.' });
     return;
   }
 
   try {
     const user = await requireFinanceUser(req);
 
-    json(res, 200, {
-      id: user.id,
-      email: user.email,
-      fullName: user.user_metadata?.full_name || user.email,
-      role: user.app_metadata?.role || user.user_metadata?.role
+    sendJson(res, 200, {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.user_metadata?.full_name || user.email,
+        role: user.app_metadata?.role || user.user_metadata?.role || 'finance'
+      }
     });
   } catch (error) {
-    handleError(res, error);
+    sendJson(res, error.statusCode || 500, { message: error.message });
   }
 }

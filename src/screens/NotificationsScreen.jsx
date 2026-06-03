@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCheck } from 'lucide-react';
 import { View } from 'react-native';
 import { NotificationActivityItem } from '../components/notifications/NotificationActivityItem.jsx';
@@ -15,17 +15,51 @@ import { Header } from './PaymentsScreen.jsx';
 
 export function NotificationsScreen({ notifications, onNotificationsChange }) {
   const [openId, setOpenId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const visibleNotifications = notifications.filter(shouldShowNotification);
   const unreadCount = notifications.filter((item) => !item.isRead).length;
   const groups = groupNotifications(visibleNotifications);
 
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!pendingDelete) return undefined;
+    const timer = window.setTimeout(() => {
+      setPendingDelete(null);
+      setToast({ type: 'success', message: 'All messages deleted permanently.' });
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [pendingDelete]);
+
   const markAllRead = () => {
     onNotificationsChange((items) => items.map((item) => ({ ...item, isRead: true })));
+    setToast({ type: 'success', message: 'All messages marked as read.' });
   };
 
   const deleteAllMessages = () => {
+    if (visibleNotifications.length === 0) {
+      setToast({ type: 'success', message: 'No messages to delete.' });
+      return;
+    }
+
+    const deletedItems = notifications;
+    setPendingDelete({ items: deletedItems });
     onNotificationsChange([]);
     setOpenId(null);
+    setToast({ type: 'undo', message: 'Deleting all messages.', actionLabel: 'Undo' });
+  };
+
+  const undoDeleteAll = () => {
+    if (!pendingDelete) return;
+    onNotificationsChange(pendingDelete.items);
+    setPendingDelete(null);
+    setToast({ type: 'success', message: 'Messages restored.' });
   };
 
   const toggleNotification = (id) => {
@@ -94,6 +128,16 @@ export function NotificationsScreen({ notifications, onNotificationsChange }) {
           )}
         </Section>
       </View>
+      {toast && (
+        <View style={styles.centerToast}>
+          <Text style={styles.centerToastText}>{toast.message}</Text>
+          {toast.type === 'undo' && (
+            <Button variant="secondary" onPress={undoDeleteAll} style={styles.toastAction}>
+              {toast.actionLabel}
+            </Button>
+          )}
+        </View>
+      )}
     </View>
   );
 }

@@ -15,6 +15,24 @@ export const notificationStyles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap'
   },
+  centerToast: {
+    position: 'fixed',
+    left: '50%',
+    bottom: 28,
+    transform: [{ translateX: '-50%' }],
+    zIndex: 90,
+    maxWidth: '92vw',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  centerToastText: {
+    color: colors.success,
+    fontWeight: '500'
+  },
+  toastAction: {
+    minHeight: 34
+  },
   deleteAllButton: {
     borderColor: '#f1b6b6'
   },

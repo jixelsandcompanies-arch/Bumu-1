@@ -22,6 +22,22 @@ export function NotificationDetail({ notification, meta }) {
     ['Agent code', notification.agentCode]
   ].filter((detail) => detail[1]);
 
+  const dailyPaymentDetails = [
+    ['Date', notification.paymentDate],
+    ['Records', notification.recordCount],
+    ['Status', notification.paymentStatusSummary],
+    ['Collected', notification.collectedAmount],
+    ['Unpaid balance', notification.unpaidBalance]
+  ].filter((detail) => detail[1] !== null && detail[1] !== undefined && detail[1] !== '');
+
+  const dailyCustomerDetails = [
+    ...(notification.customerActivities || []).map((activity) => [activity.label, activity.value])
+  ].filter((detail) => detail[1] !== null && detail[1] !== undefined && detail[1] !== '');
+
+  const dailyAgentDetails = [
+    ['Agents / codes', notification.agentSummary]
+  ].filter((detail) => detail[1] !== null && detail[1] !== undefined && detail[1] !== '');
+
   return (
     <View style={styles.detailBox}>
       <View style={styles.detailHeader}>
@@ -69,6 +85,33 @@ export function NotificationDetail({ notification, meta }) {
           <>
             <TableHeader title="Agent details" />
             {agentDetails.map(([label, value]) => (
+              <TableRow key={label} label={label} value={value} />
+            ))}
+          </>
+        )}
+
+        {dailyPaymentDetails.length > 0 && (
+          <>
+            <TableHeader title="Payment details" />
+            {dailyPaymentDetails.map(([label, value]) => (
+              <TableRow key={label} label={label} value={value} />
+            ))}
+          </>
+        )}
+
+        {dailyCustomerDetails.length > 0 && (
+          <>
+            <TableHeader title="Customer activity" />
+            {dailyCustomerDetails.map(([label, value]) => (
+              <TableRow key={label} label={label} value={value} />
+            ))}
+          </>
+        )}
+
+        {dailyAgentDetails.length > 0 && (
+          <>
+            <TableHeader title="Agent details" />
+            {dailyAgentDetails.map(([label, value]) => (
               <TableRow key={label} label={label} value={value} />
             ))}
           </>

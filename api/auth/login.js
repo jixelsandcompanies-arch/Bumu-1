@@ -1,46 +1,34 @@
-import { handleError, json, methodNotAllowed } from '../_lib/respond.js';
+import { sendJson, readJson } from '../_lib/http.js';
 import { getSupabaseAuth } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    methodNotAllowed(res, ['POST']);
+    res.setHeader('Allow', 'POST');
+    sendJson(res, 405, { message: 'Method not allowed.' });
     return;
   }
 
   try {
-    const { identifier, password } = req.body ?? {};
-
-    if (!identifier || !password) {
-      throw new Error('Email and password are required.');
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
-      throw new Error('Use your finance email address to sign in.');
-    }
-
-    const supabase = getSupabaseAuth();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: identifier,
-      password
+    const body = await readJson(req);
+    const { data, error } = await getSupabaseAuth().auth.signInWithPassword({
+      email: body.identifier,
+      password: body.password
     });
 
     if (error || !data?.session || !data?.user) {
-      const authError = new Error('Invalid email or password.');
-      authError.statusCode = 401;
-      throw authError;
+      sendJson(res, 401, { message: error?.message || 'Invalid finance credentials.' });
+      return;
     }
 
     const role = data.user.app_metadata?.role || data.user.user_metadata?.role;
 
-    if (role !== 'finance') {
-      const roleError = new Error('This sign-in is only for the finance team.');
-      roleError.statusCode = 403;
-      throw roleError;
+    if (role !== 'finance' && role !== 'admin') {
+      sendJson(res, 403, { message: 'Finance access is required.' });
+      return;
     }
 
-    json(res, 200, {
-      accessToken: data.session.access_token,
-      expiresAt: data.session.expires_at,
+    sendJson(res, 200, {
+      token: data.session.access_token,
       user: {
         id: data.user.id,
         email: data.user.email,
@@ -49,6 +37,6 @@ export default async function handler(req, res) {
       }
     });
   } catch (error) {
-    handleError(res, error);
+    sendJson(res, 500, { message: error.message });
   }
 }

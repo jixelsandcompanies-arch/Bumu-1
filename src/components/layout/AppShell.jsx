@@ -5,6 +5,7 @@ import { colors } from '../../theme/colors.js';
 import { Button } from '../ui/Button.jsx';
 import { Text } from '../ui/Text.jsx';
 import { navGroups, navItems } from './navigation.js';
+import bumuLogo from '../../../BumuLogo.jpeg';
 
 export function AppShell({
   activeScreen,
@@ -15,6 +16,7 @@ export function AppShell({
   appLayout,
   canInstall,
   onInstall,
+  profileSettings,
   children
 }) {
   const { width } = useWindowDimensions();
@@ -45,7 +47,7 @@ export function AppShell({
             <Menu size={21} color="#ffffff" />
           </Pressable>
           <View style={styles.brandMarkSmall}>
-            <Text style={styles.brandMarkSmallText}>B</Text>
+            <Image source={bumuLogo} style={styles.brandLogoSmall} />
           </View>
           <View>
             <Text style={styles.mobileTitle}>Bumu Finance</Text>
@@ -67,8 +69,7 @@ export function AppShell({
           </Pressable>
           <View style={styles.profileWrap}>
             <View style={styles.profile}>
-              <Text style={styles.profileName}>Finance Officer</Text>
-              <Text style={styles.profileRole}>BPG-FIN-001</Text>
+              <Text style={styles.profileName}>{profileSettings?.name || 'Finance Officer'}</Text>
             </View>
             <View style={styles.avatar}>
               {profilePhoto ? (
@@ -87,6 +88,13 @@ export function AppShell({
       </View>
 
       <View style={styles.appBody}>
+        {isMobile && sidebarOpen && (
+          <Pressable
+            aria-label="Close menu"
+            onPress={() => setSidebarOpen(false)}
+            style={styles.mobileMenuBackdrop}
+          />
+        )}
         {sidebarOpen && (
           <View style={[styles.sidebar, isMobile && styles.mobileSidebar]}>
             <ScrollView
@@ -137,6 +145,7 @@ export function AppShell({
           <ScrollView
             style={styles.content}
             contentContainerStyle={[styles.contentInner, compact && styles.contentInnerCompact]}
+            showsVerticalScrollIndicator
           >
             {children}
           </ScrollView>
@@ -205,7 +214,7 @@ function NavButton({ item, active, onPress, unreadCount, dark = false }) {
 
 const styles = StyleSheet.create({
   root: {
-    height: '100dvh',
+    height: 'var(--app-vh)',
     width: '100vw',
     flexDirection: 'column',
     backgroundColor: 'var(--app-bg)',
@@ -219,27 +228,39 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: 262,
-    height: 'calc(100dvh - 66px)',
+    height: 'calc(var(--app-vh) - 66px)',
     backgroundImage: `linear-gradient(180deg, ${colors.primary} 0%, #086c8f 55%, ${colors.teal} 100%)`,
     borderRightWidth: 1,
     borderRightColor: colors.primaryDark,
     overflow: 'hidden'
   },
   sidebarScroll: {
-    flex: 1
+    flex: 1,
+    height: '100%',
+    overflowY: 'auto'
   },
   sidebarInner: {
     minHeight: '100%',
-    padding: 18
+    padding: 18,
+    paddingBottom: 104
   },
   mobileSidebar: {
-    position: 'absolute',
+    position: 'fixed',
     left: 0,
-    top: 0,
+    top: 66,
     bottom: 0,
     zIndex: 20,
     width: 286,
     boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)'
+  },
+  mobileMenuBackdrop: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    top: 66,
+    bottom: 0,
+    zIndex: 19,
+    backgroundColor: 'transparent'
   },
   brand: {
     flexDirection: 'row',
@@ -271,7 +292,7 @@ const styles = StyleSheet.create({
   },
   nav: {
     gap: 16,
-    flex: 1
+    flexGrow: 1
   },
   navGroup: {
     gap: 6
@@ -340,7 +361,7 @@ const styles = StyleSheet.create({
   main: {
     flex: 1,
     minWidth: 0,
-    height: 'calc(100dvh - 66px)',
+    height: 'calc(var(--app-vh) - 66px)',
     overflow: 'hidden'
   },
   topbar: {
@@ -378,7 +399,13 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden'
+  },
+  brandLogoSmall: {
+    width: 31,
+    height: 31,
+    borderRadius: 5
   },
   brandMarkSmallText: {
     color: '#ffffff',
@@ -442,10 +469,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#ffffff'
   },
-  profileRole: {
-    color: 'rgba(255, 255, 255, 0.76)',
-    fontSize: 11
-  },
   avatar: {
     width: 42,
     height: 42,
@@ -478,7 +501,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    height: 'calc(100dvh - 66px)'
+    height: '100%',
+    overflowY: 'auto'
   },
   contentInner: {
     flexGrow: 1,
@@ -498,7 +522,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 68,
+    minHeight: 68,
     backgroundColor: 'var(--app-surface)',
     borderTopWidth: 1,
     borderTopColor: 'var(--app-border)',

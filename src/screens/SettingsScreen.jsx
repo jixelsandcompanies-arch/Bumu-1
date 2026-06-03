@@ -25,7 +25,10 @@ import { colors } from '../theme/colors.js';
 
 const savedProfile = () => {
   try {
-    return JSON.parse(window.localStorage.getItem('bumu-profile-settings') || '{}');
+    const profile = JSON.parse(window.localStorage.getItem('bumu-profile-settings') || '{}');
+    const { userCode, ...visibleProfile } = profile;
+
+    return visibleProfile;
   } catch {
     return {};
   }
@@ -34,6 +37,8 @@ const savedProfile = () => {
 export function SettingsScreen({
   profilePhoto,
   onProfilePhotoChange,
+  onProfileSettingsChange,
+  onStatusMessage,
   themeMode,
   onThemeModeChange,
   appLayout,
@@ -44,7 +49,6 @@ export function SettingsScreen({
   const fileInputRef = useRef(null);
   const [name, setName] = useState(() => savedProfile().name || 'Finance Officer');
   const [role, setRole] = useState(() => savedProfile().role || 'Finance department');
-  const [userCode] = useState('BPG-FIN-001');
   const [phone, setPhone] = useState(() => savedProfile().phone || '+254 700 000 000');
   const [branch, setBranch] = useState(() => savedProfile().branch || 'Head office');
   const [paymentAlerts, setPaymentAlerts] = useState(true);
@@ -97,12 +101,14 @@ export function SettingsScreen({
   }
 
   function saveProfile() {
+    const nextProfile = { name, role, phone, branch };
     window.localStorage.setItem(
       'bumu-profile-settings',
-      JSON.stringify({ name, role, userCode, phone, branch })
+      JSON.stringify(nextProfile)
     );
+    onProfileSettingsChange?.(nextProfile);
+    onStatusMessage?.('Profile details saved.');
     showMessage('Profile saved successfully.');
-    window.alert('Profile saved successfully.');
   }
 
   function deleteProfile() {
@@ -112,6 +118,12 @@ export function SettingsScreen({
     setRole('Finance department');
     setPhone('+254 700 000 000');
     setBranch('Head office');
+    onProfileSettingsChange?.({
+      name: 'Finance Officer',
+      role: 'Finance department',
+      phone: '+254 700 000 000',
+      branch: 'Head office'
+    });
     onProfilePhotoChange('');
     showMessage('Profile deleted.');
   }
@@ -228,7 +240,6 @@ export function SettingsScreen({
           tone="teal"
         />
         <EditableSettingRow icon={UserRound} label="Role" value={role} onChangeText={setRole} tone="violet" />
-        <EditableSettingRow icon={ShieldCheck} label="User code" value={userCode} tone="orange" editable={false} />
         <EditableSettingRow icon={Smartphone} label="Phone" value={phone} onChangeText={setPhone} tone="green" />
         <EditableSettingRow icon={FileText} label="Branch" value={branch} onChangeText={setBranch} tone="blue" />
         <View style={styles.saveRow}>
@@ -411,8 +422,8 @@ export function SettingsScreen({
             <Text style={styles.helpText}>WhatsApp: 0759280343</Text>
             <Text style={styles.helpText}>Hours: Monday to Friday, 8:00 AM - 5:00 PM</Text>
             <Text style={styles.helpText}>Office: Bumu Paygo Head Office, Butere, Kakamega</Text>
-            <Text style={styles.helpText}>Urgent payment issue: include customer name, phone, amount, and M-Pesa receipt.</Text>
-            <Text style={styles.helpText}>Commission issue: include agent name, agent code, and payout reference.</Text>
+            <Text style={styles.helpText}>Urgent payment issue: include customer name, phone, amount, and backend receipt.</Text>
+            <Text style={styles.helpText}>Commission issue: include agent name, agent code, and approval reference.</Text>
             <Text style={styles.helpText}>Expected response: within 1 business day.</Text>
             <Pressable
               onPress={() => {

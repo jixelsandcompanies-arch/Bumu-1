@@ -1,47 +1,83 @@
 import { isValidPhoneOrEmail } from '../utils/validation.js';
-import { apiGet, apiPost, getAuthToken, setAuthToken } from './api.js';
+import { getAuthToken, setAuthToken } from './authSession.js';
 
-const localAuthEnabled = import.meta.env.VITE_LOCAL_AUTH_ENABLED !== 'false';
-const localFinanceEmail = import.meta.env.VITE_LOCAL_FINANCE_EMAIL ?? 'finance@bumupaygo.co.ke';
-const localFinancePassword = import.meta.env.VITE_LOCAL_FINANCE_PASSWORD ?? 'Bumu@2026';
-const LOCAL_TOKEN = 'local-finance-session';
+async function apiRequest(path, { method = 'GET', body } = {}) {
+  const token = getAuthToken();
+  const response = await fetch(path, {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  const data = await response.json().catch(() => ({}));
 
-function localUser() {
-  return {
-    id: 'local-finance-user',
-    email: localFinanceEmail,
-    fullName: 'Finance Officer',
-    role: 'finance'
-  };
+  if (!response.ok) {
+    throw new Error(data.message || 'Authentication request failed.');
+  }
+
+  return data;
 }
 
 export const authService = {
   async login(identifier, password) {
     if (!isValidPhoneOrEmail(identifier) || password.length < 8) {
-      throw new Error('Enter valid finance credentials.');
+      throw new Error('Enter valid login credentials.');
     }
 
-    if (
-      localAuthEnabled &&
-      identifier.trim().toLowerCase() === localFinanceEmail.toLowerCase() &&
-      password === localFinancePassword
-    ) {
-      setAuthToken(LOCAL_TOKEN);
-      return localUser();
+    const data = await apiRequest('/api/auth/login', {
+      method: 'POST',
+      body: { identifier: identifier.trim(), password }
+    });
+    setAuthToken(data.token);
+    return data.user;
+  },
+
+  async register({ fullName, email, phone, password }) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+
+    if (!fullName.trim() || !normalizedEmail || password.length < 8) {
+      throw new Error('Enter a name, email, and password with at least 8 characters.');
     }
 
-    const result = await apiPost('/auth/login', { identifier, password });
-
-    setAuthToken(result.accessToken);
-    return result.user;
+    return apiRequest('/api/auth/register', {
+      method: 'POST',
+      body: {
+        fullName: fullName.trim(),
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        password
+      }
+    });
   },
 
   async currentUser() {
-    if (localAuthEnabled && getAuthToken() === LOCAL_TOKEN) {
-      return localUser();
-    }
+    const data = await apiRequest('/api/auth/me');
+    return data.user;
+  },
 
-    return apiGet('/auth/me');
+  async requestPasswordReset(identifier) {
+    return apiRequest('/api/auth/request-reset', {
+      method: 'POST',
+      body: { identifier: identifier.trim() }
+    });
+  },
+
+  async verifyPasswordResetOtp({ identifier, otp }) {
+    return apiRequest('/api/auth/verify-otp', {
+      method: 'POST',
+      body: { identifier: identifier.trim(), otp }
+    });
+  },
+
+  async resetPassword({ identifier, otp, password }) {
+    return apiRequest('/api/auth/reset-password', {
+      method: 'POST',
+      body: { identifier: identifier.trim(), otp, password }
+    });
   },
 
   logout() {

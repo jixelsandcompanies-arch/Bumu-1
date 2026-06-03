@@ -6,36 +6,66 @@ import { Section } from '../components/ui/Section.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { agentPortalService } from '../services/agentPortalService.js';
 import { commissionService } from '../services/commissionService.js';
-import { emptyDashboardSummary, financeService } from '../services/financeService.js';
+import { financeService } from '../services/financeService.js';
 import { paymentService } from '../services/paymentService.js';
 import { colors } from '../theme/colors.js';
 import { formatKes } from '../utils/currency.js';
 import { formatDate } from '../utils/dates.js';
+import { downloadSpreadsheet } from '../utils/spreadsheetExport.js';
 import { Header } from './PaymentsScreen.jsx';
 
 const reportTypes = ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'];
 const reportCategories = [
-  { value: 'payments', label: 'Payment / Riders report' },
-  { value: 'commissions', label: 'Commission report' }
+  { value: 'payments', label: 'Payments report' },
+  { value: 'riders', label: 'Riders report' },
+  { value: 'commissions', label: 'Commissions report' },
+  { value: 'reconciliation', label: 'Reconciliation report' }
 ];
-const reportBaseDate = new Date('2026-05-30T12:00:00');
+const reportColumnWidths = {
+  Date: 185,
+  Customer: 230,
+  Rider: 230,
+  'Phone number': 180,
+  Phone: 180,
+  Agent: 210,
+  Code: 150,
+  Receipt: 190,
+  Method: 165,
+  Status: 120,
+  'National ID': 150,
+  Type: 170,
+  'Chassis / IMEI': 180,
+  Bike: 170,
+  Amount: 140,
+  Balance: 140,
+  Paid: 140,
+  'Monthly Paygo collected': 180,
+  'Monthly expected Paygo': 180,
+  'Payment %': 120,
+  'Commission rate': 140,
+  'PAYGO payment': 145,
+  'Provider amount': 155,
+  'Recorded amount': 165,
+  'Total payable': 155,
+  'Due date': 185
+};
+const reportBaseDate = new Date();
 const todayIso = toInputDate(reportBaseDate);
 
 export function ReportsScreen() {
   const [active, setActive] = useState('Weekly');
   const [startDate, setStartDate] = useState(toInputDate(addDays(reportBaseDate, -6)));
   const [reportCategory, setReportCategory] = useState('payments');
-  const [downloadType, setDownloadType] = useState('csv');
   const [payments, setPayments] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [commissions, setCommissions] = useState([]);
-  const [dashboardSummary, setDashboardSummary] = useState(emptyDashboardSummary);
+  const [reconciliation, setReconciliation] = useState([]);
 
   useEffect(() => {
     paymentService.listPayments().then(setPayments).catch(() => setPayments([]));
     agentPortalService.listRegisteredCustomers().then(setCustomers).catch(() => setCustomers([]));
     commissionService.listCommissions().then(setCommissions).catch(() => setCommissions([]));
-    financeService.getDashboard().then((dashboard) => setDashboardSummary(dashboard.summary)).catch(() => setDashboardSummary(emptyDashboardSummary));
+    financeService.getReconciliation().then(setReconciliation).catch(() => setReconciliation([]));
   }, []);
 
   useEffect(() => {
@@ -57,20 +87,27 @@ export function ReportsScreen() {
     () => commissions.filter((commission) => isWithinRange(commission.earnedAt, startDate, reportEndDate)),
     [commissions, startDate, reportEndDate]
   );
+  const filteredCustomers = useMemo(
+    () => customers.filter((customer) => isWithinRange(customer.lastPaymentDate ?? customer.dueDate, startDate, reportEndDate)),
+    [customers, startDate, reportEndDate]
+  );
+  const filteredReconciliation = useMemo(
+    () => reconciliation.filter((record) => isWithinRange(record.date, startDate, reportEndDate)),
+    [reconciliation, startDate, reportEndDate]
+  );
 
   const reportRows = useMemo(
-    () => buildReportRows(reportCategory, filteredPayments, customers, filteredCommissions),
-    [reportCategory, filteredPayments, customers, filteredCommissions]
+    () => buildReportRows(reportCategory, filteredPayments, filteredCustomers, filteredCommissions, filteredReconciliation),
+    [reportCategory, filteredPayments, filteredCustomers, filteredCommissions, filteredReconciliation]
   );
 
   const totalCollected = getReportTotal(reportCategory, reportRows);
-  const expectedFromRecords = filteredPayments.reduce((total, payment) => total + Number(payment.totalPayable || 0), 0);
-  const expectedAmount = expectedFromRecords || dashboardSummary.expectedAmount;
-  const overdueAmount = dashboardSummary.overdueAmount;
+  const expectedAmount = getExpectedAmount(reportCategory, reportRows);
+  const overdueAmount = getOverdueAmount(reportCategory, reportRows);
   const selectedReport = reportCategories.find((item) => item.value === reportCategory) ?? reportCategories[0];
   const reportTitle = `${active} ${selectedReport.label}`;
   const filenameBase = `bumu-${reportCategory}-${active.toLowerCase()}-${startDate}-to-${reportEndDate}`;
-  const previewColumns = getPreviewColumns(reportCategory);
+  const previewColumns = getPreviewColumns(reportRows);
 
   return (
     <View style={styles.page}>
@@ -116,24 +153,25 @@ export function ReportsScreen() {
                 ))}
               </select>
             </View>
-            <View style={styles.exportField}>
-              <Text style={styles.fieldLabel}>Download type</Text>
-              <select
-                value={downloadType}
-                onChange={(event) => setDownloadType(event.target.value)}
-                style={styles.selectInput}
-              >
-                <option value="csv">CSV report</option>
-                <option value="xlsx">Excel report</option>
-                <option value="pdf">PDF report</option>
-              </select>
-            </View>
             <Button
-              icon={downloadType === 'xlsx' ? FileSpreadsheet : downloadType === 'pdf' ? FileText : Download}
-              onPress={() => downloadSelectedReport(downloadType, filenameBase, reportTitle, startDate, reportEndDate, reportRows, totalCollected)}
+              icon={Download}
+              variant="secondary"
+              onPress={() => exportCsv(`${filenameBase}.csv`, reportRows)}
               style={styles.downloadButton}
             >
-              Download
+              Export CSV
+            </Button>
+            <Button
+              icon={FileSpreadsheet}
+              variant="secondary"
+              onPress={() => {
+                exportExcel(`${filenameBase}.xlsx`, reportRows).catch(() => {
+                  window.alert('Excel export failed. Try CSV export or reload the app.');
+                });
+              }}
+              style={styles.downloadButton}
+            >
+              Export Excel
             </Button>
           </View>
         </View>
@@ -156,13 +194,14 @@ export function ReportsScreen() {
         </View>
 
         <View style={styles.table}>
-          <View style={[styles.line, styles.tableHead]}>
+          <View style={[styles.line, previewLineStyle(previewColumns), styles.tableHead]}>
             {previewColumns.map((column) => (
               <Text
                 key={column}
                 style={[
-                  isMoneyColumn(column) ? styles.headAmount : styles.headText,
-                  column === 'Total payable' && styles.totalPayableColumn
+                  styles.headText,
+                  previewColumnStyle(column),
+                  isMoneyColumn(column) && styles.amountText
                 ]}
               >
                 {column}
@@ -171,14 +210,16 @@ export function ReportsScreen() {
           </View>
           {reportRows.length > 0 ? (
             reportRows.map((row, index) => (
-              <View key={`${reportCategory}-${index}`} style={styles.line}>
+              <View key={`${reportCategory}-${index}`} style={[styles.line, previewLineStyle(previewColumns)]}>
                 {previewColumns.map((column) => (
                   <Text
                     key={column}
                     style={[
-                      isMoneyColumn(column) ? styles.lineAmount : styles.lineText,
-                      column === 'Total payable' && styles.totalPayableColumn
+                      styles.lineText,
+                      previewColumnStyle(column),
+                      isMoneyColumn(column) && styles.amountText
                     ]}
+                    numberOfLines={1}
                   >
                     {formatPreviewValue(row[column], column)}
                   </Text>
@@ -222,19 +263,19 @@ function ReportMetric({ label, value, color }) {
   );
 }
 
-function buildReportRows(category, payments, riders, commissions) {
+function buildReportRows(category, payments, riders, commissions, reconciliation) {
   if (category === 'riders') {
     return riders.map((rider) => ({
       Rider: rider.customerName,
       Phone: rider.customerPhone ?? rider.phone,
       Agent: rider.agentName,
       Bike: rider.bikeModel,
-      Chassis: rider.serialNumber,
+      'Chassis / IMEI': rider.imei || rider.chassisNumber || rider.serialNumber,
       'Total payable': rider.totalPayable,
       Paid: rider.paidAmount,
       Balance: rider.balance,
       Status: rider.status,
-      'Due date': formatDate(rider.dueDate)
+      'Due date': formatReportDate(rider.dueDate)
     }));
   }
 
@@ -244,18 +285,34 @@ function buildReportRows(category, payments, riders, commissions) {
 
   if (category === 'commissions') {
     return commissions.map((commission) => ({
-      Date: formatDate(commission.earnedAt),
+      Date: formatReportDate(commission.earnedAt),
+      Month: commission.earnedMonth,
       Agent: commission.agentName,
       Code: commission.agentCode,
       Customer: commission.customerName,
-      Type: commission.type,
+      'Monthly Paygo collected': commission.monthlyPaygoCollected ?? 0,
+      'Monthly expected Paygo': commission.monthlyExpectedPaygo ?? 0,
+      'Payment %': commission.paymentPercentage ?? 0,
+      'Commission rate': (commission.commissionRate ?? 0) * 100,
       Amount: commission.amount,
       Status: commission.status
     }));
   }
 
+  if (category === 'reconciliation') {
+    return reconciliation.map((record) => ({
+      Date: formatReportDate(record.date),
+      Receipt: record.receipt,
+      Customer: record.customerName,
+      'National ID': record.nationalId,
+      'Provider amount': record.providerAmount ?? 0,
+      'Recorded amount': record.systemAmount ?? 0,
+      Status: record.status
+    }));
+  }
+
   return payments.map((payment) => ({
-    Date: formatDate(payment.date),
+    Date: formatReportDate(payment.date),
     Customer: payment.customerName,
     'Phone number': payment.customerPhone,
     Agent: payment.agentName,
@@ -265,6 +322,16 @@ function buildReportRows(category, payments, riders, commissions) {
     'PAYGO payment': payment.paygoPayment ?? 0,
     'Total payable': payment.totalPayable ?? 0
   }));
+}
+
+function formatReportDate(value) {
+  if (!value) return '';
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(value));
 }
 
 function buildAgentRows(riders, commissions) {
@@ -290,11 +357,23 @@ function buildAgentRows(riders, commissions) {
   return [...agents.values()];
 }
 
-function getPreviewColumns(category) {
-  if (category === 'riders') return ['Rider', 'Agent', 'Balance'];
-  if (category === 'agents') return ['Agent', 'Code', 'Riders'];
-  if (category === 'commissions') return ['Agent', 'Customer', 'Amount'];
-  return ['Customer', 'Phone number', 'Agent', 'Receipt', 'PAYGO payment', 'Total payable'];
+function getPreviewColumns(rows) {
+  return Object.keys(rows[0] ?? {});
+}
+
+function previewColumnStyle(column) {
+  const width = Math.ceil((reportColumnWidths[column] || 150) * 0.72);
+  return { width, minWidth: width };
+}
+
+function previewLineStyle(columns) {
+  const columnWidth = columns.reduce(
+    (total, column) => total + Math.ceil((reportColumnWidths[column] || 150) * 0.72),
+    0
+  );
+  const gapWidth = Math.max(columns.length - 1, 0) * 8;
+
+  return { width: columnWidth + gapWidth + 20 };
 }
 
 function formatPreviewValue(value, column) {
@@ -306,7 +385,7 @@ function formatPreviewValue(value, column) {
 }
 
 function isMoneyColumn(column) {
-  return ['Amount', 'Balance', 'Paid', 'Total payable', 'Commission balance', 'PAYGO payment'].includes(column);
+  return ['Amount', 'Balance', 'Paid', 'Total payable', 'Commission balance', 'PAYGO payment', 'Provider amount', 'Recorded amount', 'Monthly Paygo collected', 'Monthly expected Paygo'].includes(column);
 }
 
 function getReportTotal(category, rows) {
@@ -318,7 +397,53 @@ function getReportTotal(category, rows) {
     return rows.reduce((total, row) => total + Number(row['Commission balance'] || 0), 0);
   }
 
+  if (category === 'reconciliation') {
+    return rows.reduce((total, row) => total + Number(row['Recorded amount'] || 0), 0);
+  }
+
   return rows.reduce((total, row) => total + Number(row['PAYGO payment'] || row.Amount || 0), 0);
+}
+
+function getExpectedAmount(category, rows) {
+  if (category === 'payments') {
+    return rows.reduce((total, row) => total + Number(row['Total payable'] || 0), 0);
+  }
+
+  if (category === 'riders') {
+    return rows.reduce((total, row) => total + Number(row['Total payable'] || 0), 0);
+  }
+
+  if (category === 'reconciliation') {
+    return rows.reduce((total, row) => total + Number(row['Provider amount'] || 0), 0);
+  }
+
+  return rows.reduce((total, row) => total + Number(row.Amount || 0), 0);
+}
+
+function getOverdueAmount(category, rows) {
+  if (category === 'payments') {
+    return rows
+      .filter((row) => row.Status === 'unpaid')
+      .reduce((total, row) => total + Number(row['Total payable'] || 0), 0);
+  }
+
+  if (category === 'commissions') {
+    return rows
+      .filter((row) => row.Status === 'earned')
+      .reduce((total, row) => total + Number(row.Amount || 0), 0);
+  }
+
+  if (category === 'reconciliation') {
+    return rows
+      .filter((row) => row.Status !== 'matched')
+      .reduce((total, row) => total + Number(row['Provider amount'] || 0), 0);
+  }
+
+  if (category !== 'riders') return 0;
+
+  return rows
+    .filter((row) => row.Status === 'unpaid' || Number(row.Balance || 0) > 0)
+    .reduce((total, row) => total + Number(row.Balance || 0), 0);
 }
 
 function rangeStartFor(type, end) {
@@ -368,7 +493,9 @@ function exportCsv(filename, rows) {
 
 function downloadSelectedReport(type, filenameBase, title, startDate, endDate, rows, totalCollected) {
   if (type === 'xlsx') {
-    exportExcel(`${filenameBase}.xls`, rows);
+    exportExcel(`${filenameBase}.xlsx`, rows).catch(() => {
+      window.alert('Excel export failed. Try CSV export or reload the app.');
+    });
     return;
   }
 
@@ -380,23 +507,19 @@ function downloadSelectedReport(type, filenameBase, title, startDate, endDate, r
   exportCsv(`${filenameBase}.csv`, rows);
 }
 
-function exportExcel(filename, rows) {
+async function exportExcel(filename, rows) {
   const headers = Object.keys(rows[0] ?? {});
-  const table = [
-    '<table>',
-    '<thead><tr>',
-    ...headers.map((header) => `<th>${escapeHtml(header)}</th>`),
-    '</tr></thead>',
-    '<tbody>',
-    ...rows.map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`),
-    '</tbody></table>'
-  ].join('');
-
-  downloadFile(
-    filename,
-    `<!doctype html><html><head><meta charset="UTF-8"><title>Report</title></head><body>${table}</body></html>`,
-    'application/vnd.ms-excel;charset=utf-8;'
-  );
+  const textHeaders = new Set(['Date', 'Due date', 'Phone number', 'Phone', 'Receipt', 'Chassis / IMEI', 'Customer', 'Rider', 'Agent', 'Method', 'Status', 'Type', 'National ID']);
+  const sheetRows = [
+    headers,
+    ...rows.map((row) =>
+      headers.map((header) => {
+        const value = row[header] ?? '';
+        return textHeaders.has(header) ? String(value) : value;
+      })
+    )
+  ];
+  downloadSpreadsheet(filename, [{ name: 'Report', rows: sheetRows }]);
 }
 
 function exportPdf(title, startDate, endDate, rows, totalCollected) {
@@ -461,9 +584,17 @@ function toCsv(rows) {
   if (!rows.length) return 'No data\n';
 
   const headers = Object.keys(rows[0]);
-  const body = rows.map((row) => headers.map((header) => escapeCsv(row[header])).join(','));
+  const body = rows.map((row) => headers.map((header) => escapeCsv(csvCellValue(header, row[header]))).join(','));
 
   return [headers.join(','), ...body].join('\n');
+}
+
+function csvCellValue(header, value) {
+  if (['Date', 'Due date', 'Phone number', 'Phone', 'Receipt', 'National ID'].includes(header)) {
+    return `="${String(value ?? '').replace(/"/g, '""')}"`;
+  }
+
+  return value;
 }
 
 function escapeCsv(value) {
@@ -542,11 +673,9 @@ const styles = StyleSheet.create({
   table: { padding: 12, overflowX: 'auto' },
   line: { minHeight: 44, minWidth: 720, borderBottomWidth: 1, borderBottomColor: 'var(--app-border)', flexDirection: 'row', alignItems: 'center', gap: 8 },
   tableHead: { backgroundColor: colors.successSoft, borderRadius: 8, borderBottomWidth: 0, paddingHorizontal: 10, marginBottom: 4 },
-  headText: { flex: 1, minWidth: 72, color: colors.slate, fontWeight: '700', fontSize: 12 },
-  headAmount: { width: 124, textAlign: 'right', color: colors.slate, fontWeight: '700', fontSize: 12 },
-  lineText: { flex: 1, minWidth: 72, color: 'var(--app-muted)', fontWeight: '500' },
-  lineAmount: { width: 124, textAlign: 'right', fontWeight: '500' },
-  totalPayableColumn: { marginLeft: 28 },
+  headText: { color: colors.slate, fontWeight: '700', fontSize: 12 },
+  lineText: { color: 'var(--app-muted)', fontWeight: '500' },
+  amountText: { textAlign: 'right' },
   emptyState: { minHeight: 64, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: 'var(--app-muted)' }
 });

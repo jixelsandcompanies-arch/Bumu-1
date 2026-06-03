@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { LoginScreen } from './screens/LoginScreen.jsx';
@@ -10,26 +10,189 @@ import { ReportsScreen } from './screens/ReportsScreen.jsx';
 import { ReconciliationScreen } from './screens/ReconciliationScreen.jsx';
 import { NotificationsScreen } from './screens/NotificationsScreen.jsx';
 import { SettingsScreen } from './screens/SettingsScreen.jsx';
+import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
-import { agentPortalService } from './services/agentPortalService.js';
+import { Text } from './components/ui/Text.jsx';
 import { authService } from './services/authService.js';
-import { getAuthToken } from './services/api.js';
+import { getAuthToken } from './services/authSession.js';
+import { notificationService } from './services/notificationService.js';
+import { paymentService } from './services/paymentService.js';
+import { formatKes } from './utils/currency.js';
+import { formatDate } from './utils/dates.js';
+
+function readProfileSettings() {
+  try {
+    const profile = JSON.parse(window.localStorage.getItem('bumu-profile-settings') || '{}');
+    const { userCode, ...visibleProfile } = profile;
+
+    return visibleProfile;
+  } catch {
+    return {};
+  }
+}
+
+function isAuthRoute() {
+  return ['#/login', '#/register', '#/forgot-password'].includes(window.location.hash);
+}
+
+function buildDailyPaymentNotifications(payments) {
+  const dailyRecords = payments.reduce((days, payment) => {
+    const date = payment.date?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const current = days.get(date) ?? {
+      date,
+      recordCount: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+      collected: 0,
+      unpaidBalance: 0,
+      agents: new Map(),
+      customers: []
+    };
+    const collected = Number(payment.depositCredit || 0) + Number(payment.paygoPayment || 0);
+    const agentName = payment.agentName || 'No agent';
+    const agentCode = payment.agentId || 'No code';
+    const agentKey = `${agentName}-${agentCode}`;
+    const agentRecord = current.agents.get(agentKey) ?? {
+      agentName,
+      agentCode,
+      recordCount: 0
+    };
+
+    current.recordCount += 1;
+    current.collected += collected;
+    agentRecord.recordCount += 1;
+    current.agents.set(agentKey, agentRecord);
+    current.customers.push({
+      customerName: payment.customerName || 'No customer name',
+      customerPhone: payment.customerPhone || 'No phone',
+      status: payment.status === 'paid' ? 'Paid' : 'Unpaid',
+      paygoState: payment.paygoState || 'follow_up',
+      amount: formatKes(collected),
+      receipt: payment.receipt || 'No receipt',
+      agentName,
+      agentCode
+    });
+
+    if (payment.status === 'paid') {
+      current.paidCount += 1;
+    } else {
+      current.unpaidCount += 1;
+      current.unpaidBalance += Number(payment.balance ?? payment.totalPayable ?? 0);
+    }
+
+    days.set(date, current);
+    return days;
+  }, new Map());
+
+  return [...dailyRecords.values()]
+    .sort((first, second) => second.date.localeCompare(first.date))
+    .map((record) => {
+      const agentSummary = [...record.agents.values()]
+        .map((agent) => `${agent.agentName} / ${agent.agentCode} (${agent.recordCount})`)
+        .join('\n');
+      const customerSummary = record.customers
+        .map((customer) =>
+          `${customer.customerName} - ${customer.status} ${customer.amount} (${customer.receipt})`
+        )
+        .join('\n');
+      const customerActivities = record.customers.map((customer) => ({
+        label: customer.customerName,
+        value: `${customer.status} | Paid today ${customer.amount} | Account ${customer.paygoState.replaceAll('_', ' ')} | ${customer.receipt}`
+      }));
+      const customerNames = record.customers.map((customer) => customer.customerName).join(', ');
+
+      return {
+        id: `payment-daily-${record.date}`,
+        type: 'payment_daily',
+        title: `Daily payment activity: ${formatDate(record.date)}`,
+        message: `${customerNames}: ${record.recordCount} records, ${record.paidCount} paid, ${record.unpaidCount} unpaid.`,
+        issue: `Collected ${formatKes(record.collected)}. Unpaid balance ${formatKes(record.unpaidBalance)}.`,
+        followUp: record.unpaidCount > 0
+          ? 'Follow up unpaid customers and confirm the next collection action.'
+          : 'No unpaid payment follow-up needed for this day.',
+        paymentDate: formatDate(record.date),
+        recordCount: record.recordCount,
+        paidCount: record.paidCount,
+        unpaidCount: record.unpaidCount,
+        paymentStatusSummary: `${record.paidCount} paid, ${record.unpaidCount} unpaid`,
+        collectedAmount: formatKes(record.collected),
+        unpaidBalance: formatKes(record.unpaidBalance),
+        agentSummary,
+        customerSummary,
+        customerActivities,
+        sourcePortal: 'Payment records',
+        createdAt: `${record.date}T18:00:00`,
+        isRead: false
+      };
+    });
+}
 
 export function App() {
   const [authenticated, setAuthenticated] = useState(() => Boolean(getAuthToken()));
   const [authChecked, setAuthChecked] = useState(false);
+  const [authRouteActive, setAuthRouteActive] = useState(isAuthRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.localStorage.getItem('bumu-active-screen') || 'dashboard'
   );
   const [profilePhoto, setProfilePhoto] = useState(
     () => window.localStorage.getItem('bumu-profile-photo') || ''
   );
+  const [profileSettings, setProfileSettings] = useState(() => ({
+    name: 'Finance Officer',
+    role: 'Finance department',
+    phone: '+254 700 000 000',
+    branch: 'Head office',
+    ...readProfileSettings()
+  }));
   const [themeMode, setThemeMode] = useState('light');
   const [appLayout, setAppLayout] = useState('App view');
   const [toastMessage, setToastMessage] = useState('');
   const [notifications, setNotifications] = useState([]);
   const { canInstall, install } = useInstallPrompt();
+
+  const refreshDailyPaymentNotifications = useCallback(() => {
+    return Promise.all([
+      paymentService.listPayments(),
+      notificationService.listNotifications()
+    ])
+      .then(([payments, backendNotifications]) => {
+        const dailyNotifications = buildDailyPaymentNotifications(payments);
+        setNotifications((current) => {
+          const existingById = new Map(current.map((item) => [item.id, item]));
+          const mergedDailyNotifications = dailyNotifications.map((item) => ({
+            ...item,
+            isRead: existingById.get(item.id)?.isRead ?? item.isRead
+          }));
+          const mergedBackendNotifications = backendNotifications.map((item) => ({
+            ...item,
+            isRead: existingById.get(item.id)?.isRead ?? item.isRead
+          }));
+          const generatedIds = new Set([
+            ...mergedDailyNotifications.map((item) => item.id),
+            ...mergedBackendNotifications.map((item) => item.id)
+          ]);
+          const otherNotifications = current.filter((item) => !generatedIds.has(item.id) && item.type !== 'payment_daily');
+
+          return [...mergedBackendNotifications, ...mergedDailyNotifications, ...otherNotifications]
+            .sort((first, second) => String(second.createdAt || '').localeCompare(String(first.createdAt || '')));
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const refreshPaymentActivity = useCallback(() => {
+    return refreshDailyPaymentNotifications();
+  }, [refreshDailyPaymentNotifications]);
+
+  useEffect(() => {
+    function handleHashChange() {
+      setAuthRouteActive(isAuthRoute());
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -67,32 +230,8 @@ export function App() {
   useEffect(() => {
     if (!authenticated) return;
 
-    agentPortalService.healthCheck().then((health) => {
-      if (health.ok) return;
-
-      setNotifications((items) => {
-        if (items.some((item) => item.id === 'SYS-AGENT-PORTAL-SYNC')) {
-          return items;
-        }
-
-        return [
-          {
-            id: 'SYS-AGENT-PORTAL-SYNC',
-            type: 'integration',
-            title: 'Supabase connection issue',
-            message: 'Finance could not reach the secured backend database. Check Vercel environment variables and Supabase availability.',
-            createdAt: new Date().toISOString(),
-            isRead: false,
-            relatedEntityType: 'system',
-            sourcePortal: 'Supabase',
-            issue: health.error,
-            followUp: 'Check SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY in the backend environment, plus Supabase availability.'
-          },
-          ...items
-        ];
-      });
-    });
-  }, [authenticated]);
+    refreshDailyPaymentNotifications();
+  }, [authenticated, refreshDailyPaymentNotifications, refreshPaymentActivity]);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.isRead).length,
@@ -111,11 +250,18 @@ export function App() {
   }
 
   if (!authChecked) {
-    return null;
+    return (
+      <View
+        className="app-viewport"
+        style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--app-bg)' }}
+      >
+        <Text style={{ color: 'var(--app-muted)' }}>Loading finance portal...</Text>
+      </View>
+    );
   }
 
   if (!authenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return authRouteActive ? <LoginScreen onLogin={handleLogin} /> : <PortalLandingScreen />;
   }
 
   function handleThemeModeChange(nextTheme) {
@@ -130,9 +276,10 @@ export function App() {
 
   return (
     <View
+      className="app-viewport"
       data-theme={themeMode}
       data-layout={appLayout === 'Compact view' ? 'compact' : 'app'}
-      style={{ height: '100dvh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--app-bg)' }}
+      style={{ backgroundColor: 'var(--app-bg)' }}
     >
       <AppShell
         activeScreen={activeScreen}
@@ -143,11 +290,12 @@ export function App() {
         appLayout={appLayout}
         canInstall={canInstall}
         onInstall={install}
+        profileSettings={profileSettings}
       >
         {activeScreen === 'dashboard' && (
           <DashboardScreen onNavigate={setActiveScreen} notifications={notifications} />
         )}
-        {activeScreen === 'payments' && <PaymentsScreen />}
+        {activeScreen === 'payments' && <PaymentsScreen onPaymentRecordsChange={refreshPaymentActivity} />}
         {activeScreen === 'customers' && <CustomersScreen />}
         {activeScreen === 'commissions' && <CommissionsScreen />}
         {activeScreen === 'reports' && <ReportsScreen />}
@@ -162,6 +310,8 @@ export function App() {
           <SettingsScreen
             profilePhoto={profilePhoto}
             onProfilePhotoChange={setProfilePhoto}
+            onProfileSettingsChange={setProfileSettings}
+            onStatusMessage={setToastMessage}
             themeMode={themeMode}
             onThemeModeChange={handleThemeModeChange}
             appLayout={appLayout}
