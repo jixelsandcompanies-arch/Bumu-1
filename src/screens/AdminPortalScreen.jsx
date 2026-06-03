@@ -312,39 +312,47 @@ function ScreeningTab({ portal, onRefresh }) {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.panelTitle}>Screening queue</Text>
-      <Text style={styles.panelText}>Review KYC submissions, duplicate national ID flags, next-of-kin details, and product identifiers.</Text>
+      <Text style={styles.panelTitle}>Screening tracking</Text>
+      <Text style={styles.panelText}>Track automatic KYC screening, duplicate national ID flags, next-of-kin acceptance, and product identifiers.</Text>
       {message ? <Text style={styles.greenText}>{message}</Text> : null}
       <View style={styles.miniList}>
-        {portal.applications.map((item) => (
-          <View key={item.id} style={styles.miniItem}>
-            <Text style={styles.rowTitle}>{item.customerName}</Text>
-            <Text style={styles.rowText}>{item.phone} | ID {fallback(item.nationalId)} | {item.productType} {fallback(item.productModel)}</Text>
-            <Text style={styles.rowText}>Agent {fallback(item.agentName)} | Next of kin {fallback(item.nextOfKin)} | {item.status}</Text>
-            <Text style={styles.rowText}>Kin ID {fallback(item.nextOfKinNationalId)} | {fallback(item.nextOfKinGender)} | {fallback(item.nextOfKinLocation)} | {fallback(item.nextOfKinOccupation)}</Text>
-            {item.duplicateNationalId ? <Text style={styles.dangerText}>Duplicate national ID flagged.</Text> : null}
-            {item.documents?.length ? (
-              <View style={styles.documentList}>
-                {item.documents.map((document) => (
-                  <Pressable key={document.label} onPress={() => window.open(document.url, '_blank', 'noopener,noreferrer')} style={styles.documentLink}>
-                    <Text style={styles.documentText}>{document.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            <Field
-              label="Review note"
-              value={reasonById[item.id] || ''}
-              onChangeText={(value) => setReasonById((current) => ({ ...current, [item.id]: value }))}
-              placeholder="Reason for reject/info request, or approval note"
-            />
-            <View style={styles.actionRow}>
-              <Button icon={ShieldCheck} onPress={() => review(item.id, 'approve')} disabled={Boolean(submittingId)} style={styles.actionButton}>Approve</Button>
-              <Button variant="secondary" onPress={() => review(item.id, 'request_info')} disabled={Boolean(submittingId)} style={styles.actionButton}>Request info</Button>
-              <Button variant="danger" onPress={() => review(item.id, 'reject')} disabled={Boolean(submittingId)} style={styles.actionButton}>Reject</Button>
+        {portal.applications.map((item) => {
+          const canReview = ['pending_screening', 'info_required'].includes(item.status);
+          return (
+            <View key={item.id} style={styles.miniItem}>
+              <Text style={styles.rowTitle}>{item.customerName}</Text>
+              <Text style={styles.rowText}>{item.phone} | ID {fallback(item.nationalId)} | {item.productType} {fallback(item.productModel)}</Text>
+              <Text style={styles.rowText}>Agent {fallback(item.agentName)} | Next of kin {fallback(item.nextOfKin)} | {item.status}</Text>
+              <Text style={styles.rowText}>Kin ID {fallback(item.nextOfKinNationalId)} | {fallback(item.nextOfKinGender)} | {fallback(item.nextOfKinLocation)} | {fallback(item.nextOfKinOccupation)}</Text>
+              {item.reason ? <Text style={styles.rowText}>{item.reason}</Text> : null}
+              {item.duplicateNationalId ? <Text style={styles.dangerText}>Duplicate national ID flagged.</Text> : null}
+              {item.documents?.length ? (
+                <View style={styles.documentList}>
+                  {item.documents.map((document) => (
+                    <Pressable key={document.label} onPress={() => window.open(document.url, '_blank', 'noopener,noreferrer')} style={styles.documentLink}>
+                      <Text style={styles.documentText}>{document.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              {canReview ? (
+                <>
+                  <Field
+                    label="Review note"
+                    value={reasonById[item.id] || ''}
+                    onChangeText={(value) => setReasonById((current) => ({ ...current, [item.id]: value }))}
+                    placeholder="Reason for reject/info request, or approval note"
+                  />
+                  <View style={styles.actionRow}>
+                    <Button icon={ShieldCheck} onPress={() => review(item.id, 'approve')} disabled={Boolean(submittingId)} style={styles.actionButton}>Approve</Button>
+                    <Button variant="secondary" onPress={() => review(item.id, 'request_info')} disabled={Boolean(submittingId)} style={styles.actionButton}>Request info</Button>
+                    <Button variant="danger" onPress={() => review(item.id, 'reject')} disabled={Boolean(submittingId)} style={styles.actionButton}>Reject</Button>
+                  </View>
+                </>
+              ) : null}
             </View>
-          </View>
-        ))}
+          );
+        })}
         {!portal.applications.length && <Text style={styles.panelText}>No screening applications yet.</Text>}
       </View>
     </View>

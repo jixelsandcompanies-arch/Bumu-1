@@ -2,6 +2,11 @@ import { readJson, sendJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, validateStrongPassword } from '../../_lib/security.js';
 import { getSupabase } from '../../_lib/supabase.js';
 
+function adminLimit() {
+  const value = Number(process.env.ADMIN_MAX_ACCOUNTS || 10);
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : 10;
+}
+
 async function audit(actorEmail, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
     actor_email: actorEmail,
@@ -41,6 +46,19 @@ export default async function handler(req, res) {
 
     if (process.env.ADMIN_REGISTRATION_CODE && setupCode !== process.env.ADMIN_REGISTRATION_CODE) {
       sendJson(res, 403, { message: 'Admin setup code is required.' });
+      return;
+    }
+
+    const maxAdmins = adminLimit();
+    const activeAdmins = await getSupabase()
+      .from('admin_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    if (activeAdmins.error) throw activeAdmins.error;
+
+    if ((activeAdmins.count || 0) >= maxAdmins) {
+      sendJson(res, 423, { message: `Admin registration is locked. The maximum of ${maxAdmins} active admin accounts has been reached.` });
       return;
     }
 

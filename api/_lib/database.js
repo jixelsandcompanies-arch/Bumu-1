@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { initiateAfricaCheckout, sendOtpSms } from './africastalking.js';
+import { initiateAfricaCheckout, sendOtpSms, sendScreeningSms } from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -1092,11 +1092,11 @@ async function createScreeningNotification({ customer, agent, duplicateNationalI
   await getSupabase()
     .from('finance_notifications')
     .insert({
-      type: duplicateNationalId ? 'screening_duplicate' : 'screening_pending',
-      title: duplicateNationalId ? 'Duplicate national ID flagged' : 'Customer screening required',
-      message: `${customer.customer_name} was submitted by ${agent.full_name || agent.agent_name || 'agent'} for screening.`,
-      issue: duplicateNationalId ? 'National ID already exists in customer records.' : 'Review KYC details and approve, reject, or request more information.',
-      follow_up: 'Open Admin portal screening queue.',
+      type: duplicateNationalId ? 'screening_duplicate' : 'screening_auto_approved',
+      title: duplicateNationalId ? 'Duplicate national ID rejected' : 'Customer automatically approved',
+      message: `${customer.customer_name} was submitted by ${agent.full_name || agent.agent_name || 'agent'} and screened automatically.`,
+      issue: duplicateNationalId ? 'National ID already exists in customer records.' : 'Next-of-kin OTP was verified and the activation OTP was sent to the customer.',
+      follow_up: duplicateNationalId ? 'Review the rejected application in Admin portal.' : 'Track activation, deposit payment, and repayment progress.',
       customer_id: customer.id,
       customer_name: customer.customer_name,
       customer_phone: customer.customer_phone,
@@ -1105,6 +1105,10 @@ async function createScreeningNotification({ customer, agent, duplicateNationalI
       severity: duplicateNationalId ? 'critical' : 'info',
       source_portal: 'agent'
     });
+}
+
+function activationSmsWasDelivered(result) {
+  return Boolean(result?.customer?.delivered);
 }
 
 export async function verifyNextOfKinOtp(user, customerId, body) {
@@ -1144,14 +1148,52 @@ export async function verifyNextOfKinOtp(user, customerId, body) {
   }
 
   const verifiedAt = new Date().toISOString();
+  const applicationResult = await getSupabase()
+    .from('customer_applications')
+    .select('*')
+    .eq('customer_id', customerId)
+    .single();
+
+  if (applicationResult.error) throw mapSupabaseError(applicationResult.error);
+
+  const duplicateNationalId = Boolean(applicationResult.data.duplicate_national_id);
+  const automatedReason = duplicateNationalId
+    ? 'Automatic screening rejected this application because the national ID already exists.'
+    : 'Automatic screening approved this application after next-of-kin OTP verification.';
+  const activationOtp = duplicateNationalId ? '' : createOtp();
+  const activationExpiresAt = activationOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
+  const smsAction = duplicateNationalId ? 'reject' : 'approve';
+  const smsResult = await sendScreeningSms({
+    action: smsAction,
+    customer,
+    agent,
+    reason: automatedReason,
+    activationOtp
+  }).catch((smsError) => ({
+    error: smsError.message,
+    provider: 'africastalking'
+  }));
+
+  if (activationOtp && !activationSmsWasDelivered(smsResult)) {
+    const error = new Error('Customer activation OTP could not be sent. Check Africa\'s Talking SMS settings before approving this application.');
+    error.statusCode = 502;
+    throw error;
+  }
+
   const updateCustomer = await getSupabase()
     .from('customers')
     .update({
       next_of_kin_otp_status: 'verified',
       next_of_kin_otp_verified_at: verifiedAt,
       next_of_kin_verified_at: verifiedAt,
-      application_status: 'pending_screening',
-      status: 'pending_screening'
+      application_status: duplicateNationalId ? 'rejected' : 'active',
+      status: duplicateNationalId ? 'rejected' : 'active',
+      screening_reason: automatedReason,
+      screened_at: verifiedAt,
+      customer_activation_otp_hash: activationOtp ? hashOtp(customer.id, activationOtp) : customer.customer_activation_otp_hash,
+      customer_activation_otp_expires_at: activationExpiresAt || customer.customer_activation_otp_expires_at,
+      customer_activation_otp_sent_at: activationOtp ? verifiedAt : customer.customer_activation_otp_sent_at,
+      customer_activation_otp_status: activationOtp ? 'sent' : customer.customer_activation_otp_status
     })
     .eq('id', customerId)
     .select()
@@ -1161,7 +1203,11 @@ export async function verifyNextOfKinOtp(user, customerId, body) {
 
   const application = await getSupabase()
     .from('customer_applications')
-    .update({ status: 'pending_screening' })
+    .update({
+      status: duplicateNationalId ? 'rejected' : 'approved',
+      review_reason: automatedReason,
+      reviewed_at: verifiedAt
+    })
     .eq('customer_id', customerId)
     .select()
     .single();
@@ -1171,11 +1217,11 @@ export async function verifyNextOfKinOtp(user, customerId, body) {
   await createScreeningNotification({
     customer: updateCustomer.data,
     agent,
-    duplicateNationalId: Boolean(application.data.duplicate_national_id),
+    duplicateNationalId,
     agentCode: agent.agent_code || agent.agent_id
   });
 
-  return { customer: updateCustomer.data, application: application.data };
+  return { customer: updateCustomer.data, application: application.data, sms: smsResult };
 }
 
 export async function createAgentCustomerDepositRequest(user, customerId, body) {

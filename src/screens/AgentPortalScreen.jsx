@@ -471,11 +471,11 @@ function RegisterTab({ onRefresh }) {
           : 'Customer M-Pesa PIN prompt was sent for the deposit.';
       if (result.nextOfKinOtpRequired && result.customer?.id) {
         setPendingCustomerId(result.customer.id);
-        setMessage(`Next-of-kin OTP was sent. ${promptMessage} Enter the OTP to submit this application for admin screening.`);
+        setMessage(`Next-of-kin OTP was sent. ${promptMessage} Enter the OTP to start automatic screening and customer activation.`);
         return;
       }
 
-      setMessage(`Customer application submitted for admin screening. ${promptMessage}`);
+      setMessage(`Customer application submitted. ${promptMessage}`);
       resetForm();
       await onRefresh();
     } catch (error) {
@@ -490,7 +490,7 @@ function RegisterTab({ onRefresh }) {
     setSubmitting(true);
     try {
       await agentWorkspaceService.verifyNextOfKinOtp(pendingCustomerId, nextOfKinOtp.trim());
-      setMessage('Next-of-kin accepted. Application submitted for admin screening.');
+      setMessage('Next-of-kin accepted. Automatic screening completed and the customer activation OTP was sent.');
       setPendingCustomerId('');
       setNextOfKinOtp('');
       resetForm();
@@ -509,7 +509,7 @@ function RegisterTab({ onRefresh }) {
           <Bell size={22} color={colors.success} />
           <View>
             <Text style={styles.panelTitle}>Next-of-kin acceptance</Text>
-            <Text style={styles.panelText}>Enter the OTP sent to the next-of-kin phone to submit this application for admin screening.</Text>
+            <Text style={styles.panelText}>Enter the OTP sent to the next-of-kin phone to run automatic screening and send the customer activation OTP.</Text>
           </View>
         </View>
         <Field label="Next-of-kin OTP" value={nextOfKinOtp} onChangeText={setNextOfKinOtp} placeholder="Enter 6-digit OTP" />

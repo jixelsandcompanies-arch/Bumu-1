@@ -21,6 +21,7 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
+ADMIN_MAX_ACCOUNTS=10
 ```
 
 ## Supabase Setup
@@ -29,6 +30,7 @@ VITE_API_BASE_URL=
 2. Open the Supabase SQL Editor.
 3. Run `supabase.sql` once.
 4. Keep `SUPABASE_SERVICE_ROLE_KEY` only in server environments such as Vercel. Do not expose it as a `VITE_*` variable.
+5. Set `ADMIN_MAX_ACCOUNTS=10` in Vercel. Admin registration locks after this number of active admin profiles exists; existing active admins can still sign in. Admin login is also locked for 15 minutes after 8 failed attempts for the same email.
 
 The schema creates shared CRM tables:
 
@@ -59,6 +61,7 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
+ADMIN_MAX_ACCOUNTS=10
 ```
 
 Create finance users in Supabase Auth, then mark them as finance users:
