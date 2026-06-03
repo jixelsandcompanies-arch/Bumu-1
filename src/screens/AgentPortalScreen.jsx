@@ -578,25 +578,78 @@ function RegisterTab({ onRefresh }) {
   );
 }
 
-function CustomersTab({ portal }) {
+function CustomersTab({ portal, onRefresh }) {
+  const [activeCustomerId, setActiveCustomerId] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositPhone, setDepositPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+
+  function openPrompt(customer) {
+    const nextId = activeCustomerId === customer.id ? '' : customer.id;
+    setActiveCustomerId(nextId);
+    setDepositAmount('');
+    setDepositPhone(nextId ? customer.phone || '' : '');
+    setMessage('');
+  }
+
+  async function requestDeposit(customer) {
+    setMessage('');
+    setSubmitting(true);
+    try {
+      await agentWorkspaceService.requestCustomerDeposit(customer.id, {
+        amount: depositAmount,
+        phone: depositPhone || customer.phone
+      });
+      setMessage('Deposit prompt sent to customer phone.');
+      setActiveCustomerId('');
+      setDepositAmount('');
+      setDepositPhone('');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <View style={styles.panel}>
       <Text style={styles.panelTitle}>Assigned customers</Text>
+      {message ? <Text style={styles.greenText}>{message}</Text> : null}
       <View style={styles.tableList}>
         {portal.customers.map((customer) => (
-          <View key={customer.id} style={styles.tableRow}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.rowTitle}>{customer.name}</Text>
-              <Text style={styles.rowText}>{customer.phone} | {customer.productType} | {fallback(customer.productModel)}</Text>
-              <Text style={styles.rowText}>Serial {fallback(customer.serialNumber)} | Chassis {fallback(customer.chassisNumber)}</Text>
+          <View key={customer.id} style={styles.customerCard}>
+            <View style={styles.tableRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.rowTitle}>{customer.name}</Text>
+                <Text style={styles.rowText}>{customer.phone} | {customer.productType} | {fallback(customer.productModel)}</Text>
+                <Text style={styles.rowText}>Serial {fallback(customer.serialNumber)} | Chassis {fallback(customer.chassisNumber)}</Text>
+              </View>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowAmount}>{formatKes(customer.balance)}</Text>
+                <Text style={styles.rowStatus}>{customer.status}</Text>
+                <Button icon={CreditCard} variant="secondary" onPress={() => openPrompt(customer)}>
+                  Prompt deposit
+                </Button>
+              </View>
             </View>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowAmount}>{formatKes(customer.balance)}</Text>
-              <Text style={styles.rowStatus}>{customer.status}</Text>
-            </View>
+            {activeCustomerId === customer.id && (
+              <View style={styles.depositBox}>
+                <Field fieldStyle={styles.gridField} label="Deposit amount" value={depositAmount} onChangeText={setDepositAmount} placeholder="KES amount" />
+                <Field fieldStyle={styles.gridField} label="Customer M-Pesa phone" value={depositPhone} onChangeText={setDepositPhone} placeholder="+254..." />
+                <Button icon={CreditCard} onPress={() => requestDeposit(customer)} disabled={submitting} style={styles.depositButton}>
+                  {submitting ? 'Sending...' : 'Send deposit prompt'}
+                </Button>
+              </View>
+            )}
           </View>
         ))}
-        {!portal.customers.length && <Text style={styles.panelText}>No assigned customers found.</Text>}
+        {!portal.customers.length && (
+          <View style={styles.emptyState}>
+            <Text style={styles.panelText}>No assigned customers found.</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -776,7 +829,11 @@ const styles = StyleSheet.create({
   miniList: { gap: 9 },
   miniItem: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 10, gap: 7 },
   tableList: { gap: 8 },
-  tableRow: { minHeight: 70, borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  customerCard: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, backgroundColor: '#ffffff', overflow: 'hidden' },
+  tableRow: { minHeight: 70, padding: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  depositBox: { borderTopWidth: 1, borderTopColor: '#e5edf6', padding: 11, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 10, backgroundColor: '#f8fbff' },
+  depositButton: { flexGrow: 1, flexBasis: 210 },
+  emptyState: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 12, backgroundColor: '#ffffff' },
   rowTitle: { color: colors.text, fontWeight: '600' },
   rowText: { color: colors.muted, lineHeight: 20 },
   rowRight: { alignItems: 'flex-end', gap: 4 },

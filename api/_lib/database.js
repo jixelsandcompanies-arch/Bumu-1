@@ -456,24 +456,7 @@ export async function getCustomerPortal(user) {
   };
 }
 
-export async function createCustomerPaymentRequest(user, body) {
-  const customer = await findCustomerForAuthUser(user);
-
-  if (!customer) {
-    const error = new Error('Customer profile is not connected yet.');
-    error.statusCode = 403;
-    throw error;
-  }
-
-  const amount = Number(body.amount || 0);
-  const phone = String(body.phone || customer.customer_phone || '').trim();
-
-  if (!amount || amount <= 0 || !phone) {
-    const error = new Error('Enter a valid amount and payment phone number.');
-    error.statusCode = 400;
-    throw error;
-  }
-
+async function startCustomerCheckoutRequest(customer, { amount, phone, sourcePortal = 'customer', narration = 'Bumu Paygo Installment' }) {
   const { data, error } = await getSupabase()
     .from('payment_requests')
     .insert({
@@ -481,7 +464,7 @@ export async function createCustomerPaymentRequest(user, body) {
       amount,
       phone,
       status: 'pending',
-      source_portal: 'customer'
+      source_portal: sourcePortal
     })
     .select()
     .single();
@@ -498,13 +481,13 @@ export async function createCustomerPaymentRequest(user, body) {
           phone,
           customerId: customer.id,
           customerBikeId: customer.serial_number || customer.chassis_number || customer.id,
-          narration: 'Bumu Paygo Installment'
+          narration
         })
       : await initiateStkPush({
           amount,
           phone,
           accountReference: customer.id,
-          transactionDescription: `Bumu Paygo ${customer.customer_name}`
+          transactionDescription: narration || `Bumu Paygo ${customer.customer_name}`
         });
     const updated = await getSupabase()
       .from('payment_requests')
@@ -546,6 +529,34 @@ export async function createCustomerPaymentRequest(user, body) {
       type: 'payment',
       status: 'unread'
     });
+
+  return request;
+}
+
+export async function createCustomerPaymentRequest(user, body) {
+  const customer = await findCustomerForAuthUser(user);
+
+  if (!customer) {
+    const error = new Error('Customer profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const amount = Number(body.amount || 0);
+  const phone = String(body.phone || customer.customer_phone || '').trim();
+
+  if (!amount || amount <= 0 || !phone) {
+    const error = new Error('Enter a valid amount and payment phone number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const request = await startCustomerCheckoutRequest(customer, {
+    amount,
+    phone,
+    sourcePortal: 'customer',
+    narration: 'Bumu Paygo Installment'
+  });
 
   return { paymentRequest: request };
 }
@@ -1141,6 +1152,68 @@ export async function verifyNextOfKinOtp(user, customerId, body) {
   });
 
   return { customer: updateCustomer.data, application: application.data };
+}
+
+export async function createAgentCustomerDepositRequest(user, customerId, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const amount = Number(body.amount || 0);
+  if (!amount || amount <= 0) {
+    const error = new Error('Enter a valid deposit amount.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const agentCode = agent.agent_code || agent.agent_id;
+  const agentName = agent.full_name || agent.agent_name;
+  let customerRequest = getSupabase()
+    .from('customers')
+    .select('*')
+    .eq('id', customerId);
+
+  customerRequest = agentCode ? customerRequest.eq('agent_id', agentCode) : customerRequest.eq('agent_name', agentName);
+  const { data: customer, error } = await customerRequest.single();
+
+  if (error) throw mapSupabaseError(error);
+  if (customer.status === 'rejected' || customer.application_status === 'rejected') {
+    const rejected = new Error('This customer application was rejected and cannot receive a deposit prompt.');
+    rejected.statusCode = 409;
+    throw rejected;
+  }
+
+  const phone = String(body.phone || customer.customer_phone || '').trim();
+  if (!phone) {
+    const missingPhone = new Error('Enter the customer payment phone number.');
+    missingPhone.statusCode = 400;
+    throw missingPhone;
+  }
+
+  const request = await startCustomerCheckoutRequest(customer, {
+    amount,
+    phone,
+    sourcePortal: 'agent',
+    narration: 'Bumu Paygo Deposit'
+  });
+
+  await getSupabase()
+    .from('agent_notifications')
+    .insert({
+      agent_id: agent.id,
+      agent_code: agentCode,
+      agent_name: agentName,
+      customer_id: customer.id,
+      customer_name: customer.customer_name,
+      message: `Deposit prompt for KES ${amount.toLocaleString('en-KE')} was sent to ${phone}.`,
+      status: 'unread',
+      source_portal: 'agent'
+    });
+
+  return { paymentRequest: request };
 }
 
 export async function createAgentTask(user, body) {

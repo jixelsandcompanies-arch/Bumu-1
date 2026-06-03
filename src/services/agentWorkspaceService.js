@@ -142,6 +142,13 @@ export const agentWorkspaceService = {
     });
   },
 
+  async requestCustomerDeposit(customerId, { amount, phone }) {
+    return request(`/api/agent/customers/${encodeURIComponent(customerId)}/deposit-request`, {
+      method: 'POST',
+      body: { amount, phone }
+    });
+  },
+
   async createTask(task) {
     return request('/api/agent/tasks', {
       method: 'POST',
