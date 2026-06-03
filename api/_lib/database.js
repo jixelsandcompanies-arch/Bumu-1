@@ -969,10 +969,10 @@ export async function createAgentCustomer(user, body) {
   }
 
   const totalPayable = Number(body.totalPayable || 0);
-  const paidAmount = Number(body.paidAmount || 0);
+  const depositAmount = Number(body.depositAmount || body.paidAmount || 0);
   const dailyInstallment = Number(body.dailyInstallment || 0);
-  if (!Number.isFinite(totalPayable) || totalPayable <= 0 || !Number.isFinite(dailyInstallment) || dailyInstallment <= 0 || paidAmount < 0 || paidAmount > totalPayable) {
-    const error = new Error('Enter valid total payable, paid amount, and daily installment.');
+  if (!Number.isFinite(totalPayable) || totalPayable <= 0 || !Number.isFinite(dailyInstallment) || dailyInstallment <= 0 || !Number.isFinite(depositAmount) || depositAmount <= 0 || depositAmount > totalPayable) {
+    const error = new Error('Enter valid total payable, deposit amount, and daily installment.');
     error.statusCode = 400;
     throw error;
   }
@@ -1041,8 +1041,8 @@ export async function createAgentCustomer(user, body) {
       agent_name: agent.full_name || agent.agent_name,
       agent_id: agentCode,
       total_payable: totalPayable,
-      paid_amount: paidAmount,
-      balance: Math.max(totalPayable - paidAmount, 0),
+      paid_amount: 0,
+      balance: totalPayable,
       due_date: dueDate,
       daily_installment: dailyInstallment,
       application_status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
@@ -1069,11 +1069,23 @@ export async function createAgentCustomer(user, body) {
 
   if (application.error) throw mapSupabaseError(application.error);
 
+  const paymentRequest = await startCustomerCheckoutRequest(data, {
+    amount: depositAmount,
+    phone: customerPhone,
+    sourcePortal: 'agent',
+    narration: 'Bumu Paygo Deposit'
+  });
+
   if (!nextOfKinOtp) {
     await createScreeningNotification({ customer: data, agent, duplicateNationalId, agentCode });
   }
 
-  return { customer: data, nextOfKinOtpRequired: Boolean(nextOfKinOtp), otpDelivery: nextOfKinOtpDelivery };
+  return {
+    customer: data,
+    paymentRequest,
+    nextOfKinOtpRequired: Boolean(nextOfKinOtp),
+    otpDelivery: nextOfKinOtpDelivery
+  };
 }
 
 async function createScreeningNotification({ customer, agent, duplicateNationalId, agentCode }) {

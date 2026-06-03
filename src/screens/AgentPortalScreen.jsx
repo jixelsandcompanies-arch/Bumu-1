@@ -436,7 +436,7 @@ function RegisterTab({ onRefresh }) {
     nextOfKinIdFrontUrl: '',
     nextOfKinIdBackUrl: '',
     totalPayable: '',
-    paidAmount: '',
+    depositAmount: '',
     dailyInstallment: '',
     dueDate: ''
   });
@@ -457,13 +457,19 @@ function RegisterTab({ onRefresh }) {
     setSubmitting(true);
     try {
       const result = await agentWorkspaceService.createCustomer(form);
+      const promptStatus = result.paymentRequest?.status;
+      const promptMessage = promptStatus === 'failed'
+        ? 'Deposit request was saved but the M-Pesa prompt failed. Check payment provider settings.'
+        : promptStatus === 'queued'
+          ? 'Deposit request was queued. Configure payment provider settings to send the M-Pesa PIN prompt.'
+          : 'Customer M-Pesa PIN prompt was sent for the deposit.';
       if (result.nextOfKinOtpRequired && result.customer?.id) {
         setPendingCustomerId(result.customer.id);
-        setMessage('Next-of-kin OTP was sent. Enter the OTP to submit this application for admin screening.');
+        setMessage(`Next-of-kin OTP was sent. ${promptMessage} Enter the OTP to submit this application for admin screening.`);
         return;
       }
 
-      setMessage('Customer application submitted for admin screening.');
+      setMessage(`Customer application submitted for admin screening. ${promptMessage}`);
       resetForm();
       await onRefresh();
     } catch (error) {
@@ -570,7 +576,7 @@ function RegisterTab({ onRefresh }) {
             <Field fieldStyle={styles.gridField} label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
             <Field fieldStyle={styles.gridField} label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />
             <Field fieldStyle={styles.gridField} label="Total payable" value={form.totalPayable} onChangeText={(value) => update('totalPayable', value)} placeholder="Amount" />
-            <Field fieldStyle={styles.gridField} label="Paid amount" value={form.paidAmount} onChangeText={(value) => update('paidAmount', value)} placeholder="Deposit paid" />
+            <Field fieldStyle={styles.gridField} label="Deposit amount to prompt" value={form.depositAmount} onChangeText={(value) => update('depositAmount', value)} placeholder="Customer deposit amount" />
             <Field fieldStyle={styles.gridField} label="Daily installment" value={form.dailyInstallment} onChangeText={(value) => update('dailyInstallment', value)} placeholder="Daily amount" />
             <Field fieldStyle={styles.gridField} label="Due date" value={form.dueDate} onChangeText={(value) => update('dueDate', value)} placeholder="YYYY-MM-DD" />
           </>
