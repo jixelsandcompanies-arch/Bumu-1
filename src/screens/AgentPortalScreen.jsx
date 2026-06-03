@@ -608,15 +608,45 @@ function MediaCapture({ field, label, value, onUploaded }) {
   const streamRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraVersion, setCameraVersion] = useState(0);
   const [message, setMessage] = useState('');
 
   function stopCamera() {
     streamRef.current?.getTracks?.().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
   }
 
   useEffect(() => () => stopCamera(), []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOpen || !video || !stream) return undefined;
+
+    let cancelled = false;
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+
+    const markReady = () => {
+      if (!cancelled) setCameraReady(true);
+    };
+
+    video.addEventListener('loadedmetadata', markReady);
+    video.addEventListener('playing', markReady);
+    video.play?.().then(markReady).catch(() => {
+      if (!cancelled) setMessage('Tap the camera preview, then allow camera playback.');
+    });
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('loadedmetadata', markReady);
+      video.removeEventListener('playing', markReady);
+    };
+  }, [cameraOpen, cameraVersion]);
 
   async function openCamera() {
     setMessage('');
@@ -627,22 +657,29 @@ function MediaCapture({ field, label, value, onUploaded }) {
 
     try {
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 960 }
-        }
-      });
+      setCameraReady(false);
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 960 }
+          }
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 960 }
+          }
+        });
+      }
       streamRef.current = stream;
       setCameraOpen(true);
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play?.().catch(() => {});
-        }
-      }, 0);
+      setCameraVersion((current) => current + 1);
     } catch {
       setMessage('Camera permission is required to capture this document.');
     }
@@ -700,7 +737,10 @@ function MediaCapture({ field, label, value, onUploaded }) {
       </View>
       {cameraOpen && (
         <View style={styles.cameraPanel}>
-          <video ref={videoRef} playsInline muted style={styles.cameraPreview} />
+          <View style={styles.cameraPreviewWrap}>
+            <video ref={videoRef} playsInline muted autoPlay style={styles.cameraPreview} />
+            {!cameraReady ? <Text style={styles.cameraLoading}>Starting camera...</Text> : null}
+          </View>
           <View style={styles.cameraActions}>
             <Button icon={Camera} onPress={capturePhoto} disabled={uploading}>
               {uploading ? 'Uploading...' : 'Capture document'}
@@ -961,7 +1001,9 @@ const styles = StyleSheet.create({
   mediaField: { flexGrow: 1, flexBasis: 230, width: 'auto', gap: 6 },
   mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
   cameraPanel: { borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, gap: 8, backgroundColor: '#f8fbff' },
-  cameraPreview: { width: '100%', maxHeight: 360, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 8, backgroundColor: '#0f172a' },
+  cameraPreviewWrap: { position: 'relative', width: '100%', minHeight: 220, aspectRatio: '4 / 3', maxHeight: 360, borderRadius: 8, overflow: 'hidden', backgroundColor: '#0f172a' },
+  cameraPreview: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#0f172a', display: 'block' },
+  cameraLoading: { position: 'absolute', left: 0, right: 0, top: '45%', textAlign: 'center', color: '#ffffff', fontWeight: '600' },
   cameraActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
   mediaName: { color: colors.text, fontSize: 13, fontWeight: '600' },
   mediaPlaceholder: { color: colors.muted, fontSize: 13 },
