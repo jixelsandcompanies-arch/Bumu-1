@@ -1,8 +1,13 @@
-import { readJson, sendJson } from '../../_lib/http.js';
+import { readJson, sendJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, validateStrongPassword } from '../../_lib/security.js';
 import { getSupabase } from '../../_lib/supabase.js';
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    sendOptions(res, 'POST,OPTIONS');
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     sendJson(res, 405, { message: 'Method not allowed.' });

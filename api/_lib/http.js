@@ -6,6 +6,15 @@ export function sendJson(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+export function sendOptions(res, methods = 'GET,POST,OPTIONS') {
+  res.statusCode = 204;
+  res.setHeader('Allow', methods);
+  res.setHeader('Access-Control-Allow-Methods', methods);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.end();
+}
+
 export function readJson(req) {
   return new Promise((resolve) => {
     let body = '';
