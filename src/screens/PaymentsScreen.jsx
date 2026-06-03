@@ -31,13 +31,7 @@ function displayDate(value) {
 }
 
 function displayAgentCode(payment) {
-  const agentCodes = {
-    'Mary Wanjiku': 'BUMU-AG-001',
-    'Peter Kariuki': 'BUMU-AG-002',
-    'Grace Atieno': 'BUMU-AG-003'
-  };
-
-  return payment.agentId || agentCodes[payment.agentName] || NO_DATA;
+  return payment.agentId || payment.agentCode || NO_DATA;
 }
 
 function isPhoneIdentifier(value) {
@@ -212,7 +206,7 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
     let savedPayment;
 
     try {
-      const identifier = manualPayment.serialNumber.trim() || 'Manual entry';
+      const identifier = manualPayment.serialNumber.trim();
       const phoneIdentifier = isPhoneIdentifier(identifier);
 
       savedPayment = await paymentService.saveManualPayment({

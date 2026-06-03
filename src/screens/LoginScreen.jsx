@@ -118,7 +118,7 @@ function LoginPage({ onLogin }) {
         label="Personal email"
         value={identifier}
         onChangeText={setIdentifier}
-        placeholder="yourname@example.com"
+        placeholder="Enter your email"
       />
       <Field
         label="Password"
@@ -166,9 +166,9 @@ function RegisterPage() {
 
   return (
     <View style={styles.form}>
-      <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Finance Officer" />
-      <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="yourname@example.com" />
-      <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="+254712345678" />
+      <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Your full name" />
+      <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
+      <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
       <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
       <Field label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry />
       {(password || confirmPassword) ? (
@@ -305,7 +305,7 @@ function ForgotPasswordPage() {
             label="Email or phone"
             value={identifier}
             onChangeText={setIdentifier}
-            placeholder="yourname@example.com"
+            placeholder="Enter email or phone"
           />
           <Button icon={Mail} onPress={sendOtp} style={styles.fullButton}>Send OTP</Button>
         </>

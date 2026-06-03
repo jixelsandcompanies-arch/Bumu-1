@@ -1,7 +1,4 @@
 import { backendClient } from './backendClient.js';
-import { listLocalCommissions, markLocalAgentCommissionsPaid, updateLocalCommission } from './localData.js';
-import { paymentService } from './paymentService.js';
-import { buildMonthlyPaygoCommissions } from '../utils/commission.js';
 
 function normalizeCommission(commission) {
   return {
@@ -36,108 +33,32 @@ function normalizeCommission(commission) {
   };
 }
 
-function storeLocalAgentNotification(notification) {
-  const key = 'bumu-agent-follow-up-notifications';
-  const current = JSON.parse(window.localStorage.getItem(key) || '[]');
-  const next = [{ ...notification, id: `AGENT-NOT-${Date.now()}` }, ...current];
-
-  window.localStorage.setItem(key, JSON.stringify(next));
-  return next[0];
-}
-
 export const commissionService = {
   async listCommissions() {
-    let commissions = listLocalCommissions();
-
-    if (backendClient.isConfigured) {
-      commissions = await backendClient
-        .get('/api/commissions')
-        .then((data) => data.commissions ?? data.records ?? data)
-        .catch(() => commissions);
-
-      if (Array.isArray(commissions) && commissions.length === 0) {
-        const payments = await paymentService.listPayments().catch(() => []);
-        commissions = buildMonthlyPaygoCommissions(payments);
-      }
-    }
+    const commissions = await backendClient
+      .get('/api/commissions')
+      .then((data) => data.commissions ?? data.records ?? data);
 
     return commissions.map(normalizeCommission);
   },
 
   async payAgent(commissionId) {
-    if (backendClient.isConfigured) {
-      const data = await backendClient.post(`/api/commissions/${commissionId}/pay`, {});
-      return normalizeCommission(data.commission ?? data.record ?? data);
-    }
-
-    const commission = normalizeCommission(
-      listLocalCommissions().find((item) => item.id === commissionId) || {}
-    );
-
-    if (!commission.id) {
-      throw new Error('Commission not found.');
-    }
-
-    if (commission.status === 'paid') {
-      return commission;
-    }
-
-    return normalizeCommission(updateLocalCommission(commissionId, {
-      status: 'processing',
-      approvalReference: `FIN-${Date.now()}`,
-      payoutStatus: 'queued',
-      payoutRequestedAt: new Date().toISOString(),
-      payoutError: ''
-    }));
+    const data = await backendClient.post(`/api/commissions/${commissionId}/pay`, {});
+    return normalizeCommission(data.commission ?? data.record ?? data);
   },
 
   async sendFollowUpNotification(commissionId) {
-    const commission = normalizeCommission(
-      listLocalCommissions().find((item) => item.id === commissionId) || {}
-    );
-
-    if (!commission.id) {
-      throw new Error('Commission not found.');
-    }
-
-    const notification = {
-      agentName: commission.agentName,
-      agentCode: commission.agentCode,
-      agentPhone: commission.agentPhone,
-      customerName: commission.customerName,
-      paymentPercentage: commission.paymentPercentage,
-      customerPaymentStatus: commission.customerPaymentStatus,
-      message: `Follow up ${commission.customerName}. Customer payment is overdue or below commission threshold.`,
-      createdAt: new Date().toISOString()
-    };
-
-    if (backendClient.isConfigured) {
-      await backendClient.post('/api/agent-notifications', notification).catch(() => {
-        storeLocalAgentNotification(notification);
-      });
-    } else {
-      storeLocalAgentNotification(notification);
-    }
-
-    return normalizeCommission(updateLocalCommission(commissionId, {
-      followUpSentAt: notification.createdAt
-    }));
+    const data = await backendClient.post('/api/agent-notifications', { commissionId });
+    return normalizeCommission(data.commission ?? data.record ?? data);
   },
 
   async markAgentPaid(agentKey) {
-    if (backendClient.isConfigured) {
-      const data = await backendClient.post('/api/commissions/agent-payment-approvals', { agentKey });
+    const data = await backendClient.post('/api/commissions/agent-payment-approvals', { agentKey });
 
-      if (data?.commissions || data?.records) {
-        return (data.commissions ?? data.records).map(normalizeCommission);
-      }
+    if (data?.commissions || data?.records) {
+      return (data.commissions ?? data.records).map(normalizeCommission);
     }
 
-    return markLocalAgentCommissionsPaid(agentKey)
-      .map((commission) => normalizeCommission({
-        ...commission,
-        status: commission.status === 'paid' ? 'paid' : 'processing',
-        payoutStatus: commission.status === 'paid' ? 'paid' : 'queued'
-      }));
+    return [];
   }
 };

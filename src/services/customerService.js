@@ -1,18 +1,12 @@
 import { paymentService } from './paymentService.js';
 import { backendClient } from './backendClient.js';
 
-const agentDirectory = {
-  'mary wanjiku': 'bumu-ag-001',
-  'peter kariuki': 'bumu-ag-002',
-  'grace atieno': 'bumu-ag-003'
-};
-
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
 function agentIdFor(payment) {
-  return normalize(payment.agentId || agentDirectory[normalize(payment.agentName)]);
+  return normalize(payment.agentId || payment.agentCode);
 }
 
 export const customerService = {

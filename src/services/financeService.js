@@ -1,4 +1,3 @@
-import { getLocalDashboard, getLocalReconciliation } from './localData.js';
 import { backendClient } from './backendClient.js';
 
 export const emptyDashboardSummary = {
@@ -115,7 +114,7 @@ function normalizeCollectionTrend(dashboard) {
 
 export const financeService = {
   async getDashboard() {
-    const dashboard = await backendClient.get('/api/dashboard').catch(() => getLocalDashboard());
+    const dashboard = await backendClient.get('/api/dashboard');
 
     return {
       summary: normalizeDashboardSummary(dashboard.summary ?? emptyDashboardSummary),
@@ -124,9 +123,7 @@ export const financeService = {
   },
 
   async getReconciliation() {
-    const data = backendClient.isConfigured
-      ? await backendClient.get('/api/reconciliation').catch(() => ({ records: getLocalReconciliation() }))
-      : { records: getLocalReconciliation() };
+    const data = await backendClient.get('/api/reconciliation');
     const records = data.reconciliation ?? data.records ?? data;
 
     return records.map(normalizeReconciliation);

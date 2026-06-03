@@ -1,4 +1,3 @@
-import { listLocalPayments, saveLocalPayment } from './localData.js';
 import { backendClient } from './backendClient.js';
 import { getDailyTarget, getOverdueDays, getPaymentAmount, getPaymentBalance, getPaygoAccountState, getPaygoFollowUp } from '../utils/paygo.js';
 
@@ -33,12 +32,12 @@ function normalizePayment(payment) {
     customerPhone: payment.customerPhone ?? payment.customer_phone ?? payment.phone,
     agentName: payment.agentName ?? payment.agent_name,
     agentId: payment.agentId ?? payment.agent_id ?? payment.agentCode ?? payment.agent_code,
-    bikeModel: payment.bikeModel ?? payment.bike_model ?? payment.productModel ?? payment.product_model ?? 'Not registered',
+    bikeModel: payment.bikeModel ?? payment.bike_model ?? payment.productModel ?? payment.product_model ?? '',
     productType: payment.productType ?? payment.product_type ?? 'product',
-    productModel: payment.productModel ?? payment.product_model ?? payment.bikeModel ?? payment.bike_model ?? 'Not registered',
+    productModel: payment.productModel ?? payment.product_model ?? payment.bikeModel ?? payment.bike_model ?? '',
     chassisNumber: payment.chassisNumber ?? payment.chassis_number ?? '',
     imei: payment.imei ?? '',
-    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.imei ?? payment.chassisNumber ?? payment.chassis_number ?? 'Not registered',
+    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.imei ?? payment.chassisNumber ?? payment.chassis_number ?? '',
     totalPayable: payment.totalPayable ?? payment.total_payable ?? 0,
     paidAmount: payment.paidAmount ?? payment.paid_amount ?? getPaymentAmount(payment),
     balance: getPaymentBalance(payment),
@@ -58,7 +57,7 @@ function normalizePayment(payment) {
     overdueDays: payment.overdueDays ?? payment.overdue_days ?? getOverdueDays(payment),
     paygoState: payment.paygoState ?? payment.paygo_state ?? getPaygoAccountState(payment),
     followUp: payment.followUp ?? payment.follow_up ?? getPaygoFollowUp(payment),
-    sourcePortal: payment.sourcePortal ?? payment.source_portal ?? 'Local app data'
+    sourcePortal: payment.sourcePortal ?? payment.source_portal ?? ''
   };
 
   return {
@@ -69,14 +68,9 @@ function normalizePayment(payment) {
 
 export const paymentService = {
   async listPayments() {
-    let payments = listLocalPayments();
-
-    if (backendClient.isConfigured) {
-      payments = await backendClient
-        .get('/api/payments')
-        .then((data) => data.payments ?? data.records ?? data)
-        .catch(() => payments);
-    }
+    const payments = await backendClient
+      .get('/api/payments')
+      .then((data) => data.payments ?? data.records ?? data);
 
     return payments
       .map(normalizePayment)
@@ -84,19 +78,11 @@ export const paymentService = {
   },
 
   async saveManualPayment(payment) {
-    const record = {
-      ...payment,
-      savedLocally: true
-    };
-
-    const data = backendClient.isConfigured
-      ? await backendClient.post('/api/payments/manual', record).catch(() => saveLocalPayment(record))
-      : saveLocalPayment(record);
+    const data = await backendClient.post('/api/payments/manual', payment);
 
     return {
-      ...record,
-      ...normalizePayment(data.payment ?? data.record ?? data),
-      savedLocally: true
+      ...payment,
+      ...normalizePayment(data.payment ?? data.record ?? data)
     };
   },
 

@@ -95,10 +95,9 @@ export function CommissionsScreen() {
     setProcessingId(commissionId);
 
     try {
-      const updatedCommission = await commissionService.sendFollowUpNotification(commissionId);
-      setCommissions((items) =>
-        items.map((commission) => (commission.id === commissionId ? updatedCommission : commission))
-      );
+      await commissionService.sendFollowUpNotification(commissionId);
+      const refreshed = await commissionService.listCommissions();
+      setCommissions(refreshed);
       window.alert('Follow-up notification sent to the agent.');
     } catch (error) {
       window.alert(error.message);

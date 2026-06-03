@@ -16,9 +16,7 @@ import { colors } from '../theme/colors.js';
 import bumuLogo from '../../BumuLogo.jpeg';
 
 const portalLinks = {
-  admin: import.meta.env.VITE_ADMIN_PORTAL_URL || '',
-  agent: import.meta.env.VITE_AGENT_PORTAL_URL || '',
-  customer: import.meta.env.VITE_CUSTOMER_PORTAL_URL || ''
+  admin: import.meta.env.VITE_ADMIN_PORTAL_URL || ''
 };
 
 const portals = [
@@ -44,7 +42,7 @@ const portals = [
     label: 'Sales, customers, follow-up',
     icon: UsersRound,
     tone: colors.success,
-    status: portalLinks.agent ? 'Open' : 'Connect'
+    status: 'Ready'
   },
   {
     key: 'customer',
@@ -52,7 +50,7 @@ const portals = [
     label: 'Payments, balance, account',
     icon: Smartphone,
     tone: colors.orange,
-    status: portalLinks.customer ? 'Open' : 'Connect'
+    status: 'Ready'
   }
 ];
 
@@ -108,6 +106,18 @@ export function PortalLandingScreen() {
   function openPortal(portal) {
     if (portal.key === 'finance') {
       window.history.pushState(null, '', '#/login');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      return;
+    }
+
+    if (portal.key === 'customer') {
+      window.history.pushState(null, '', '#/customer');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      return;
+    }
+
+    if (portal.key === 'agent') {
+      window.history.pushState(null, '', '#/agent');
       window.dispatchEvent(new HashChangeEvent('hashchange'));
       return;
     }
@@ -329,15 +339,15 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
 
 function PortalCard({ portal, onPress }) {
   const Icon = portal.icon;
-  const disabled = portal.key !== 'finance' && !portalLinks[portal.key];
+  const canOpen = portal.key === 'finance' || portal.key === 'customer' || portal.key === 'agent' || portalLinks[portal.key];
 
   return (
     <Pressable
-      onPress={disabled ? undefined : onPress}
+      onPress={canOpen ? onPress : undefined}
       style={({ pressed }) => [
         styles.portalCard,
-        pressed && !disabled && styles.portalPressed,
-        disabled && styles.portalDisabled
+        pressed && canOpen && styles.portalPressed,
+        !canOpen && styles.portalDisabled
       ]}
     >
       <View style={[styles.cardBanner, { backgroundColor: `${portal.tone}12` }]}>
@@ -351,7 +361,7 @@ function PortalCard({ portal, onPress }) {
         </View>
         <View style={styles.portalRight}>
           <Text style={[styles.portalStatus, { color: portal.tone }]}>{portal.status}</Text>
-          <ArrowRight size={18} color={disabled ? colors.muted : portal.tone} />
+          <ArrowRight size={18} color={canOpen ? portal.tone : colors.muted} />
         </View>
       </View>
       <View style={styles.portalText}>
@@ -360,9 +370,9 @@ function PortalCard({ portal, onPress }) {
       </View>
       <View style={styles.portalCardFooter}>
         <Text style={[styles.openText, { color: portal.tone }]}>
-          {disabled ? 'Awaiting link' : 'Open portal'}
+          {canOpen ? 'Open portal' : 'Awaiting link'}
         </Text>
-        <ArrowRight size={17} color={disabled ? colors.muted : portal.tone} />
+        <ArrowRight size={17} color={canOpen ? portal.tone : colors.muted} />
       </View>
     </Pressable>
   );

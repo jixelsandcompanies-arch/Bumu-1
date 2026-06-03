@@ -58,13 +58,7 @@ function displayDate(value) {
 }
 
 function displayAgentCode(payment) {
-  const agentCodes = {
-    'Mary Wanjiku': 'BUMU-AG-001',
-    'Peter Kariuki': 'BUMU-AG-002',
-    'Grace Atieno': 'BUMU-AG-003'
-  };
-
-  return payment.agentId || agentCodes[payment.agentName] || NO_DATA;
+  return payment.agentId || payment.agentCode || NO_DATA;
 }
 
 function identifierForPayment(payment) {

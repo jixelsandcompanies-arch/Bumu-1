@@ -47,10 +47,10 @@ export function SettingsScreen({
   onInstall
 }) {
   const fileInputRef = useRef(null);
-  const [name, setName] = useState(() => savedProfile().name || 'Finance Officer');
-  const [role, setRole] = useState(() => savedProfile().role || 'Finance department');
-  const [phone, setPhone] = useState(() => savedProfile().phone || '+254 700 000 000');
-  const [branch, setBranch] = useState(() => savedProfile().branch || 'Head office');
+  const [name, setName] = useState(() => savedProfile().name || '');
+  const [role, setRole] = useState(() => savedProfile().role || '');
+  const [phone, setPhone] = useState(() => savedProfile().phone || '');
+  const [branch, setBranch] = useState(() => savedProfile().branch || '');
   const [paymentAlerts, setPaymentAlerts] = useState(true);
   const [overdueAlerts, setOverdueAlerts] = useState(false);
   const [commissionAlerts, setCommissionAlerts] = useState(false);
@@ -114,15 +114,15 @@ export function SettingsScreen({
   function deleteProfile() {
     window.localStorage.removeItem('bumu-profile-settings');
     window.localStorage.removeItem('bumu-profile-photo');
-    setName('Finance Officer');
-    setRole('Finance department');
-    setPhone('+254 700 000 000');
-    setBranch('Head office');
+    setName('');
+    setRole('');
+    setPhone('');
+    setBranch('');
     onProfileSettingsChange?.({
-      name: 'Finance Officer',
-      role: 'Finance department',
-      phone: '+254 700 000 000',
-      branch: 'Head office'
+      name: '',
+      role: '',
+      phone: '',
+      branch: ''
     });
     onProfilePhotoChange('');
     showMessage('Profile deleted.');
@@ -161,7 +161,7 @@ export function SettingsScreen({
           {profilePhoto ? (
             <Image source={{ uri: profilePhoto }} style={styles.photoImage} />
           ) : (
-            <Text style={styles.photoInitials}>FO</Text>
+            <Text style={styles.photoInitials}>{initialsFor(name)}</Text>
           )}
         </View>
         <View style={styles.profileInfo}>
@@ -393,16 +393,7 @@ export function SettingsScreen({
         {auditOpen && (
           <View style={styles.auditPanel}>
             <Text style={styles.formTitle}>Activity trail</Text>
-            {auditTrail.map((item) => (
-              <View key={item.id} style={styles.auditRow}>
-                <View style={styles.auditDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.auditTitle}>{item.title}</Text>
-                  <Text style={styles.auditMeta}>{item.time} | {item.actor}</Text>
-                </View>
-                <Text style={styles.auditStatus}>{item.status}</Text>
-              </View>
-            ))}
+            <Text style={styles.helpText}>No audit records loaded. Connect the backend audit endpoint to show activity here.</Text>
           </View>
         )}
         <SettingRow
@@ -417,22 +408,7 @@ export function SettingsScreen({
         {helpOpen && (
           <View style={styles.helpPanel}>
             <Text style={styles.formTitle}>Support</Text>
-            <Text style={styles.helpText}>Email: puricekaka@gmail.com</Text>
-            <Text style={styles.helpText}>Phone: 0759280343</Text>
-            <Text style={styles.helpText}>WhatsApp: 0759280343</Text>
-            <Text style={styles.helpText}>Hours: Monday to Friday, 8:00 AM - 5:00 PM</Text>
-            <Text style={styles.helpText}>Office: Bumu Paygo Head Office, Butere, Kakamega</Text>
-            <Text style={styles.helpText}>Urgent payment issue: include customer name, phone, amount, and backend receipt.</Text>
-            <Text style={styles.helpText}>Commission issue: include agent name, agent code, and approval reference.</Text>
-            <Text style={styles.helpText}>Expected response: within 1 business day.</Text>
-            <Pressable
-              onPress={() => {
-                window.location.href = 'mailto:puricekaka@gmail.com?subject=Finance%20Portal%20Support';
-              }}
-              style={styles.contactButton}
-            >
-              <Text style={styles.contactButtonText}>Email support</Text>
-            </Pressable>
+            <Text style={styles.helpText}>Support contact details should be configured by the backend or admin portal.</Text>
           </View>
         )}
       </SettingsGroup>
@@ -455,6 +431,18 @@ function ChoiceButton({ label, active, onPress }) {
       <Text style={[styles.themeButtonText, active && styles.themeButtonTextActive]}>{label}</Text>
     </Pressable>
   );
+}
+
+function initialsFor(name) {
+  const initials = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
+  return initials || '--';
 }
 
 function SettingsGroup({ title, children }) {
@@ -587,14 +575,6 @@ const toneColors = {
   violet: { main: colors.violet, soft: colors.violetSoft },
   orange: { main: colors.orange, soft: colors.orangeSoft }
 };
-
-const auditTrail = [
-  { id: 'AUD-001', title: 'Profile settings opened', time: 'Today 09:12', actor: 'Finance Officer', status: 'Viewed' },
-  { id: 'AUD-002', title: 'Payment alerts enabled', time: 'Today 09:10', actor: 'Finance Officer', status: 'Updated' },
-  { id: 'AUD-003', title: 'Theme changed', time: 'Today 09:08', actor: 'Finance Officer', status: 'Updated' },
-  { id: 'AUD-004', title: 'Password form opened', time: 'Yesterday 16:42', actor: 'Finance Officer', status: 'Security' },
-  { id: 'AUD-005', title: 'Session timeout reviewed', time: 'Yesterday 16:35', actor: 'Finance Officer', status: 'Viewed' }
-];
 
 const styles = StyleSheet.create({
   page: {

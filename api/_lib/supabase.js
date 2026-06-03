@@ -73,3 +73,24 @@ export async function requireFinanceUser(req) {
 
   return data.user;
 }
+
+export async function requireAuthenticatedUser(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  if (!token) {
+    const error = new Error('Sign in is required.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase().auth.getUser(token);
+
+  if (error || !data?.user) {
+    const authError = new Error('Your session is invalid or expired.');
+    authError.statusCode = 401;
+    throw authError;
+  }
+
+  return data.user;
+}

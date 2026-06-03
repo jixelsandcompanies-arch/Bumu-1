@@ -69,13 +69,13 @@ export function AppShell({
           </Pressable>
           <View style={styles.profileWrap}>
             <View style={styles.profile}>
-              <Text style={styles.profileName}>{profileSettings?.name || 'Finance Officer'}</Text>
+              <Text style={styles.profileName}>{profileSettings?.name || 'Account'}</Text>
             </View>
             <View style={styles.avatar}>
               {profilePhoto ? (
                 <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.avatarText}>FO</Text>
+                <Text style={styles.avatarText}>{profileInitials(profileSettings?.name)}</Text>
               )}
             </View>
           </View>
@@ -194,6 +194,18 @@ export function AppShell({
       </View>}
     </View>
   );
+}
+
+function profileInitials(name) {
+  const initials = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
+  return initials || '--';
 }
 
 function NavButton({ item, active, onPress, unreadCount, dark = false }) {

@@ -29,6 +29,21 @@ create table if not exists public.customers (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.agents (
+  id text primary key default ('AGT-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  auth_user_id uuid unique references auth.users(id) on delete set null,
+  agent_code text not null unique,
+  full_name text not null,
+  national_id text,
+  phone text not null,
+  email text not null unique,
+  region text,
+  status text not null default 'active' check (status in ('active', 'pending', 'suspended', 'inactive')),
+  source_portal text not null default 'agent',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.payments (
   id text primary key default ('PAY-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
   customer_id text references public.customers(id) on delete set null,
@@ -89,6 +104,7 @@ create table if not exists public.commissions (
   payout_error text,
   finance_approved_at timestamptz,
   finance_approval_reference text,
+  follow_up_sent_at timestamptz,
   source_portal text not null default 'finance',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -139,6 +155,20 @@ create table if not exists public.agent_notifications (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.agent_tasks (
+  id text primary key default ('ATK-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  agent_id text not null references public.agents(id) on delete cascade,
+  customer_id text references public.customers(id) on delete cascade,
+  title text not null,
+  note text,
+  due_label text,
+  status text not null default 'open' check (status in ('open', 'done', 'cancelled')),
+  completed_at timestamptz,
+  source_portal text not null default 'agent',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.finance_notifications (
   id text primary key default ('FNT-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
   type text not null default 'payment_unpaid',
@@ -163,10 +193,50 @@ create table if not exists public.finance_notifications (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.payment_requests (
+  id text primary key default ('PQR-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  customer_id text not null references public.customers(id) on delete cascade,
+  amount numeric(14,2) not null default 0,
+  phone text not null,
+  status text not null default 'pending' check (status in ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+  provider_reference text,
+  backend_reference text,
+  failure_reason text,
+  source_portal text not null default 'customer',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.customer_notifications (
+  id text primary key default ('CNT-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  customer_id text not null references public.customers(id) on delete cascade,
+  title text not null,
+  message text not null,
+  type text not null default 'info',
+  status text not null default 'unread' check (status in ('unread', 'read', 'dismissed')),
+  source_portal text not null default 'backend',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.password_reset_requests (
+  id text primary key default ('PRR-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  email text not null,
+  phone text not null,
+  otp_code text,
+  status text not null default 'otp_required' check (status in ('otp_required', 'otp_sent', 'verified', 'completed', 'failed', 'cancelled')),
+  source_portal text not null default 'customer',
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.customers add column if not exists auth_user_id uuid references auth.users(id) on delete set null;
 alter table public.customers add column if not exists product_type text not null default 'bike';
 alter table public.customers add column if not exists product_model text;
 alter table public.customers add column if not exists chassis_number text;
 alter table public.customers add column if not exists imei text;
+alter table public.customers add column if not exists daily_installment numeric(14,2) not null default 0;
+alter table public.customers add column if not exists final_payment_date date;
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;
@@ -188,7 +258,14 @@ alter table public.commissions add column if not exists payout_reference text;
 alter table public.commissions add column if not exists provider_response jsonb not null default '{}'::jsonb;
 alter table public.commissions add column if not exists finance_approved_at timestamptz;
 alter table public.commissions add column if not exists finance_approval_reference text;
+alter table public.commissions add column if not exists follow_up_sent_at timestamptz;
 alter table public.reconciliation add column if not exists provider_amount numeric(14,2) not null default 0;
+alter table public.payment_requests add column if not exists backend_reference text;
+alter table public.payment_requests add column if not exists source_portal text not null default 'customer';
+alter table public.password_reset_requests add column if not exists source_portal text not null default 'customer';
+alter table public.agents add column if not exists source_portal text not null default 'agent';
+alter table public.agent_tasks add column if not exists completed_at timestamptz;
+alter table public.agent_tasks add column if not exists source_portal text not null default 'agent';
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -204,6 +281,10 @@ drop trigger if exists customers_set_updated_at on public.customers;
 create trigger customers_set_updated_at before update on public.customers
 for each row execute function public.set_updated_at();
 
+drop trigger if exists agents_set_updated_at on public.agents;
+create trigger agents_set_updated_at before update on public.agents
+for each row execute function public.set_updated_at();
+
 drop trigger if exists payments_set_updated_at on public.payments;
 create trigger payments_set_updated_at before update on public.payments
 for each row execute function public.set_updated_at();
@@ -216,14 +297,28 @@ drop trigger if exists agent_payout_requests_set_updated_at on public.agent_payo
 create trigger agent_payout_requests_set_updated_at before update on public.agent_payout_requests
 for each row execute function public.set_updated_at();
 
+drop trigger if exists agent_tasks_set_updated_at on public.agent_tasks;
+create trigger agent_tasks_set_updated_at before update on public.agent_tasks
+for each row execute function public.set_updated_at();
+
 drop trigger if exists finance_notifications_set_updated_at on public.finance_notifications;
 create trigger finance_notifications_set_updated_at before update on public.finance_notifications
+for each row execute function public.set_updated_at();
+
+drop trigger if exists payment_requests_set_updated_at on public.payment_requests;
+create trigger payment_requests_set_updated_at before update on public.payment_requests
+for each row execute function public.set_updated_at();
+
+drop trigger if exists password_reset_requests_set_updated_at on public.password_reset_requests;
+create trigger password_reset_requests_set_updated_at before update on public.password_reset_requests
 for each row execute function public.set_updated_at();
 
 drop trigger if exists reconciliation_set_updated_at on public.reconciliation;
 create trigger reconciliation_set_updated_at before update on public.reconciliation
 for each row execute function public.set_updated_at();
 
+create unique index if not exists idx_customers_auth_user_unique on public.customers (auth_user_id) where auth_user_id is not null;
+create index if not exists idx_customers_email on public.customers (lower(email));
 create index if not exists idx_customers_agent on public.customers (lower(agent_name), lower(agent_id));
 create index if not exists idx_customers_phone on public.customers (customer_phone);
 create index if not exists idx_customers_status_due on public.customers (status, due_date);
@@ -258,9 +353,66 @@ create index if not exists idx_reconciliation_status_date on public.reconciliati
 create index if not exists idx_reconciliation_receipt on public.reconciliation (receipt);
 create index if not exists idx_agent_notifications_agent on public.agent_notifications (lower(agent_code), lower(agent_name));
 create index if not exists idx_agent_notifications_status_created on public.agent_notifications (status, created_at desc);
+create unique index if not exists idx_agents_auth_user_unique on public.agents (auth_user_id) where auth_user_id is not null;
+create unique index if not exists idx_agents_code_unique on public.agents (agent_code);
+create unique index if not exists idx_agents_email_unique on public.agents (lower(email));
+create index if not exists idx_agents_status_region on public.agents (status, region);
+create index if not exists idx_agent_tasks_agent_status on public.agent_tasks (agent_id, status, created_at desc);
+create index if not exists idx_agent_tasks_customer on public.agent_tasks (customer_id, created_at desc);
 create index if not exists idx_finance_notifications_status_created on public.finance_notifications (status, created_at desc);
 create index if not exists idx_finance_notifications_type_created on public.finance_notifications (type, created_at desc);
 create index if not exists idx_finance_notifications_customer on public.finance_notifications (customer_id, created_at desc);
+create index if not exists idx_payment_requests_customer_created on public.payment_requests (customer_id, created_at desc);
+create index if not exists idx_payment_requests_status_created on public.payment_requests (status, created_at desc);
+create index if not exists idx_customer_notifications_customer_created on public.customer_notifications (customer_id, created_at desc);
+create index if not exists idx_customer_notifications_status_created on public.customer_notifications (status, created_at desc);
+create index if not exists idx_password_reset_requests_email_created on public.password_reset_requests (lower(email), created_at desc);
+
+create or replace view public.customer_portal_summary as
+select
+  c.id as customer_id,
+  c.auth_user_id,
+  c.customer_name,
+  c.customer_phone,
+  c.email,
+  c.national_id,
+  c.product_type,
+  coalesce(c.product_model, c.bike_model) as product_model,
+  c.serial_number,
+  c.chassis_number,
+  c.imei,
+  c.agent_name,
+  c.agent_id,
+  c.total_payable,
+  c.daily_installment,
+  c.due_date,
+  c.final_payment_date,
+  c.last_payment_date,
+  c.status,
+  c.overdue_days,
+  coalesce(sum(
+    case when p.status in ('paid', 'completed')
+      then case
+        when coalesce(p.deposit_credit, 0) + coalesce(p.paygo_payment, 0) > 0
+          then coalesce(p.deposit_credit, 0) + coalesce(p.paygo_payment, 0)
+        else coalesce(p.paid_amount, 0)
+      end
+      else 0
+    end
+  ), 0) as total_paid,
+  greatest(c.total_payable - coalesce(sum(
+    case when p.status in ('paid', 'completed')
+      then case
+        when coalesce(p.deposit_credit, 0) + coalesce(p.paygo_payment, 0) > 0
+          then coalesce(p.deposit_credit, 0) + coalesce(p.paygo_payment, 0)
+        else coalesce(p.paid_amount, 0)
+      end
+      else 0
+    end
+  ), 0), 0) as computed_balance
+from public.customers c
+left join public.payments p on p.customer_id = c.id
+group by c.id;
 
 create or replace function public.finance_dashboard_summary(days_back integer default 30)
 returns jsonb
@@ -330,58 +482,31 @@ as $$
 $$;
 
 alter table public.customers enable row level security;
+alter table public.agents enable row level security;
 alter table public.payments enable row level security;
 alter table public.commissions enable row level security;
 alter table public.agent_payout_requests enable row level security;
 alter table public.reconciliation enable row level security;
 alter table public.agent_notifications enable row level security;
+alter table public.agent_tasks enable row level security;
 alter table public.finance_notifications enable row level security;
+alter table public.payment_requests enable row level security;
+alter table public.customer_notifications enable row level security;
+alter table public.password_reset_requests enable row level security;
 
 revoke all on table public.customers from anon, authenticated;
+revoke all on table public.agents from anon, authenticated;
 revoke all on table public.payments from anon, authenticated;
 revoke all on table public.commissions from anon, authenticated;
 revoke all on table public.agent_payout_requests from anon, authenticated;
 revoke all on table public.reconciliation from anon, authenticated;
 revoke all on table public.agent_notifications from anon, authenticated;
+revoke all on table public.agent_tasks from anon, authenticated;
 revoke all on table public.finance_notifications from anon, authenticated;
+revoke all on table public.payment_requests from anon, authenticated;
+revoke all on table public.customer_notifications from anon, authenticated;
+revoke all on table public.password_reset_requests from anon, authenticated;
+revoke all on table public.customer_portal_summary from anon, authenticated;
 
 -- Portals should access these tables through secured server-side APIs using SUPABASE_SERVICE_ROLE_KEY.
 -- Add user-facing RLS policies later only if a portal reads Supabase directly from the browser.
-
-insert into public.customers (
-  id, customer_name, customer_phone, national_id, bike_model, serial_number, agent_name, agent_id,
-  total_payable, paid_amount, balance, due_date, last_payment_date, status, overdue_days, source_portal
-) values
-  ('CUS-001', 'Daniel Otieno', '+254711223344', '24578136', 'Boxer 150', 'BX150-88213', 'Mary Wanjiku', 'BUMU-AG-001', 185000, 74200, 110800, '2026-06-02', '2026-05-29', 'active', 0, 'admin'),
-  ('CUS-002', 'Brian Mwangi', '+254722334455', '26890134', 'TVS Star', 'TVS-55789', 'Peter Kariuki', 'BUMU-AG-002', 176000, 39200, 136800, '2026-05-25', '2026-05-21', 'defaulted', 5, 'agent'),
-  ('CUS-003', 'Amina Said', '+254733445566', '28764409', 'Boxer 150', 'BX150-88190', 'Grace Atieno', 'BUMU-AG-003', 185000, 185000, 0, '2026-05-12', '2026-05-28', 'paid', 0, 'customer')
-on conflict (id) do nothing;
-
-insert into public.payments (
-  id, customer_id, customer_name, customer_phone, product_type, product_model, agent_name, agent_id, bike_model, serial_number, chassis_number, imei,
-  total_payable, paid_amount, balance, due_date, registration_status, deposit_credit,
-  paygo_payment, date, receipt, method, status, source_portal
-) values
-  ('PAY-001', 'CUS-001', 'Daniel Otieno', '+254711223344', 'bike', 'Boxer 150', 'Mary Wanjiku', 'BUMU-AG-001', 'Boxer 150', 'BX150-88213', 'BX150-88213', null, 185000, 74200, 110800, '2026-06-02', 'active', 2300, 2000, '2026-05-29T08:15:00+03:00', 'BUMU-CM-001', 'provider_import', 'paid', 'finance'),
-  ('PAY-002', 'CUS-002', 'Brian Mwangi', '+254722334455', 'bike', 'TVS Star', 'Peter Kariuki', 'BUMU-AG-002', 'TVS Star', 'TVS-55789', 'TVS-55789', null, 176000, 39200, 136800, '2026-05-25', 'defaulted', 1800, 1500, '2026-05-29T10:42:00+03:00', 'BUMU-CM-002', 'backend_import', 'paid', 'backend'),
-  ('PAY-003', 'CUS-003', 'Amina Said', '+254733445566', 'bike', 'Boxer 150', 'Grace Atieno', 'BUMU-AG-003', 'Boxer 150', 'BX150-88190', 'BX150-88190', null, 185000, 185000, 0, '2026-05-12', 'paid', 3000, 2500, '2026-05-28T14:20:00+03:00', 'BUMU-CM-003', 'manual', 'paid', 'finance'),
-  ('PAY-004', null, 'Nancy Wairimu', '+254712345004', 'phone', 'Tecno Spark PAYGO', 'Mary Wanjiku', 'BUMU-AG-001', 'Tecno Spark PAYGO', 'IMEI-3567001004', null, 'IMEI-3567001004', 24000, 8500, 15500, '2026-06-08', 'active', 6500, 2000, '2026-05-31T10:05:00+03:00', 'PHONE-RC-1004', 'manual', 'paid', 'finance')
-on conflict (id) do nothing;
-
-insert into public.commissions (id, payment_id, agent_name, agent_code, agent_phone, customer_name, product_type, product_model, serial_number, chassis_number, imei, type, amount, status, earned_at, paid_at, source_portal) values
-  ('COM-001', 'PAY-001', 'Mary Wanjiku', 'BUMU-AG-001', '+254712111001', 'Daniel Otieno', 'bike', 'Boxer 150', 'BX150-88213', 'BX150-88213', null, 'payment_percentage', 115, 'earned', '2026-05-29T08:15:00+03:00', null, 'finance'),
-  ('COM-002', 'PAY-002', 'Peter Kariuki', 'BUMU-AG-002', '+254712111002', 'Brian Mwangi', 'bike', 'TVS Star', 'TVS-55789', 'TVS-55789', null, 'payment_percentage', 125, 'paid', '2026-05-29T10:42:00+03:00', '2026-05-29T15:00:00+03:00', 'finance'),
-  ('COM-003', 'PAY-004', 'Mary Wanjiku', 'BUMU-AG-001', '+254712111001', 'Nancy Wairimu', 'phone', 'Tecno Spark PAYGO', 'IMEI-3567001004', null, 'IMEI-3567001004', 'sale_activation_commission', 195, 'earned', '2026-05-31T10:05:00+03:00', null, 'finance')
-on conflict (id) do nothing;
-
-update public.commissions
-set payout_status = 'paid',
-    payout_completed_at = paid_at
-where status = 'paid'
-  and paid_at is not null
-  and payout_status = 'not_requested';
-
-insert into public.reconciliation (id, payment_id, receipt, customer_name, national_id, provider_amount, system_amount, date, status, source_portal) values
-  ('REC-001', 'PAY-001', 'BUMU-CM-001', 'Daniel Otieno', '24578136', 2300, 2300, '2026-05-29', 'matched', 'finance'),
-  ('REC-002', null, 'BUMU-CM-005', 'Unknown account ref', 'No data yet', 1700, null, '2026-05-29', 'unmatched', 'backend')
-on conflict (id) do nothing;

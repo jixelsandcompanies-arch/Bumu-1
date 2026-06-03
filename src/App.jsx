@@ -11,6 +11,8 @@ import { ReconciliationScreen } from './screens/ReconciliationScreen.jsx';
 import { NotificationsScreen } from './screens/NotificationsScreen.jsx';
 import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
+import { CustomerPortalScreen } from './screens/CustomerPortalScreen.jsx';
+import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
@@ -34,6 +36,14 @@ function readProfileSettings() {
 
 function isAuthRoute() {
   return ['#/login', '#/register', '#/forgot-password'].includes(window.location.hash);
+}
+
+function isCustomerRoute() {
+  return window.location.hash === '#/customer';
+}
+
+function isAgentRoute() {
+  return window.location.hash === '#/agent';
 }
 
 function buildDailyPaymentNotifications(payments) {
@@ -132,6 +142,8 @@ export function App() {
   const [authenticated, setAuthenticated] = useState(() => Boolean(getAuthToken()));
   const [authChecked, setAuthChecked] = useState(false);
   const [authRouteActive, setAuthRouteActive] = useState(isAuthRoute);
+  const [customerRouteActive, setCustomerRouteActive] = useState(isCustomerRoute);
+  const [agentRouteActive, setAgentRouteActive] = useState(isAgentRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.localStorage.getItem('bumu-active-screen') || 'dashboard'
   );
@@ -139,10 +151,10 @@ export function App() {
     () => window.localStorage.getItem('bumu-profile-photo') || ''
   );
   const [profileSettings, setProfileSettings] = useState(() => ({
-    name: 'Finance Officer',
-    role: 'Finance department',
-    phone: '+254 700 000 000',
-    branch: 'Head office',
+    name: '',
+    role: '',
+    phone: '',
+    branch: '',
     ...readProfileSettings()
   }));
   const [themeMode, setThemeMode] = useState('light');
@@ -188,6 +200,8 @@ export function App() {
   useEffect(() => {
     function handleHashChange() {
       setAuthRouteActive(isAuthRoute());
+      setCustomerRouteActive(isCustomerRoute());
+      setAgentRouteActive(isAgentRoute());
     }
 
     window.addEventListener('hashchange', handleHashChange);
@@ -258,6 +272,14 @@ export function App() {
         <Text style={{ color: 'var(--app-muted)' }}>Loading finance portal...</Text>
       </View>
     );
+  }
+
+  if (customerRouteActive) {
+    return <CustomerPortalScreen />;
+  }
+
+  if (agentRouteActive) {
+    return <AgentPortalScreen />;
   }
 
   if (!authenticated) {

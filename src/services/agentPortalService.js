@@ -1,4 +1,3 @@
-import { listLocalCustomers } from './localData.js';
 import { backendClient } from './backendClient.js';
 
 let lastSyncIssue = null;
@@ -30,12 +29,9 @@ function normalizeRegisteredCustomer(customer) {
 export const agentPortalService = {
   async listRegisteredCustomers() {
     try {
-      const customers = backendClient.isConfigured
-        ? await backendClient
-          .get('/api/customers')
-          .then((data) => data.customers ?? data.records ?? data)
-          .catch(() => listLocalCustomers())
-        : listLocalCustomers();
+      const customers = await backendClient
+        .get('/api/customers')
+        .then((data) => data.customers ?? data.records ?? data);
       lastSyncIssue = null;
       return customers.map(normalizeRegisteredCustomer);
     } catch (error) {
@@ -48,18 +44,13 @@ export const agentPortalService = {
   },
 
   async healthCheck() {
-    if (backendClient.isConfigured) {
-      return backendClient.get('/api/health').catch((error) => {
-        lastSyncIssue = {
-          message: error.message,
-          checkedAt: new Date().toISOString()
-        };
-        return { ok: false, mode: 'backend', message: error.message };
-      });
-    }
-
-    lastSyncIssue = null;
-    return { ok: true, mode: 'local' };
+    return backendClient.get('/api/health').catch((error) => {
+      lastSyncIssue = {
+        message: error.message,
+        checkedAt: new Date().toISOString()
+      };
+      return { ok: false, mode: 'backend', message: error.message };
+    });
   },
 
   getLastSyncIssue() {

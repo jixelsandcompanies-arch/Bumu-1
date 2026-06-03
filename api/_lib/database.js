@@ -11,8 +11,32 @@ function mapSupabaseError(error) {
   return mapped;
 }
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function formatDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+function mapDisplayStatus(value, fallback = 'Pending') {
+  const normalized = String(value || '').trim();
+  if (!normalized) return fallback;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).replaceAll('_', ' ');
+}
+
 function paymentAmount(payment) {
   return Number(payment.deposit_credit || 0) + Number(payment.paygo_payment || 0);
+}
+
+function customerPaymentAmount(payment) {
+  const splitAmount = Number(payment.deposit_credit || 0) + Number(payment.paygo_payment || 0);
+  return splitAmount > 0 ? splitAmount : Number(payment.paid_amount || 0);
 }
 
 function normalizeLimit(value, fallback = 500, max = 1000) {
@@ -182,6 +206,464 @@ export async function listPayments(query = {}) {
   return { payments: data || [] };
 }
 
+export async function findCustomerForAuthUser(user) {
+  const supabase = getSupabase();
+  const userEmail = normalizeEmail(user?.email);
+
+  let request = supabase
+    .from('customers')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  let { data, error } = await request;
+  if (error) throw mapSupabaseError(error);
+  if (data) return data;
+
+  if (!userEmail) return null;
+
+  const byEmail = await supabase
+    .from('customers')
+    .select('*')
+    .ilike('email', userEmail)
+    .maybeSingle();
+
+  if (byEmail.error) throw mapSupabaseError(byEmail.error);
+  if (!byEmail.data) return null;
+
+  if (!byEmail.data.auth_user_id) {
+    const linked = await supabase
+      .from('customers')
+      .update({ auth_user_id: user.id })
+      .eq('id', byEmail.data.id)
+      .select()
+      .single();
+
+    if (linked.error) throw mapSupabaseError(linked.error);
+    return linked.data;
+  }
+
+  return byEmail.data;
+}
+
+export async function getCustomerPortal(user) {
+  const customer = await findCustomerForAuthUser(user);
+
+  if (!customer) {
+    const error = new Error('Customer profile is not connected yet. Ask admin to link this email to a customer record.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const [paymentsResult, notificationsResult, requestsResult] = await Promise.all([
+    getSupabase()
+      .from('payments')
+      .select('*')
+      .eq('customer_id', customer.id)
+      .order('date', { ascending: false })
+      .limit(100),
+    getSupabase()
+      .from('customer_notifications')
+      .select('*')
+      .eq('customer_id', customer.id)
+      .order('created_at', { ascending: false })
+      .limit(100),
+    getSupabase()
+      .from('payment_requests')
+      .select('*')
+      .eq('customer_id', customer.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+  ]);
+
+  [paymentsResult, notificationsResult, requestsResult].forEach(({ error }) => {
+    if (error) throw mapSupabaseError(error);
+  });
+
+  const payments = paymentsResult.data || [];
+  const completedPayments = payments.filter((payment) => ['paid', 'completed'].includes(String(payment.status || '').toLowerCase()));
+  const totalPaid = completedPayments.reduce((total, payment) => total + customerPaymentAmount(payment), 0);
+  const totalPayable = Number(customer.total_payable || 0);
+  const balance = Number(customer.balance || Math.max(totalPayable - totalPaid, 0));
+  const dailyInstallment = Number(customer.daily_installment || 0);
+
+  return {
+    customer: {
+      id: customer.id,
+      name: customer.customer_name,
+      phone: customer.customer_phone || '',
+      email: customer.email || '',
+      nationalId: customer.national_id || '',
+      agentName: customer.agent_name || '',
+      agentCode: customer.agent_id || ''
+    },
+    product: {
+      type: customer.product_type || 'product',
+      model: customer.product_model || customer.bike_model || '',
+      serialNumber: customer.serial_number || '',
+      chassisNumber: customer.chassis_number || '',
+      imei: customer.imei || '',
+      totalPrice: totalPayable,
+      dailyInstallment,
+      dueDate: customer.due_date || '',
+      lastPaymentDate: customer.last_payment_date || '',
+      status: mapDisplayStatus(customer.status, 'Active')
+    },
+    summary: {
+      totalPaid,
+      balance,
+      progress: totalPayable > 0 ? Math.min(100, Math.round((totalPaid / totalPayable) * 100)) : 0,
+      overdueDays: Number(customer.overdue_days || 0),
+      pendingRequests: (requestsResult.data || []).filter((request) => request.status === 'pending').length
+    },
+    payments: payments.map((payment) => ({
+      id: payment.id,
+      date: formatDate(payment.date || payment.provider_paid_at || payment.created_at),
+      amount: customerPaymentAmount(payment),
+      receipt: payment.receipt || payment.provider_transaction_id || '',
+      method: payment.method || 'paybill',
+      phone: payment.provider_payer_phone || payment.customer_phone || '',
+      status: mapDisplayStatus(payment.status)
+    })),
+    notifications: (notificationsResult.data || []).map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      unread: notification.status === 'unread',
+      date: formatDate(notification.created_at)
+    })),
+    paymentRequests: (requestsResult.data || []).map((request) => ({
+      id: request.id,
+      amount: Number(request.amount || 0),
+      phone: request.phone || '',
+      status: mapDisplayStatus(request.status),
+      createdAt: formatDate(request.created_at)
+    }))
+  };
+}
+
+export async function createCustomerPaymentRequest(user, body) {
+  const customer = await findCustomerForAuthUser(user);
+
+  if (!customer) {
+    const error = new Error('Customer profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const amount = Number(body.amount || 0);
+  const phone = String(body.phone || customer.customer_phone || '').trim();
+
+  if (!amount || amount <= 0 || !phone) {
+    const error = new Error('Enter a valid amount and payment phone number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('payment_requests')
+    .insert({
+      customer_id: customer.id,
+      amount,
+      phone,
+      status: 'pending',
+      source_portal: 'customer'
+    })
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+
+  await getSupabase()
+    .from('customer_notifications')
+    .insert({
+      customer_id: customer.id,
+      title: 'Payment request received',
+      message: `Your payment request for KES ${amount.toLocaleString('en-KE')} has been received.`,
+      type: 'payment',
+      status: 'unread'
+    });
+
+  return { paymentRequest: data };
+}
+
+export async function createCustomerPasswordResetRequest(body) {
+  const email = normalizeEmail(body.email);
+  const phone = String(body.phone || '').trim();
+
+  if (!email || !phone) {
+    const error = new Error('Enter your email and phone number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('password_reset_requests')
+    .insert({
+      email,
+      phone,
+      status: 'otp_required',
+      source_portal: 'customer'
+    })
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  return { request: data };
+}
+
+export async function findAgentForAuthUser(user) {
+  const userEmail = normalizeEmail(user?.email);
+  let { data, error } = await getSupabase()
+    .from('agents')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (error) throw mapSupabaseError(error);
+  if (data) return data;
+  if (!userEmail) return null;
+
+  const byEmail = await getSupabase()
+    .from('agents')
+    .select('*')
+    .ilike('email', userEmail)
+    .maybeSingle();
+
+  if (byEmail.error) throw mapSupabaseError(byEmail.error);
+  if (!byEmail.data) return null;
+
+  if (!byEmail.data.auth_user_id) {
+    const linked = await getSupabase()
+      .from('agents')
+      .update({ auth_user_id: user.id })
+      .eq('id', byEmail.data.id)
+      .select()
+      .single();
+
+    if (linked.error) throw mapSupabaseError(linked.error);
+    return linked.data;
+  }
+
+  return byEmail.data;
+}
+
+export async function getAgentPortal(user) {
+  const agent = await findAgentForAuthUser(user);
+
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet. Ask admin to approve or link this email.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const agentCode = agent.agent_code || agent.agent_id;
+  const agentName = agent.full_name || agent.agent_name;
+  const customerFilter = agentCode
+    ? `agent_id.eq.${agentCode},agent_name.eq.${agentName}`
+    : `agent_name.eq.${agentName}`;
+
+  const [customersResult, commissionsResult, notificationsResult, tasksResult] = await Promise.all([
+    getSupabase()
+      .from('customers')
+      .select('*')
+      .or(customerFilter)
+      .order('created_at', { ascending: false })
+      .limit(200),
+    getSupabase()
+      .from('commissions')
+      .select('*')
+      .or(`agent_code.eq.${agentCode},agent_name.eq.${agentName}`)
+      .order('earned_at', { ascending: false })
+      .limit(100),
+    getSupabase()
+      .from('agent_notifications')
+      .select('*')
+      .or(`agent_code.eq.${agentCode},agent_name.eq.${agentName}`)
+      .order('created_at', { ascending: false })
+      .limit(100),
+    getSupabase()
+      .from('agent_tasks')
+      .select('*')
+      .eq('agent_id', agent.id)
+      .order('created_at', { ascending: false })
+      .limit(100)
+  ]);
+
+  [customersResult, commissionsResult, notificationsResult, tasksResult].forEach(({ error }) => {
+    if (error) throw mapSupabaseError(error);
+  });
+
+  const customers = customersResult.data || [];
+  const commissions = commissionsResult.data || [];
+  const tasks = tasksResult.data || [];
+  const assignedBalance = customers.reduce((total, customer) => total + Number(customer.balance || 0), 0);
+  const paidCommissions = commissions
+    .filter((commission) => commission.status === 'paid')
+    .reduce((total, commission) => total + Number(commission.amount || 0), 0);
+  const pendingCommissions = commissions
+    .filter((commission) => commission.status !== 'paid')
+    .reduce((total, commission) => total + Number(commission.amount || 0), 0);
+
+  return {
+    agent: {
+      id: agent.id,
+      code: agentCode || '',
+      name: agentName || '',
+      email: agent.email || '',
+      phone: agent.phone || '',
+      region: agent.region || '',
+      status: agent.status || 'active'
+    },
+    summary: {
+      assignedCustomers: customers.length,
+      overdueCustomers: customers.filter((customer) => Number(customer.overdue_days || 0) > 0 || customer.status === 'defaulted').length,
+      assignedBalance,
+      paidCommissions,
+      pendingCommissions,
+      openTasks: tasks.filter((task) => task.status === 'open').length
+    },
+    customers: customers.map((customer) => ({
+      id: customer.id,
+      name: customer.customer_name,
+      phone: customer.customer_phone || '',
+      productType: customer.product_type || 'product',
+      productModel: customer.product_model || customer.bike_model || '',
+      serialNumber: customer.serial_number || '',
+      chassisNumber: customer.chassis_number || '',
+      imei: customer.imei || '',
+      totalPayable: Number(customer.total_payable || 0),
+      paidAmount: Number(customer.paid_amount || 0),
+      balance: Number(customer.balance || 0),
+      dueDate: customer.due_date || '',
+      status: mapDisplayStatus(customer.status, 'Active'),
+      overdueDays: Number(customer.overdue_days || 0)
+    })),
+    commissions: commissions.map((commission) => ({
+      id: commission.id,
+      customerName: commission.customer_name || '',
+      productType: commission.product_type || 'product',
+      productModel: commission.product_model || '',
+      amount: Number(commission.amount || 0),
+      status: mapDisplayStatus(commission.status),
+      earnedAt: formatDate(commission.earned_at)
+    })),
+    notifications: (notificationsResult.data || []).map((notification) => ({
+      id: notification.id,
+      title: notification.customer_name || 'Agent notification',
+      message: notification.message,
+      status: notification.status,
+      date: formatDate(notification.created_at)
+    })),
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      note: task.note || '',
+      status: task.status,
+      dueLabel: task.due_label || '',
+      createdAt: formatDate(task.created_at)
+    }))
+  };
+}
+
+export async function createAgentCustomer(user, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const customerName = String(body.customerName || '').trim();
+  const customerPhone = String(body.customerPhone || '').trim();
+  if (!customerName || !customerPhone) {
+    const error = new Error('Enter customer name and phone number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const totalPayable = Number(body.totalPayable || 0);
+  const paidAmount = Number(body.paidAmount || 0);
+  const agentCode = agent.agent_code || agent.agent_id;
+  const productType = body.productType || 'product';
+  const productModel = body.productModel || body.bikeModel || null;
+
+  const { data, error } = await getSupabase()
+    .from('customers')
+    .insert({
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      national_id: body.nationalId || null,
+      email: normalizeEmail(body.email) || null,
+      product_type: productType,
+      product_model: productModel,
+      bike_model: productType === 'bike' ? productModel : null,
+      serial_number: body.serialNumber || body.imei || body.chassisNumber || null,
+      chassis_number: body.chassisNumber || null,
+      imei: body.imei || null,
+      agent_name: agent.full_name || agent.agent_name,
+      agent_id: agentCode,
+      total_payable: totalPayable,
+      paid_amount: paidAmount,
+      balance: Math.max(totalPayable - paidAmount, 0),
+      due_date: body.dueDate || null,
+      daily_installment: Number(body.dailyInstallment || 0),
+      status: 'active',
+      source_portal: 'agent'
+    })
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  return { customer: data };
+}
+
+export async function createAgentTask(user, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('agent_tasks')
+    .insert({
+      agent_id: agent.id,
+      customer_id: body.customerId || null,
+      title: body.title || 'Follow up customer',
+      note: body.note || '',
+      due_label: body.dueLabel || 'Today',
+      status: 'open'
+    })
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  return { task: data };
+}
+
+export async function completeAgentTask(user, taskId) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('agent_tasks')
+    .update({ status: 'done', completed_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .eq('agent_id', agent.id)
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  return { task: data };
+}
+
 export async function createManualPayment(body) {
   const amount = Number(body.depositCredit || body.deposit_credit || 0) + Number(body.paygoPayment || body.paygo_payment || 0);
   const totalPayable = Number(body.totalPayable || body.total_payable || 0);
@@ -192,7 +674,7 @@ export async function createManualPayment(body) {
     product_model: body.productModel || body.product_model || body.bikeModel || body.bike_model || body.itemName || body.item_name || null,
     agent_name: body.agentName || body.agent_name,
     agent_id: body.agentId || body.agent_id,
-    bike_model: body.bikeModel || body.bike_model || 'Manual entry',
+    bike_model: body.bikeModel || body.bike_model || body.productModel || body.product_model || null,
     serial_number: body.serialNumber || body.serial_number || body.imei || body.chassisNumber || body.chassis_number,
     chassis_number: body.chassisNumber || body.chassis_number || null,
     imei: body.imei || null,
@@ -311,14 +793,35 @@ export async function markAgentCommissionsPaid(agentKey) {
 }
 
 export async function createAgentNotification(body) {
+  let source = body;
+
+  if (body.commissionId || body.commission_id) {
+    const commissionId = body.commissionId || body.commission_id;
+    const commission = await getSupabase()
+      .from('commissions')
+      .select('*')
+      .eq('id', commissionId)
+      .single();
+
+    if (commission.error) throw mapSupabaseError(commission.error);
+    source = {
+      ...body,
+      agent_name: commission.data.agent_name,
+      agent_code: commission.data.agent_code,
+      agent_phone: commission.data.agent_phone,
+      customer_name: commission.data.customer_name,
+      message: body.message || `Follow up ${commission.data.customer_name || 'customer account'}.`
+    };
+  }
+
   const record = {
-    agent_name: body.agentName || body.agent_name,
-    agent_code: body.agentCode || body.agent_code,
-    agent_phone: body.agentPhone || body.agent_phone,
-    customer_name: body.customerName || body.customer_name,
-    message: body.message,
+    agent_name: source.agentName || source.agent_name,
+    agent_code: source.agentCode || source.agent_code,
+    agent_phone: source.agentPhone || source.agent_phone,
+    customer_name: source.customerName || source.customer_name,
+    message: source.message,
     source_portal: 'finance',
-    created_at: body.createdAt || new Date().toISOString()
+    created_at: source.createdAt || source.created_at || new Date().toISOString()
   };
 
   const { data, error } = await getSupabase()
@@ -328,6 +831,14 @@ export async function createAgentNotification(body) {
     .single();
 
   if (error) throw mapSupabaseError(error);
+
+  if (body.commissionId || body.commission_id) {
+    await getSupabase()
+      .from('commissions')
+      .update({ follow_up_sent_at: record.created_at })
+      .eq('id', body.commissionId || body.commission_id);
+  }
+
   return { notification: data };
 }
 
