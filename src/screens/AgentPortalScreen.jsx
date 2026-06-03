@@ -137,6 +137,9 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
           </View>
           <View style={styles.agentCard}>
             <Text style={styles.agentName}>{fallback(portal.agent?.name, 'Agent')}</Text>
+            {portal.agent?.profileName && portal.agent.profileName !== portal.agent?.name ? (
+              <Text style={styles.agentMeta}>{portal.agent.profileName}</Text>
+            ) : null}
             <Text style={styles.agentMeta}>{fallback(portal.agent?.code, 'No agent code')}</Text>
             <Text style={styles.agentMeta}>{fallback(portal.agent?.region, 'No region')}</Text>
           </View>

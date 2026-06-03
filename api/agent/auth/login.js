@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         role: 'agent',
         agentId: agent.id,
         agentCode: agent.agent_code,
-        fullName: agent.full_name
+        fullName: data.user.user_metadata?.full_name || agent.full_name
       }
     });
   } catch (error) {

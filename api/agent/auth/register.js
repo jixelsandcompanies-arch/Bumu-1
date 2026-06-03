@@ -98,7 +98,8 @@ export default async function handler(req, res) {
         .from('agents')
         .update({
           auth_user_id: authUserId,
-          full_name: existing.data.full_name || fullName,
+          full_name: fullName,
+          agent_name: fullName,
           national_id: existing.data.national_id || nationalId || null,
           phone: existing.data.phone || phone,
           email: existing.data.email || email,
@@ -124,6 +125,7 @@ export default async function handler(req, res) {
           auth_user_id: authUserId,
           agent_code: code,
           full_name: fullName,
+          agent_name: fullName,
           national_id: nationalId || null,
           phone,
           email,

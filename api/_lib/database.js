@@ -900,7 +900,8 @@ export async function getAgentPortal(user) {
     agent: {
       id: agent.id,
       code: agentCode || '',
-      name: agentName || '',
+      name: user?.user_metadata?.full_name || agentName || '',
+      profileName: agentName || '',
       email: agent.email || '',
       phone: agent.phone || '',
       region: agent.region || '',
