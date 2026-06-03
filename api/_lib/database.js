@@ -1009,20 +1009,7 @@ export async function createAgentCustomer(user, body) {
   const agentCode = agent.agent_code || agent.agent_id;
   const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
   const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
-  const nextOfKinOtpDelivery = nextOfKinOtp
-    ? await sendNextOfKinAcceptanceSms({ phone: nextOfKinPhone, otp: nextOfKinOtp, customerName }).catch((error) => ({
-        configured: true,
-        delivered: false,
-        provider: 'africastalking',
-        error: error.message
-      }))
-    : { configured: false, delivered: false, provider: 'africastalking' };
-
-  if (nextOfKinOtp && !nextOfKinOtpDelivery.delivered) {
-    const error = new Error('Next-of-kin OTP could not be sent. Check Africa\'s Talking SMS settings before submitting this application.');
-    error.statusCode = 502;
-    throw error;
-  }
+  let nextOfKinOtpDelivery = { configured: false, delivered: false, provider: 'africastalking' };
   const duplicateCheck = nationalId
     ? await getSupabase()
         .from('customers')
@@ -1060,8 +1047,8 @@ export async function createAgentCustomer(user, body) {
       next_of_kin_id_back_url: nextOfKinIdBackUrl,
       next_of_kin_otp_hash: nextOfKinOtp ? hashOtp(nextOfKinPhone, nextOfKinOtp) : null,
       next_of_kin_otp_expires_at: nextOfKinOtpExpiresAt,
-      next_of_kin_otp_sent_at: nextOfKinOtp ? new Date().toISOString() : null,
-      next_of_kin_otp_status: nextOfKinOtpDelivery.delivered ? 'sent' : 'not_sent',
+      next_of_kin_otp_sent_at: null,
+      next_of_kin_otp_status: nextOfKinOtp ? 'not_sent' : 'not_sent',
       product_type: productType,
       product_model: productModel,
       bike_model: productType === 'bike' ? productModel : null,
@@ -1097,6 +1084,46 @@ export async function createAgentCustomer(user, body) {
     .single();
 
   if (application.error) throw mapSupabaseError(application.error);
+
+  if (nextOfKinOtp) {
+    const publicBaseUrl = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '').replace(/\/$/, '');
+    const appBaseUrl = publicBaseUrl
+      ? (publicBaseUrl.startsWith('http') ? publicBaseUrl : `https://${publicBaseUrl}`)
+      : 'https://bumu-beta.vercel.app';
+    const acceptUrl = `${appBaseUrl}/#/next-of-kin?customer=${encodeURIComponent(data.id)}&otp=${encodeURIComponent(nextOfKinOtp)}`;
+    nextOfKinOtpDelivery = await sendNextOfKinAcceptanceSms({
+      phone: nextOfKinPhone,
+      otp: nextOfKinOtp,
+      customerName,
+      acceptUrl
+    }).catch((deliveryError) => ({
+      configured: true,
+      delivered: false,
+      provider: 'africastalking',
+      error: deliveryError.message
+    }));
+
+    const sentAt = new Date().toISOString();
+    const updateOtpDelivery = await getSupabase()
+      .from('customers')
+      .update({
+        next_of_kin_otp_sent_at: nextOfKinOtpDelivery.delivered ? sentAt : null,
+        next_of_kin_otp_status: nextOfKinOtpDelivery.delivered ? 'sent' : 'failed'
+      })
+      .eq('id', data.id)
+      .select()
+      .single();
+
+    if (updateOtpDelivery.error) throw mapSupabaseError(updateOtpDelivery.error);
+    data.next_of_kin_otp_sent_at = updateOtpDelivery.data.next_of_kin_otp_sent_at;
+    data.next_of_kin_otp_status = updateOtpDelivery.data.next_of_kin_otp_status;
+
+    if (!nextOfKinOtpDelivery.delivered) {
+      const deliveryError = new Error('Next-of-kin acceptance SMS could not be sent. Check Africa\'s Talking SMS settings before submitting this application.');
+      deliveryError.statusCode = 502;
+      throw deliveryError;
+    }
+  }
 
   const paymentRequest = await startCustomerCheckoutRequest(data, {
     amount: depositAmount,
@@ -1140,31 +1167,41 @@ function activationSmsWasDelivered(result) {
   return Boolean(result?.customer?.delivered);
 }
 
-export async function verifyNextOfKinOtp(user, customerId, body) {
-  const agent = await findAgentForAuthUser(user);
-  if (!agent) {
-    const error = new Error('Agent profile is not connected yet.');
-    error.statusCode = 403;
-    throw error;
-  }
-
-  const otp = String(body.otp || '').trim();
-  if (!/^\d{6}$/.test(otp)) {
-    const error = new Error('Enter the 6-digit next-of-kin OTP.');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const customerResult = await getSupabase()
+async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
+  const customerQuery = getSupabase()
     .from('customers')
     .select('*')
-    .eq('id', customerId)
-    .eq('agent_id', agent.agent_code || agent.agent_id)
-    .single();
+    .eq('id', customerId);
+
+  if (!agent) {
+    const customerResult = await customerQuery.single();
+    if (customerResult.error) throw mapSupabaseError(customerResult.error);
+    const foundAgent = customerResult.data.agent_id
+      ? await getSupabase().from('agents').select('*').eq('agent_code', customerResult.data.agent_id).maybeSingle()
+      : { data: null };
+    if (foundAgent.error) throw mapSupabaseError(foundAgent.error);
+    agent = foundAgent.data || {
+      agent_code: customerResult.data.agent_id,
+      agent_id: customerResult.data.agent_id,
+      full_name: customerResult.data.agent_name,
+      agent_name: customerResult.data.agent_name
+    };
+    return completeNextOfKinAcceptance({ customerId, otp, agent });
+  }
+
+  if (agent.agent_code || agent.agent_id) {
+    customerQuery.eq('agent_id', agent.agent_code || agent.agent_id);
+  }
+
+  const customerResult = await customerQuery.single();
 
   if (customerResult.error) throw mapSupabaseError(customerResult.error);
   const customer = customerResult.data;
   const phone = customer.next_of_kin_phone || '';
+
+  if (customer.next_of_kin_otp_status === 'verified') {
+    return { customer, application: null, alreadyVerified: true };
+  }
 
   if (
     !customer.next_of_kin_otp_hash ||
@@ -1251,6 +1288,35 @@ export async function verifyNextOfKinOtp(user, customerId, body) {
   });
 
   return { customer: updateCustomer.data, application: application.data, sms: smsResult };
+}
+
+export async function acceptNextOfKinOtp(customerId, body) {
+  const otp = String(body.otp || '').trim();
+  if (!/^\d{6}$/.test(otp)) {
+    const error = new Error('Enter the 6-digit next-of-kin OTP.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return completeNextOfKinAcceptance({ customerId, otp, agent: null });
+}
+
+export async function verifyNextOfKinOtp(user, customerId, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const otp = String(body.otp || '').trim();
+  if (!/^\d{6}$/.test(otp)) {
+    const error = new Error('Enter the 6-digit next-of-kin OTP.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return completeNextOfKinAcceptance({ customerId, otp, agent });
 }
 
 export async function createAgentCustomerDepositRequest(user, customerId, body) {

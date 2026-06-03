@@ -14,6 +14,7 @@ import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
 import { CustomerPortalScreen } from './screens/CustomerPortalScreen.jsx';
 import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
 import { AdminPortalScreen } from './screens/AdminPortalScreen.jsx';
+import { NextOfKinAcceptScreen } from './screens/NextOfKinAcceptScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
@@ -49,6 +50,10 @@ function isAgentRoute() {
 
 function isAdminRoute() {
   return window.location.hash === '#/admin';
+}
+
+function isNextOfKinRoute() {
+  return window.location.hash.startsWith('#/next-of-kin');
 }
 
 function portalMetaForRoute() {
@@ -177,6 +182,7 @@ export function App() {
   const [customerRouteActive, setCustomerRouteActive] = useState(isCustomerRoute);
   const [agentRouteActive, setAgentRouteActive] = useState(isAgentRoute);
   const [adminRouteActive, setAdminRouteActive] = useState(isAdminRoute);
+  const [nextOfKinRouteActive, setNextOfKinRouteActive] = useState(isNextOfKinRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.sessionStorage.getItem('bumu-active-screen') || 'dashboard'
   );
@@ -236,6 +242,7 @@ export function App() {
       setCustomerRouteActive(isCustomerRoute());
       setAgentRouteActive(isAgentRoute());
       setAdminRouteActive(isAdminRoute());
+      setNextOfKinRouteActive(isNextOfKinRoute());
     }
 
     window.addEventListener('hashchange', handleHashChange);
@@ -252,7 +259,7 @@ export function App() {
     manifestLink?.setAttribute('href', meta.manifest);
     appleTitle?.setAttribute('content', meta.appleTitle);
     description?.setAttribute('content', meta.description);
-  }, [customerRouteActive, agentRouteActive, adminRouteActive, authRouteActive]);
+  }, [customerRouteActive, agentRouteActive, adminRouteActive, nextOfKinRouteActive, authRouteActive]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -322,6 +329,10 @@ export function App() {
 
   if (customerRouteActive) {
     return <CustomerPortalScreen canInstall={canInstall} onInstall={install} />;
+  }
+
+  if (nextOfKinRouteActive) {
+    return <NextOfKinAcceptScreen />;
   }
 
   if (agentRouteActive) {

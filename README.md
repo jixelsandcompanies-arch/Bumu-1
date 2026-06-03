@@ -21,6 +21,7 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
+PUBLIC_APP_URL=https://bumu-beta.vercel.app
 ADMIN_MAX_ACCOUNTS=10
 PAYMENT_PROVIDER=africastalking
 COMMISSION_PAYOUT_PROVIDER=africastalking
