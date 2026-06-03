@@ -1,12 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
-  BadgeCheck,
-  Bike,
   Building2,
-  BriefcaseBusiness,
   CreditCard,
-  Headphones,
   Mail,
   MapPin,
   Phone,
@@ -60,13 +56,8 @@ const portals = [
   }
 ];
 
-const systemPoints = [
-  { label: 'Shared Supabase CRM', icon: BadgeCheck },
-  { label: 'Stateless Vercel routes', icon: BriefcaseBusiness },
-  { label: 'PAYGO products', icon: Bike }
-];
-
 const navItems = [
+  ['Portals', 'portals'],
   ['About', 'about'],
   ['Services', 'services'],
   ['Location', 'location'],
@@ -76,15 +67,15 @@ const navItems = [
 const serviceHighlights = [
   {
     title: 'PAYGO product management',
-    text: 'Track bikes, phones, customer accounts, balances, activation status, and product identifiers from one shared CRM.'
+    text: 'Keep bikes, phones, customer accounts, balances, and product identifiers organized in one place.'
   },
   {
     title: 'Collections and reconciliation',
-    text: 'Record backend-confirmed payments, compare provider receipts, and keep finance teams aligned on unpaid accounts.'
+    text: 'Review confirmed payments, compare receipts, and keep unpaid accounts visible for the finance team.'
   },
   {
     title: 'Agent and customer follow-up',
-    text: 'Surface alerts for missed payments, overdue accounts, agent activity, and customer communication workflows.'
+    text: 'See missed payments, overdue accounts, and the follow-up work that needs attention.'
   }
 ];
 
@@ -96,10 +87,10 @@ const locationDetails = [
 ];
 
 const operatingSteps = [
-  ['Register', 'Customers, agents, products, and accounts are captured into the shared CRM.'],
-  ['Collect', 'Backend-confirmed payments update balances, reconciliation, and collection status.'],
-  ['Follow up', 'Teams see alerts for missed payments, overdue accounts, and customer action.'],
-  ['Report', 'Finance reviews collections, commissions, exports, and operational performance.']
+  ['Register', 'Add customers, agents, products, and account details.'],
+  ['Collect', 'Record confirmed payments and update balances.'],
+  ['Follow up', 'Review missed payments and overdue accounts.'],
+  ['Report', 'Check collections, commissions, and exports.']
 ];
 
 function scrollToSection(id) {
@@ -107,6 +98,13 @@ function scrollToSection(id) {
 }
 
 export function PortalLandingScreen() {
+  const [page, setPage] = useState('home');
+
+  function openPortalPage() {
+    setPage('portals');
+    requestAnimationFrame(() => document.getElementById('site-top')?.scrollIntoView({ block: 'start' }));
+  }
+
   function openPortal(portal) {
     if (portal.key === 'finance') {
       window.history.pushState(null, '', '#/login');
@@ -122,7 +120,7 @@ export function PortalLandingScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator>
-      <View style={styles.nav}>
+      <View style={styles.nav} id="site-top">
         <View style={styles.navBrand}>
           <Image source={bumuLogo} style={styles.navLogo} />
           <View>
@@ -132,22 +130,29 @@ export function PortalLandingScreen() {
         </View>
         <View style={styles.navLinks}>
           {navItems.map(([label, target]) => (
-            <Pressable key={target} onPress={() => scrollToSection(target)} style={styles.navLink}>
+            <Pressable
+              key={target}
+              onPress={() => {
+                if (target === 'portals') {
+                  openPortalPage();
+                  return;
+                }
+
+                setPage('home');
+                requestAnimationFrame(() => scrollToSection(target));
+              }}
+              style={styles.navLink}
+            >
               <Text style={styles.navLinkText}>{label}</Text>
             </Pressable>
           ))}
         </View>
-        <Pressable
-          onPress={() => {
-            window.history.pushState(null, '', '#/login');
-            window.dispatchEvent(new HashChangeEvent('hashchange'));
-          }}
-          style={({ pressed }) => [styles.navAction, pressed && styles.portalPressed]}
-        >
-          <Text style={styles.navActionText}>Finance login</Text>
-        </Pressable>
       </View>
 
+      {page === 'portals' ? (
+        <PortalCardsPage onBack={() => setPage('home')} onOpenPortal={openPortal} />
+      ) : (
+        <>
       <View style={styles.hero}>
         <Image source={bumuLogo} style={styles.heroImage} resizeMode="cover" />
         <View style={styles.heroShade} />
@@ -163,71 +168,35 @@ export function PortalLandingScreen() {
             </View>
             <Text style={styles.title}>Bumu Paygo</Text>
             <Text style={styles.subtitle}>
-              One entry point for finance, admin, agent, and customer operations across PAYGO products.
+              A simple entry point for finance, admin, agent, and customer work.
             </Text>
             <View style={styles.heroActions}>
               <Pressable
-                onPress={() => {
-                  window.history.pushState(null, '', '#/login');
-                  window.dispatchEvent(new HashChangeEvent('hashchange'));
-                }}
+                onPress={openPortalPage}
                 style={({ pressed }) => [styles.primaryHeroAction, pressed && styles.portalPressed]}
               >
-                <Text style={styles.primaryHeroText}>Open finance portal</Text>
+                <Text style={styles.primaryHeroText}>Open portals</Text>
                 <ArrowRight size={18} color="#ffffff" />
               </Pressable>
-              <Pressable onPress={() => scrollToSection('about')} style={styles.secondaryHeroAction}>
-                <Text style={styles.secondaryHeroText}>About Bumu Paygo</Text>
-              </Pressable>
-            </View>
-            <View style={styles.pointRow}>
-              {systemPoints.map((point) => {
-                const Icon = point.icon;
-                return (
-                  <View key={point.label} style={styles.point}>
-                    <Icon size={16} color={colors.success} />
-                    <Text style={styles.pointText}>{point.label}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.portalPanel}>
-            <View style={styles.panelHeader}>
-              <Text style={styles.panelTitle}>Portals</Text>
-              <Text style={styles.panelMeta}>Select workspace</Text>
-            </View>
-            <View style={styles.portalList}>
-              {portals.map((portal) => (
-                <PortalButton key={portal.key} portal={portal} onPress={() => openPortal(portal)} />
-              ))}
             </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.nextBand}>
-        <Text style={styles.nextTitle}>Centralized system</Text>
-        <Text style={styles.nextText}>
-          Payments, customers, commissions, alerts, and reconciliation stay connected through the shared database and backend APIs.
-        </Text>
       </View>
 
       <View style={styles.section} id="about">
         <View style={styles.sectionIntro}>
           <Text style={styles.kicker}>About</Text>
-          <Text style={styles.sectionTitle}>Built for distributed PAYGO operations</Text>
+          <Text style={styles.sectionTitle}>Built for daily PAYGO work</Text>
           <Text style={styles.sectionText}>
-            Bumu Paygo brings customer records, product sales, collections, commissions, and operational alerts into connected portals for the teams that need them.
+            Bumu Paygo helps teams manage customer records, product sales, collections, commissions, and follow-up from connected portals.
           </Text>
         </View>
         <View style={styles.aboutGrid}>
           <View style={styles.aboutMain}>
             <Building2 size={24} color={colors.primary} />
-            <Text style={styles.aboutTitle}>A centralized operating system for PAYGO teams</Text>
+            <Text style={styles.aboutTitle}>One workspace for the teams involved</Text>
             <Text style={styles.aboutText}>
-              The platform is structured for a growing organization where finance, administration, field agents, and customers need consistent records from the same database.
+              Finance, admin, field agents, and customers can work from the same records as the system grows.
             </Text>
           </View>
           <View style={styles.metricStack}>
@@ -246,9 +215,9 @@ export function PortalLandingScreen() {
       <View style={[styles.section, styles.serviceSection]} id="services">
         <View style={styles.sectionIntro}>
           <Text style={styles.kicker}>Services</Text>
-          <Text style={styles.sectionTitle}>Operations covered by the system</Text>
+          <Text style={styles.sectionTitle}>What the site supports</Text>
           <Text style={styles.sectionText}>
-            The portals are designed around daily work: onboarding accounts, recording collections, managing field follow-up, and reviewing finance records.
+            The portals are designed around practical work: onboarding accounts, recording collections, handling follow-up, and reviewing finance records.
           </Text>
         </View>
         <View style={styles.highlights}>
@@ -265,7 +234,7 @@ export function PortalLandingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionIntro}>
             <Text style={styles.kicker}>Workflow</Text>
-            <Text style={styles.sectionTitle}>From sale to collection follow-up</Text>
+            <Text style={styles.sectionTitle}>From sale to follow-up</Text>
           </View>
           <View style={styles.steps}>
             {operatingSteps.map(([title, text], index) => (
@@ -287,9 +256,9 @@ export function PortalLandingScreen() {
             <MapPin size={18} color={colors.primary} />
             <Text style={styles.locationBadgeText}>Nairobi operations</Text>
           </View>
-          <Text style={styles.sectionTitle}>Based in Nairobi, serving field teams and customers</Text>
+          <Text style={styles.sectionTitle}>Based in Nairobi</Text>
           <Text style={styles.sectionText}>
-            The system is structured for a central Nairobi operation with distributed agents, customers, finance users, and administrators working from the same source of truth.
+            The system is prepared for Nairobi-based operations with agents, customers, finance users, and administrators working from shared records.
           </Text>
         </View>
         <View style={styles.locationGrid}>
@@ -302,37 +271,13 @@ export function PortalLandingScreen() {
         </View>
       </View>
 
-      <View style={styles.section} id="contact">
-        <View style={styles.contactBar}>
-          <View style={styles.contactIcon}>
-            <Headphones size={24} color={colors.success} />
-          </View>
-          <View style={styles.contactText}>
-            <Text style={styles.contactTitle}>Portal access and support</Text>
-            <Text style={styles.contactBody}>
-              Finance can sign in now. Admin, agent, and customer portals can be connected through public portal URLs when they are deployed.
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              window.history.pushState(null, '', '#/login');
-              window.dispatchEvent(new HashChangeEvent('hashchange'));
-            }}
-            style={({ pressed }) => [styles.contactAction, pressed && styles.portalPressed]}
-          >
-            <Text style={styles.contactActionText}>Open finance</Text>
-            <ArrowRight size={17} color="#ffffff" />
-          </Pressable>
-        </View>
-      </View>
-
       <View style={styles.footer}>
         <View style={styles.footerInner}>
           <View style={styles.footerBrand}>
             <Image source={bumuLogo} style={styles.footerLogo} />
             <View>
               <Text style={styles.footerTitle}>Bumu Paygo</Text>
-              <Text style={styles.footerText}>PAYGO portals for Nairobi operations.</Text>
+              <Text style={styles.footerText}>Bumu Paygo portals.</Text>
             </View>
           </View>
           <View style={styles.footerLinks}>
@@ -351,11 +296,38 @@ export function PortalLandingScreen() {
           </View>
         </View>
       </View>
+        </>
+      )}
     </ScrollView>
   );
 }
 
-function PortalButton({ portal, onPress }) {
+function PortalCardsPage({ onBack, onOpenPortal }) {
+  return (
+    <View style={styles.portalPage}>
+      <View style={styles.portalPageHeader}>
+        <View style={styles.sectionIntro}>
+          <Text style={styles.kicker}>Portals</Text>
+          <Text style={styles.portalPageTitle}>Choose a workspace</Text>
+          <Text style={styles.sectionText}>
+            Finance is ready. Admin, Agent, and Customer can be connected when their portals are live.
+          </Text>
+        </View>
+        <Pressable onPress={onBack} style={styles.backHomeButton}>
+          <Text style={styles.backHomeText}>Back to site</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.marketGrid}>
+        {portals.map((portal) => (
+          <PortalCard key={portal.key} portal={portal} onPress={() => onOpenPortal(portal)} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PortalCard({ portal, onPress }) {
   const Icon = portal.icon;
   const disabled = portal.key !== 'finance' && !portalLinks[portal.key];
 
@@ -363,20 +335,33 @@ function PortalButton({ portal, onPress }) {
     <Pressable
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
-        styles.portalButton,
+        styles.portalCard,
         pressed && !disabled && styles.portalPressed,
         disabled && styles.portalDisabled
       ]}
     >
-      <View style={[styles.portalIcon, { backgroundColor: `${portal.tone}14` }]}>
-        <Icon size={22} color={portal.tone} />
+      <View style={[styles.cardBanner, { backgroundColor: `${portal.tone}12` }]}>
+        <View style={[styles.cardBadge, { backgroundColor: portal.tone }]}>
+          <Text style={styles.cardBadgeText}>{portal.status}</Text>
+        </View>
+      </View>
+      <View style={styles.portalCardTop}>
+        <View style={[styles.portalIcon, { backgroundColor: `${portal.tone}14` }]}>
+          <Icon size={24} color={portal.tone} />
+        </View>
+        <View style={styles.portalRight}>
+          <Text style={[styles.portalStatus, { color: portal.tone }]}>{portal.status}</Text>
+          <ArrowRight size={18} color={disabled ? colors.muted : portal.tone} />
+        </View>
       </View>
       <View style={styles.portalText}>
         <Text style={styles.portalTitle}>{portal.title}</Text>
         <Text style={styles.portalLabel}>{portal.label}</Text>
       </View>
-      <View style={styles.portalRight}>
-        <Text style={[styles.portalStatus, { color: portal.tone }]}>{portal.status}</Text>
+      <View style={styles.portalCardFooter}>
+        <Text style={[styles.openText, { color: portal.tone }]}>
+          {disabled ? 'Awaiting link' : 'Open portal'}
+        </Text>
         <ArrowRight size={17} color={disabled ? colors.muted : portal.tone} />
       </View>
     </Pressable>
@@ -395,7 +380,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0
   },
   nav: {
-    minHeight: 72,
+    minHeight: 66,
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -425,7 +410,7 @@ const styles = StyleSheet.create({
   navTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800'
+    fontWeight: '600'
   },
   navMeta: {
     color: colors.muted,
@@ -447,23 +432,10 @@ const styles = StyleSheet.create({
   navLinkText: {
     color: colors.slate,
     fontSize: 14,
-    fontWeight: '700'
-  },
-  navAction: {
-    minHeight: 38,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    cursor: 'pointer'
-  },
-  navActionText: {
-    color: '#ffffff',
-    fontWeight: '800'
+    fontWeight: '500'
   },
   hero: {
-    minHeight: 'calc(var(--app-vh) - 92px)',
+    minHeight: 520,
     position: 'relative',
     overflow: 'hidden',
     justifyContent: 'center',
@@ -477,7 +449,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '58%',
     height: '100%',
-    opacity: 0.18
+    opacity: 0.12
   },
   heroShade: {
     position: 'absolute',
@@ -489,8 +461,8 @@ const styles = StyleSheet.create({
     maxWidth: 1180,
     marginHorizontal: 'auto',
     paddingHorizontal: 28,
-    paddingTop: 34,
-    paddingBottom: 34,
+    paddingTop: 54,
+    paddingBottom: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 28
@@ -498,7 +470,8 @@ const styles = StyleSheet.create({
   brandBlock: {
     flex: 1.1,
     minWidth: 280,
-    gap: 20
+    maxWidth: 760,
+    gap: 18
   },
   brandRow: {
     flexDirection: 'row',
@@ -513,8 +486,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary
   },
   brandName: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text
   },
   brandMeta: {
@@ -522,15 +495,15 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   title: {
-    fontSize: 54,
-    lineHeight: 60,
-    fontWeight: '800',
+    fontSize: 44,
+    lineHeight: 52,
+    fontWeight: '600',
     color: colors.text
   },
   subtitle: {
     maxWidth: 560,
-    fontSize: 20,
-    lineHeight: 30,
+    fontSize: 19,
+    lineHeight: 29,
     color: colors.slate
   },
   heroActions: {
@@ -552,88 +525,89 @@ const styles = StyleSheet.create({
   },
   primaryHeroText: {
     color: '#ffffff',
-    fontWeight: '800'
-  },
-  secondaryHeroAction: {
-    minHeight: 46,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#cfe0fb',
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer'
-  },
-  secondaryHeroText: {
-    color: colors.primary,
-    fontWeight: '800'
-  },
-  pointRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10
-  },
-  point: {
-    minHeight: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#cfe6da',
-    borderRadius: 8,
-    backgroundColor: '#ffffff'
-  },
-  pointText: {
-    fontSize: 13,
-    color: colors.slate,
     fontWeight: '600'
   },
-  portalPanel: {
-    flex: 0.9,
-    minWidth: 320,
-    maxWidth: 460,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#dbe5ef',
-    borderRadius: 8,
-    padding: 16,
-    gap: 14,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.10,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 }
+  portalPage: {
+    width: '100%',
+    maxWidth: 1180,
+    marginHorizontal: 'auto',
+    paddingHorizontal: 28,
+    paddingTop: 38,
+    paddingBottom: 56
   },
-  panelHeader: {
+  portalPageHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
     justifyContent: 'space-between',
-    gap: 12
+    alignItems: 'flex-start',
+    gap: 18,
+    flexWrap: 'wrap',
+    marginBottom: 18
   },
-  panelTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+  portalPageTitle: {
+    fontSize: 34,
+    lineHeight: 42,
+    fontWeight: '600',
     color: colors.text
   },
-  panelMeta: {
-    color: colors.muted,
-    fontSize: 13
+  backHomeButton: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: '#cfe0fb',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    cursor: 'pointer'
   },
-  portalList: {
-    gap: 10
+  backHomeText: {
+    color: colors.primary,
+    fontWeight: '600'
   },
-  portalButton: {
-    minHeight: 76,
+  marketGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14
+  },
+  portalCard: {
+    flexGrow: 1,
+    flexBasis: 250,
+    minHeight: 235,
     borderWidth: 1,
     borderColor: '#dbe5ef',
     borderRadius: 8,
     backgroundColor: '#ffffff',
-    padding: 12,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    cursor: 'pointer'
+  },
+  cardBanner: {
+    height: 68,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7edf5'
+  },
+  cardBadge: {
+    minHeight: 24,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  cardBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  portalCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    cursor: 'pointer'
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 14
   },
   portalPressed: {
     transform: [{ scale: 0.99 }],
@@ -644,25 +618,41 @@ const styles = StyleSheet.create({
     opacity: 0.76
   },
   portalIcon: {
-    width: 42,
-    height: 42,
+    width: 46,
+    height: 46,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center'
   },
   portalText: {
-    flex: 1,
-    minWidth: 0
+    minWidth: 0,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
   portalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text
   },
   portalLabel: {
-    marginTop: 3,
     color: colors.muted,
-    fontSize: 13
+    fontSize: 13,
+    lineHeight: 19
+  },
+  portalCardFooter: {
+    minHeight: 48,
+    borderTopWidth: 1,
+    borderTopColor: '#e7edf5',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10
+  },
+  openText: {
+    fontSize: 13,
+    fontWeight: '600'
   },
   portalRight: {
     alignItems: 'flex-end',
@@ -670,37 +660,14 @@ const styles = StyleSheet.create({
   },
   portalStatus: {
     fontSize: 12,
-    fontWeight: '700'
-  },
-  nextBand: {
-    minHeight: 72,
-    borderTopWidth: 1,
-    borderTopColor: '#dbe5ef',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 28,
-    paddingVertical: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
-    flexWrap: 'wrap'
-  },
-  nextTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text
-  },
-  nextText: {
-    maxWidth: 760,
-    color: colors.muted,
-    lineHeight: 21
+    fontWeight: '600'
   },
   section: {
     width: '100%',
     maxWidth: 1180,
     marginHorizontal: 'auto',
     paddingHorizontal: 28,
-    paddingVertical: 46
+    paddingVertical: 40
   },
   sectionIntro: {
     maxWidth: 780,
@@ -710,13 +677,13 @@ const styles = StyleSheet.create({
   kicker: {
     color: colors.primary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     textTransform: 'uppercase'
   },
   sectionTitle: {
-    fontSize: 32,
-    lineHeight: 39,
-    fontWeight: '800',
+    fontSize: 29,
+    lineHeight: 36,
+    fontWeight: '600',
     color: colors.text
   },
   sectionText: {
@@ -740,9 +707,9 @@ const styles = StyleSheet.create({
     gap: 10
   },
   aboutTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '800',
+    fontSize: 20,
+    lineHeight: 27,
+    fontWeight: '600',
     color: colors.text
   },
   aboutText: {
@@ -764,13 +731,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   metricValue: {
-    fontSize: 34,
-    fontWeight: '900',
+    fontSize: 30,
+    fontWeight: '600',
     color: colors.primary
   },
   metricLabel: {
     color: colors.slate,
-    fontWeight: '700'
+    fontWeight: '500'
   },
   serviceSection: {
     paddingTop: 30
@@ -792,7 +759,7 @@ const styles = StyleSheet.create({
   },
   highlightTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.text
   },
   highlightText: {
@@ -831,12 +798,12 @@ const styles = StyleSheet.create({
   },
   stepNumberText: {
     color: '#ffffff',
-    fontWeight: '900'
+    fontWeight: '600'
   },
   stepTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '800'
+    fontWeight: '600'
   },
   stepText: {
     color: colors.muted,
@@ -871,7 +838,7 @@ const styles = StyleSheet.create({
   },
   locationBadgeText: {
     color: colors.primary,
-    fontWeight: '700'
+    fontWeight: '600'
   },
   locationGrid: {
     flex: 0.9,
@@ -894,64 +861,15 @@ const styles = StyleSheet.create({
   locationLabel: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase'
   },
   locationValue: {
     marginTop: 6,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     lineHeight: 22
-  },
-  contactBar: {
-    minHeight: 112,
-    borderWidth: 1,
-    borderColor: '#dbe5ef',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    flexWrap: 'wrap'
-  },
-  contactIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 8,
-    backgroundColor: colors.successSoft,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  contactText: {
-    flex: 1,
-    minWidth: 260,
-    gap: 5
-  },
-  contactTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: colors.text
-  },
-  contactBody: {
-    color: colors.muted,
-    lineHeight: 22
-  },
-  contactAction: {
-    minHeight: 42,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    cursor: 'pointer'
-  },
-  contactActionText: {
-    color: '#ffffff',
-    fontWeight: '700'
   },
   footer: {
     borderTopWidth: 1,
@@ -983,7 +901,7 @@ const styles = StyleSheet.create({
   footerTitle: {
     color: '#ffffff',
     fontSize: 17,
-    fontWeight: '800'
+    fontWeight: '600'
   },
   footerText: {
     color: '#cbd5e1',
