@@ -442,6 +442,8 @@ alter table public.agents add column if not exists agent_name text;
 alter table public.agent_tasks add column if not exists completed_at timestamptz;
 alter table public.agent_tasks add column if not exists source_portal text not null default 'agent';
 
+drop view if exists public.customer_portal_summary;
+
 alter table public.customers drop column if exists imei;
 alter table public.payments drop column if exists imei;
 alter table public.commissions drop column if exists imei;
