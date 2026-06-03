@@ -398,19 +398,19 @@ function RegisterTab({ onRefresh }) {
         </View>
       </View>
       <View style={styles.formGrid}>
-        <Field label="Customer name" value={form.customerName} onChangeText={(value) => update('customerName', value)} placeholder="Full name" />
-        <Field label="Phone number" value={form.customerPhone} onChangeText={(value) => update('customerPhone', value)} placeholder="Customer phone" />
-        <Field label="National ID" value={form.nationalId} onChangeText={(value) => update('nationalId', value)} placeholder="National ID" />
-        <Field label="Email" value={form.email} onChangeText={(value) => update('email', value)} placeholder="Customer email" />
-        <Field label="Product type" value={form.productType} onChangeText={(value) => update('productType', value)} placeholder="bike or phone" />
-        <Field label="Product model" value={form.productModel} onChangeText={(value) => update('productModel', value)} placeholder="Model name" />
-        <Field label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
-        <Field label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />
-        <Field label="IMEI" value={form.imei} onChangeText={(value) => update('imei', value)} placeholder="For phones" />
-        <Field label="Total payable" value={form.totalPayable} onChangeText={(value) => update('totalPayable', value)} placeholder="Amount" />
-        <Field label="Paid amount" value={form.paidAmount} onChangeText={(value) => update('paidAmount', value)} placeholder="Deposit paid" />
-        <Field label="Daily installment" value={form.dailyInstallment} onChangeText={(value) => update('dailyInstallment', value)} placeholder="Daily amount" />
-        <Field label="Due date" value={form.dueDate} onChangeText={(value) => update('dueDate', value)} placeholder="YYYY-MM-DD" />
+        <Field fieldStyle={styles.gridField} label="Customer name" value={form.customerName} onChangeText={(value) => update('customerName', value)} placeholder="Full name" />
+        <Field fieldStyle={styles.gridField} label="Phone number" value={form.customerPhone} onChangeText={(value) => update('customerPhone', value)} placeholder="Customer phone" />
+        <Field fieldStyle={styles.gridField} label="National ID" value={form.nationalId} onChangeText={(value) => update('nationalId', value)} placeholder="National ID" />
+        <Field fieldStyle={styles.gridField} label="Email" value={form.email} onChangeText={(value) => update('email', value)} placeholder="Customer email" />
+        <Field fieldStyle={styles.gridField} label="Product type" value={form.productType} onChangeText={(value) => update('productType', value)} placeholder="bike or phone" />
+        <Field fieldStyle={styles.gridField} label="Product model" value={form.productModel} onChangeText={(value) => update('productModel', value)} placeholder="Model name" />
+        <Field fieldStyle={styles.gridField} label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
+        <Field fieldStyle={styles.gridField} label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />
+        <Field fieldStyle={styles.gridField} label="IMEI" value={form.imei} onChangeText={(value) => update('imei', value)} placeholder="For phones" />
+        <Field fieldStyle={styles.gridField} label="Total payable" value={form.totalPayable} onChangeText={(value) => update('totalPayable', value)} placeholder="Amount" />
+        <Field fieldStyle={styles.gridField} label="Paid amount" value={form.paidAmount} onChangeText={(value) => update('paidAmount', value)} placeholder="Deposit paid" />
+        <Field fieldStyle={styles.gridField} label="Daily installment" value={form.dailyInstallment} onChangeText={(value) => update('dailyInstallment', value)} placeholder="Daily amount" />
+        <Field fieldStyle={styles.gridField} label="Due date" value={form.dueDate} onChangeText={(value) => update('dueDate', value)} placeholder="YYYY-MM-DD" />
       </View>
       {message ? <Text style={styles.greenText}>{message}</Text> : null}
       <Button icon={UserPlus} onPress={submit} disabled={submitting} style={styles.fullButton}>
@@ -536,9 +536,9 @@ function AlertsTab({ portal }) {
   );
 }
 
-function Field({ label, ...props }) {
+function Field({ label, fieldStyle, ...props }) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, fieldStyle]}>
       <Text style={styles.label}>{label}</Text>
       <TextInput style={styles.input} placeholderTextColor={colors.muted} {...props} />
     </View>
@@ -603,9 +603,10 @@ const styles = StyleSheet.create({
   panelTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
   panelText: { color: colors.muted, lineHeight: 21 },
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  field: { gap: 6, flexGrow: 1, flexBasis: 230 },
+  field: { gap: 6, width: '100%' },
+  gridField: { flexGrow: 1, flexBasis: 230, width: 'auto' },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  input: { minHeight: 42, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, paddingHorizontal: 12, color: colors.text, backgroundColor: '#ffffff', outlineStyle: 'none' },
+  input: { minHeight: 40, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, paddingHorizontal: 12, color: colors.text, backgroundColor: '#ffffff', outlineStyle: 'none' },
   fullButton: { width: '100%' },
   greenText: { color: colors.success, fontWeight: '500', lineHeight: 20 },
   miniList: { gap: 9 },
@@ -618,14 +619,14 @@ const styles = StyleSheet.create({
   rowAmount: { color: colors.text, fontWeight: '600', textAlign: 'right' },
   rowStatus: { color: colors.success, fontSize: 12, fontWeight: '600', textAlign: 'right' },
   authRoot: { height: 'var(--app-vh)', width: '100%', backgroundColor: 'var(--app-bg)', overflowY: 'auto' },
-  authContent: { minHeight: 'var(--app-vh)', alignItems: 'center', justifyContent: 'center', padding: 14, paddingTop: 34, paddingBottom: 32 },
-  authCard: { width: '100%', maxWidth: 470, borderWidth: 1, borderColor: 'var(--app-border)', borderRadius: 10, backgroundColor: 'var(--app-surface)', padding: 16, gap: 14 },
+  authContent: { minHeight: 'var(--app-vh)', alignItems: 'center', justifyContent: 'center', padding: 10, paddingTop: 24, paddingBottom: 24 },
+  authCard: { width: '100%', maxWidth: 460, borderWidth: 1, borderColor: 'var(--app-border)', borderRadius: 10, backgroundColor: 'var(--app-surface)', padding: 14, gap: 12 },
   authLogo: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.primary },
   authBrand: { color: colors.text, fontSize: 20, fontWeight: '600' },
   authHeading: { gap: 6 },
   authTitle: { color: colors.text, fontSize: 23, fontWeight: '600' },
   authText: { color: colors.muted, lineHeight: 21 },
-  form: { gap: 11 },
+  form: { gap: 10 },
   inlineLink: { alignSelf: 'center', minHeight: 32, justifyContent: 'center', cursor: 'pointer' },
   authLinksRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   linkText: { color: colors.primary, fontWeight: '500' },
