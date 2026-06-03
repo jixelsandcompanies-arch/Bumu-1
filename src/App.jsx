@@ -13,6 +13,7 @@ import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
 import { CustomerPortalScreen } from './screens/CustomerPortalScreen.jsx';
 import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
+import { AdminPortalScreen } from './screens/AdminPortalScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
@@ -44,6 +45,10 @@ function isCustomerRoute() {
 
 function isAgentRoute() {
   return window.location.hash === '#/agent';
+}
+
+function isAdminRoute() {
+  return window.location.hash === '#/admin';
 }
 
 function buildDailyPaymentNotifications(payments) {
@@ -144,6 +149,7 @@ export function App() {
   const [authRouteActive, setAuthRouteActive] = useState(isAuthRoute);
   const [customerRouteActive, setCustomerRouteActive] = useState(isCustomerRoute);
   const [agentRouteActive, setAgentRouteActive] = useState(isAgentRoute);
+  const [adminRouteActive, setAdminRouteActive] = useState(isAdminRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.sessionStorage.getItem('bumu-active-screen') || 'dashboard'
   );
@@ -202,6 +208,7 @@ export function App() {
       setAuthRouteActive(isAuthRoute());
       setCustomerRouteActive(isCustomerRoute());
       setAgentRouteActive(isAgentRoute());
+      setAdminRouteActive(isAdminRoute());
     }
 
     window.addEventListener('hashchange', handleHashChange);
@@ -280,6 +287,10 @@ export function App() {
 
   if (agentRouteActive) {
     return <AgentPortalScreen />;
+  }
+
+  if (adminRouteActive) {
+    return <AdminPortalScreen />;
   }
 
   if (!authenticated) {

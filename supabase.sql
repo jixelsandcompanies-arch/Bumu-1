@@ -4,6 +4,57 @@
 create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
 
+create table if not exists public.admin_profiles (
+  id text primary key default ('ADM-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  auth_user_id uuid unique references auth.users(id) on delete cascade,
+  full_name text not null,
+  email text not null unique,
+  phone text,
+  role text not null default 'admin' check (role in ('admin', 'super_admin')),
+  status text not null default 'active' check (status in ('active', 'suspended', 'inactive')),
+  source_portal text not null default 'admin',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.branches (
+  id text primary key default ('BRN-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  name text not null unique,
+  location text,
+  phone text,
+  status text not null default 'active' check (status in ('active', 'inactive')),
+  source_portal text not null default 'admin',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.inventory_products (
+  id text primary key default ('PRD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  product_type text not null default 'product',
+  product_model text not null,
+  serial_number text,
+  chassis_number text,
+  imei text,
+  branch text,
+  assigned_customer_id text,
+  status text not null default 'available' check (status in ('available', 'reserved', 'sold', 'maintenance', 'inactive')),
+  source_portal text not null default 'admin',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.admin_audit_logs (
+  id text primary key default ('AUD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  actor_user_id uuid references auth.users(id) on delete set null,
+  actor_email text,
+  action text not null,
+  target_table text,
+  target_id text,
+  details jsonb not null default '{}'::jsonb,
+  source_portal text not null default 'admin',
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.customers (
   id text primary key default ('CUS-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
   customer_name text not null,
@@ -274,6 +325,7 @@ alter table public.password_reset_requests add column if not exists otp_verified
 alter table public.password_reset_requests add column if not exists provider_response jsonb not null default '{}'::jsonb;
 alter table public.password_reset_requests drop column if exists otp_code;
 alter table public.agents add column if not exists source_portal text not null default 'agent';
+alter table public.agents add column if not exists agent_name text;
 alter table public.agent_tasks add column if not exists completed_at timestamptz;
 alter table public.agent_tasks add column if not exists source_portal text not null default 'agent';
 
@@ -293,6 +345,18 @@ for each row execute function public.set_updated_at();
 
 drop trigger if exists agents_set_updated_at on public.agents;
 create trigger agents_set_updated_at before update on public.agents
+for each row execute function public.set_updated_at();
+
+drop trigger if exists admin_profiles_set_updated_at on public.admin_profiles;
+create trigger admin_profiles_set_updated_at before update on public.admin_profiles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists branches_set_updated_at on public.branches;
+create trigger branches_set_updated_at before update on public.branches
+for each row execute function public.set_updated_at();
+
+drop trigger if exists inventory_products_set_updated_at on public.inventory_products;
+create trigger inventory_products_set_updated_at before update on public.inventory_products
 for each row execute function public.set_updated_at();
 
 drop trigger if exists payments_set_updated_at on public.payments;
@@ -379,6 +443,17 @@ create index if not exists idx_customer_notifications_customer_created on public
 create index if not exists idx_customer_notifications_status_created on public.customer_notifications (status, created_at desc);
 create index if not exists idx_password_reset_requests_email_created on public.password_reset_requests (lower(email), created_at desc);
 create index if not exists idx_password_reset_requests_status_expires on public.password_reset_requests (status, otp_expires_at desc);
+create unique index if not exists idx_admin_profiles_auth_user_unique on public.admin_profiles (auth_user_id);
+create unique index if not exists idx_admin_profiles_email_unique on public.admin_profiles (lower(email));
+create index if not exists idx_admin_profiles_status on public.admin_profiles (status, created_at desc);
+create index if not exists idx_branches_status on public.branches (status, name);
+create index if not exists idx_inventory_products_status on public.inventory_products (status, created_at desc);
+create index if not exists idx_inventory_products_type_model on public.inventory_products (product_type, product_model);
+create index if not exists idx_inventory_products_serial on public.inventory_products (serial_number);
+create index if not exists idx_inventory_products_chassis on public.inventory_products (chassis_number);
+create index if not exists idx_inventory_products_imei on public.inventory_products (imei);
+create index if not exists idx_admin_audit_logs_created on public.admin_audit_logs (created_at desc);
+create index if not exists idx_admin_audit_logs_target on public.admin_audit_logs (target_table, target_id);
 
 create or replace view public.customer_portal_summary as
 select
@@ -505,6 +580,10 @@ alter table public.finance_notifications enable row level security;
 alter table public.payment_requests enable row level security;
 alter table public.customer_notifications enable row level security;
 alter table public.password_reset_requests enable row level security;
+alter table public.admin_profiles enable row level security;
+alter table public.branches enable row level security;
+alter table public.inventory_products enable row level security;
+alter table public.admin_audit_logs enable row level security;
 
 revoke all on table public.customers from anon, authenticated;
 revoke all on table public.agents from anon, authenticated;
@@ -518,6 +597,10 @@ revoke all on table public.finance_notifications from anon, authenticated;
 revoke all on table public.payment_requests from anon, authenticated;
 revoke all on table public.customer_notifications from anon, authenticated;
 revoke all on table public.password_reset_requests from anon, authenticated;
+revoke all on table public.admin_profiles from anon, authenticated;
+revoke all on table public.branches from anon, authenticated;
+revoke all on table public.inventory_products from anon, authenticated;
+revoke all on table public.admin_audit_logs from anon, authenticated;
 revoke all on table public.customer_portal_summary from anon, authenticated;
 
 -- Portals should access these tables through secured server-side APIs using SUPABASE_SERVICE_ROLE_KEY.

@@ -15,10 +15,6 @@ import { Text } from '../components/ui/Text.jsx';
 import { colors } from '../theme/colors.js';
 import bumuLogo from '../../BumuLogo.jpeg';
 
-const portalLinks = {
-  admin: import.meta.env.VITE_ADMIN_PORTAL_URL || ''
-};
-
 const portals = [
   {
     key: 'finance',
@@ -34,7 +30,7 @@ const portals = [
     label: 'Users, products, branches',
     icon: ShieldCheck,
     tone: colors.violet,
-    status: portalLinks.admin ? 'Open' : 'Connect'
+    status: 'Ready'
   },
   {
     key: 'agent',
@@ -122,9 +118,9 @@ export function PortalLandingScreen() {
       return;
     }
 
-    const url = portalLinks[portal.key];
-    if (url) {
-      window.location.href = url;
+    if (portal.key === 'admin') {
+      window.history.pushState(null, '', '#/admin');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
     }
   }
 
@@ -320,7 +316,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Finance is ready. Admin, Agent, and Customer can be connected when their portals are live.
+            Finance, Admin, Agent, and Customer portals use the same shared CRM database.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
@@ -339,7 +335,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
 
 function PortalCard({ portal, onPress }) {
   const Icon = portal.icon;
-  const canOpen = portal.key === 'finance' || portal.key === 'customer' || portal.key === 'agent' || portalLinks[portal.key];
+  const canOpen = ['finance', 'admin', 'customer', 'agent'].includes(portal.key);
 
   return (
     <Pressable
