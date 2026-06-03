@@ -2,6 +2,7 @@ import { readJson, sendJson } from '../../../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
 import { sendScreeningSms } from '../../../_lib/africastalking.js';
+import { createOtp, hashOtp } from '../../../_lib/database.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -43,6 +44,8 @@ export default async function handler(req, res) {
       .single();
 
     if (application.error) throw application.error;
+    const activationOtp = nextStatus === 'approved' ? createOtp() : '';
+    const activationExpiresAt = activationOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
 
     const updateApplication = await getSupabase()
       .from('customer_applications')
@@ -59,15 +62,24 @@ export default async function handler(req, res) {
     if (updateApplication.error) throw updateApplication.error;
 
     const customerStatus = nextStatus === 'approved' ? 'active' : nextStatus === 'rejected' ? 'rejected' : 'not_registered';
+    const customerUpdate = {
+      status: customerStatus,
+      application_status: nextStatus === 'approved' ? 'active' : nextStatus,
+      screening_reason: reason || null,
+      screened_by: user.id,
+      screened_at: new Date().toISOString()
+    };
+
+    if (activationOtp) {
+      customerUpdate.customer_activation_otp_hash = hashOtp(application.data.customer_id, activationOtp);
+      customerUpdate.customer_activation_otp_expires_at = activationExpiresAt;
+      customerUpdate.customer_activation_otp_sent_at = new Date().toISOString();
+      customerUpdate.customer_activation_otp_status = 'sent';
+    }
+
     const updateCustomer = await getSupabase()
       .from('customers')
-      .update({
-        status: customerStatus,
-        application_status: nextStatus === 'approved' ? 'active' : nextStatus,
-        screening_reason: reason || null,
-        screened_by: user.id,
-        screened_at: new Date().toISOString()
-      })
+      .update(customerUpdate)
       .eq('id', application.data.customer_id)
       .select()
       .single();
@@ -84,7 +96,7 @@ export default async function handler(req, res) {
       customer: updateCustomer.data,
       agent: agentResult.data,
       reason,
-      tempPassword: body.tempPassword
+      activationOtp
     }).catch((smsError) => ({
       error: smsError.message,
       provider: 'africastalking'

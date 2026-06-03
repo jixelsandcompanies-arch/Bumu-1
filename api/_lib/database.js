@@ -38,14 +38,14 @@ function mapDisplayStatus(value, fallback = 'Pending') {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1).replaceAll('_', ' ');
 }
 
-function hashOtp(identifier, otp) {
+export function hashOtp(identifier, otp) {
   return crypto
     .createHash('sha256')
     .update(`${normalizeEmail(identifier)}:${otp}:${process.env.OTP_PEPPER || 'bumu-paygo'}`)
     .digest('hex');
 }
 
-function createOtp() {
+export function createOtp() {
   return String(crypto.randomInt(100000, 1000000));
 }
 

@@ -170,11 +170,11 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
 
 function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
   const [mode, setMode] = useState('login');
-  const [fullName, setFullName] = useState('');
-  const [nationalId, setNationalId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [activationOtp, setActivationOtp] = useState('');
+  const [activationVerified, setActivationVerified] = useState(false);
   const [resetOtp, setResetOtp] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
@@ -200,25 +200,29 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
     }
   }
 
-  async function register() {
+  async function activateCustomer() {
     setNotice('');
-    if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
-      setNotice('Enter your name, email, phone number, and password.');
+    if (!/^\d{6}$/.test(activationOtp.trim())) {
+      setNotice('Enter the 6-digit activation OTP.');
+      return;
+    }
+    if (activationVerified && !email.trim()) {
+      setNotice('Enter your email to activate your customer portal.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await customerPortalService.register({
-        fullName: fullName.trim(),
-        nationalId: nationalId.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        password
+      const result = await customerPortalService.activate({
+        otp: activationOtp.trim(),
+        email: activationVerified ? email.trim() : ''
       });
-      setNotice('Customer account created. Sign in with the same email and password.');
-      setMode('login');
-      setPassword('');
+      if (!result.token) {
+        setActivationVerified(true);
+        setNotice('OTP confirmed. Enter your email to open your customer portal.');
+        return;
+      }
+      onAuthenticated();
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -294,26 +298,27 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
         </View>
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>
-            {mode === 'login' ? 'Customer sign in' : mode === 'register' ? 'Create customer account' : 'Password help'}
+            {mode === 'login' ? 'Customer sign in' : mode === 'activate' ? 'Activate customer account' : 'Password help'}
           </Text>
           <Text style={styles.authText}>
             {mode === 'login'
               ? 'Use the email linked to your customer record.'
-              : mode === 'register'
-                ? 'Create your customer account. Admin or an agent can attach product details after registration.'
+              : mode === 'activate'
+                ? 'Enter the OTP sent after admin approval, then add your email to open the customer portal.'
                 : 'Enter your email, verify the OTP, and change your password.'}
           </Text>
         </View>
 
         <View style={styles.form}>
-          {mode === 'register' && (
-            <>
-              <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Your full name" />
-              <Field label="National ID" value={nationalId} onChangeText={setNationalId} placeholder="National ID number" />
-              <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Phone number" />
-            </>
+          {mode === 'activate' && (
+            <Field label="Activation OTP" value={activationOtp} onChangeText={(value) => {
+              setActivationOtp(value);
+              setActivationVerified(false);
+            }} placeholder="Enter approval OTP" />
           )}
-          <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
+          {(mode !== 'activate' || activationVerified) && (
+            <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
+          )}
           {mode === 'login' ? (
             <Field label="Password" value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
           ) : mode === 'reset' ? (
@@ -329,9 +334,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
                 </>
               )}
             </>
-          ) : (
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
-          )}
+          ) : null}
           {notice ? <Text style={styles.greenText}>{notice}</Text> : null}
           {mode === 'login' ? (
             <Button icon={LogIn} onPress={login} disabled={submitting} style={styles.fullButton}>
@@ -341,15 +344,19 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
             <Button icon={Bell} onPress={otpSent ? changePassword : requestReset} disabled={submitting} style={styles.fullButton}>
               {submitting ? 'Working...' : otpSent ? 'Change password' : 'Send OTP'}
             </Button>
-          ) : (
-            <Button icon={UserRound} onPress={register} disabled={submitting} style={styles.fullButton}>
-              {submitting ? 'Creating...' : 'Create account'}
+          ) : mode === 'activate' ? (
+            <Button icon={UserRound} onPress={activateCustomer} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Working...' : activationVerified ? 'Activate and sign in' : 'Confirm OTP'}
             </Button>
-          )}
+          ) : null}
           {mode === 'login' ? (
             <View style={styles.authLinksRow}>
-              <Pressable onPress={() => setMode('register')} style={styles.inlineLink}>
-                <Text style={styles.linkText}>Create account</Text>
+              <Pressable onPress={() => {
+                setMode('activate');
+                setNotice('');
+                setActivationVerified(false);
+              }} style={styles.inlineLink}>
+                <Text style={styles.linkText}>Activate account</Text>
               </Pressable>
               <Pressable onPress={() => setMode('reset')} style={styles.inlineLink}>
                 <Text style={styles.linkText}>Forgot password?</Text>

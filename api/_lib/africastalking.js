@@ -87,16 +87,16 @@ export async function sendOtpSms({ phone, otp }) {
   });
 }
 
-export async function sendScreeningSms({ action, customer, agent, reason, tempPassword }) {
+export async function sendScreeningSms({ action, customer, agent, reason, activationOtp }) {
   const customerName = customer?.customer_name || 'Customer';
   const customerId = customer?.id || '';
   const customerPhone = customer?.customer_phone || '';
   const agentPhone = agent?.phone || '';
 
   if (action === 'approve') {
-    const customerMessage = tempPassword
-      ? `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Login at app.bumupaygo.co.ke with Phone: ${customerPhone} and Password: ${tempPassword}. Change your password on first login.`
-      : `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Login at app.bumupaygo.co.ke or contact Bumu Paygo support for account access.`;
+    const customerMessage = activationOtp
+      ? `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal and enter OTP ${activationOtp} to activate your account. Valid for 10 minutes.`
+      : `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal or contact Bumu Paygo support for account activation.`;
 
     const [customerResult, agentResult] = await Promise.all([
       sendSms({ to: customerPhone, message: customerMessage }),

@@ -106,6 +106,11 @@ create table if not exists public.customers (
   next_of_kin_otp_verified_at timestamptz,
   next_of_kin_otp_status text not null default 'not_sent' check (next_of_kin_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed')),
   customer_phone_verified_at timestamptz,
+  customer_activation_otp_hash text,
+  customer_activation_otp_expires_at timestamptz,
+  customer_activation_otp_sent_at timestamptz,
+  customer_activation_otp_verified_at timestamptz,
+  customer_activation_otp_status text not null default 'not_sent' check (customer_activation_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed')),
   next_of_kin_verified_at timestamptz,
   application_status text not null default 'active' check (application_status in ('draft', 'next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected', 'active')),
   screening_reason text,
@@ -367,6 +372,11 @@ alter table public.customers add column if not exists next_of_kin_otp_sent_at ti
 alter table public.customers add column if not exists next_of_kin_otp_verified_at timestamptz;
 alter table public.customers add column if not exists next_of_kin_otp_status text not null default 'not_sent';
 alter table public.customers add column if not exists customer_phone_verified_at timestamptz;
+alter table public.customers add column if not exists customer_activation_otp_hash text;
+alter table public.customers add column if not exists customer_activation_otp_expires_at timestamptz;
+alter table public.customers add column if not exists customer_activation_otp_sent_at timestamptz;
+alter table public.customers add column if not exists customer_activation_otp_verified_at timestamptz;
+alter table public.customers add column if not exists customer_activation_otp_status text not null default 'not_sent';
 alter table public.customers add column if not exists next_of_kin_verified_at timestamptz;
 alter table public.customers add column if not exists application_status text not null default 'active';
 alter table public.customers add column if not exists screening_reason text;
@@ -381,6 +391,9 @@ alter table public.customers add constraint customers_application_status_check
 alter table public.customers drop constraint if exists customers_next_of_kin_otp_status_check;
 alter table public.customers add constraint customers_next_of_kin_otp_status_check
   check (next_of_kin_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed'));
+alter table public.customers drop constraint if exists customers_activation_otp_status_check;
+alter table public.customers add constraint customers_activation_otp_status_check
+  check (customer_activation_otp_status in ('not_sent', 'sent', 'verified', 'expired', 'failed'));
 alter table public.customer_applications drop constraint if exists customer_applications_status_check;
 alter table public.customer_applications add constraint customer_applications_status_check
   check (status in ('next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected'));
@@ -533,6 +546,7 @@ create index if not exists idx_customers_agent on public.customers (lower(agent_
 create index if not exists idx_customers_phone on public.customers (customer_phone);
 create index if not exists idx_customers_status_due on public.customers (status, due_date);
 create index if not exists idx_customers_application_status on public.customers (application_status, created_at desc);
+create index if not exists idx_customers_activation_otp on public.customers (customer_activation_otp_status, customer_activation_otp_expires_at desc);
 create index if not exists idx_customers_search_name on public.customers using gin (lower(customer_name) gin_trgm_ops);
 create index if not exists idx_customers_search_phone on public.customers using gin (customer_phone gin_trgm_ops);
 create index if not exists idx_payments_customer on public.payments (customer_id);
