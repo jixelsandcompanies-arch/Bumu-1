@@ -1,0 +1,42 @@
+{
+  "name": "Bumu Paygo Customer Portal",
+  "short_name": "Bumu Customer",
+  "description": "Customer app for Bumu Paygo balances, M-Pesa payments, payment history, and account alerts.",
+  "id": "/#/customer",
+  "start_url": "/#/customer",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#eefaf4",
+  "theme_color": "#0757c8",
+  "categories": ["finance", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bumu-logo.jpeg",
+      "sizes": "1190x1190",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pay installment",
+      "short_name": "Pay",
+      "url": "/#/customer",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

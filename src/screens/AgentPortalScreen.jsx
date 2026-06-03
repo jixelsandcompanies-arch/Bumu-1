@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardList,
   CreditCard,
+  Download,
   Home,
   LogIn,
   LogOut,
@@ -51,7 +52,7 @@ function mediaName(reference) {
   return String(reference).split('/').pop() || 'Captured';
 }
 
-export function AgentPortalScreen() {
+export function AgentPortalScreen({ canInstall = false, onInstall }) {
   const [authenticated, setAuthenticated] = useState(() => agentWorkspaceService.hasSession());
   const [loading, setLoading] = useState(agentWorkspaceService.hasSession());
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -95,6 +96,8 @@ export function AgentPortalScreen() {
       <AgentAuthScreen
         message={message}
         onBack={goHome}
+        canInstall={canInstall}
+        onInstall={onInstall}
         onAuthenticated={() => {
           setAuthenticated(true);
           loadPortal();
@@ -157,7 +160,10 @@ export function AgentPortalScreen() {
               <Text style={styles.pageTitle}>Bumu Paygo</Text>
               <Text style={styles.pageSubtitle}>Register customers, track follow-up, and view commissions from the centralized CRM.</Text>
             </View>
-            <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
+            <View style={styles.headerActions}>
+              {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall}>Install app</Button>}
+              <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
+            </View>
           </View>
 
           {activeTab === 'dashboard' && <DashboardTab {...props} />}
@@ -172,7 +178,7 @@ export function AgentPortalScreen() {
   );
 }
 
-function AgentAuthScreen({ onAuthenticated, onBack, message }) {
+function AgentAuthScreen({ onAuthenticated, onBack, message, canInstall = false, onInstall }) {
   const [mode, setMode] = useState('login');
   const [fullName, setFullName] = useState('');
   const [nationalId, setNationalId] = useState('');
@@ -291,6 +297,7 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
             <Text style={styles.brandSubtitle}>Agent account access</Text>
           </View>
         </View>
+        {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall} style={styles.fullButton}>Install agent app</Button>}
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>
             {mode === 'login' ? 'Agent sign in' : mode === 'register' ? 'Create agent account' : 'Password help'}
@@ -888,6 +895,7 @@ const styles = StyleSheet.create({
   navText: { color: colors.slate, fontWeight: '500' },
   navTextActive: { color: colors.primary },
   pageHeader: { borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, backgroundColor: '#ffffff', padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kicker: { color: colors.primary, fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   pageTitle: { fontSize: 27, lineHeight: 34, fontWeight: '600', color: colors.text },
   pageSubtitle: { color: colors.slate, marginTop: 4, lineHeight: 21 },

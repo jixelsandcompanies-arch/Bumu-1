@@ -9,6 +9,7 @@ import {
   LogOut,
   RefreshCw,
   Smartphone,
+  Download,
   UserRound
 } from 'lucide-react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -43,7 +44,7 @@ function fallback(value, text = 'Not set') {
   return value || text;
 }
 
-export function CustomerPortalScreen() {
+export function CustomerPortalScreen({ canInstall = false, onInstall }) {
   const [authenticated, setAuthenticated] = useState(() => customerPortalService.hasSession());
   const [loading, setLoading] = useState(customerPortalService.hasSession());
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -89,6 +90,8 @@ export function CustomerPortalScreen() {
       <CustomerAuthScreen
         message={message}
         onBack={goHome}
+        canInstall={canInstall}
+        onInstall={onInstall}
         onAuthenticated={() => {
           setAuthenticated(true);
           loadPortal();
@@ -149,7 +152,10 @@ export function CustomerPortalScreen() {
               <Text style={styles.pageTitle}>{fallback(portal.customer?.name, 'Customer account')}</Text>
               <Text style={styles.pageSubtitle}>Payments, balance, product details, and alerts from the centralized CRM.</Text>
             </View>
-            <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
+            <View style={styles.headerActions}>
+              {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall}>Install app</Button>}
+              <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
+            </View>
           </View>
 
           {activeTab === 'dashboard' && <DashboardTab {...props} />}
@@ -163,7 +169,7 @@ export function CustomerPortalScreen() {
   );
 }
 
-function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
+function CustomerAuthScreen({ onAuthenticated, onBack, message, canInstall = false, onInstall }) {
   const [mode, setMode] = useState('login');
   const [fullName, setFullName] = useState('');
   const [nationalId, setNationalId] = useState('');
@@ -287,6 +293,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
             <Text style={styles.brandSubtitle}>Customer account access</Text>
           </View>
         </View>
+        {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall} style={styles.fullButton}>Install customer app</Button>}
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>
             {mode === 'login' ? 'Customer sign in' : mode === 'register' ? 'Create customer account' : 'Password help'}
@@ -697,6 +704,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     flexWrap: 'wrap'
+  },
+  headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
   },
   kicker: {
     color: colors.primary,

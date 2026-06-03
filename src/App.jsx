@@ -51,6 +51,33 @@ function isAdminRoute() {
   return window.location.hash === '#/admin';
 }
 
+function portalMetaForRoute() {
+  if (isAgentRoute()) {
+    return {
+      title: 'Bumu Paygo Agent Portal',
+      manifest: '/manifest-agent.webmanifest',
+      appleTitle: 'Bumu Agent',
+      description: 'Agent workspace for Bumu Paygo customer registration, deposit prompts, follow-up, and commissions.'
+    };
+  }
+
+  if (isCustomerRoute()) {
+    return {
+      title: 'Bumu Paygo Customer Portal',
+      manifest: '/manifest-customer.webmanifest',
+      appleTitle: 'Bumu Customer',
+      description: 'Customer app for Bumu Paygo balances, M-Pesa payments, payment history, and account alerts.'
+    };
+  }
+
+  return {
+    title: 'Bumu Paygo',
+    manifest: '/manifest.webmanifest',
+    appleTitle: 'Bumu Paygo',
+    description: 'Bumu Paygo portals for customers, agents, admin, and finance.'
+  };
+}
+
 function buildDailyPaymentNotifications(payments) {
   const dailyRecords = payments.reduce((days, payment) => {
     const date = payment.date?.slice(0, 10) || new Date().toISOString().slice(0, 10);
@@ -216,6 +243,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const meta = portalMetaForRoute();
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    const description = document.querySelector('meta[name="description"]');
+
+    document.title = meta.title;
+    manifestLink?.setAttribute('href', meta.manifest);
+    appleTitle?.setAttribute('content', meta.appleTitle);
+    description?.setAttribute('content', meta.description);
+  }, [customerRouteActive, agentRouteActive, adminRouteActive, authRouteActive]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
     document.documentElement.style.colorScheme = themeMode;
   }, [themeMode]);
@@ -282,11 +321,11 @@ export function App() {
   }
 
   if (customerRouteActive) {
-    return <CustomerPortalScreen />;
+    return <CustomerPortalScreen canInstall={canInstall} onInstall={install} />;
   }
 
   if (agentRouteActive) {
-    return <AgentPortalScreen />;
+    return <AgentPortalScreen canInstall={canInstall} onInstall={install} />;
   }
 
   if (adminRouteActive) {
