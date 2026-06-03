@@ -25,7 +25,7 @@ import { formatDate } from './utils/dates.js';
 
 function readProfileSettings() {
   try {
-    const profile = JSON.parse(window.localStorage.getItem('bumu-profile-settings') || '{}');
+    const profile = JSON.parse(window.sessionStorage.getItem('bumu-profile-settings') || '{}');
     const { userCode, ...visibleProfile } = profile;
 
     return visibleProfile;
@@ -145,10 +145,10 @@ export function App() {
   const [customerRouteActive, setCustomerRouteActive] = useState(isCustomerRoute);
   const [agentRouteActive, setAgentRouteActive] = useState(isAgentRoute);
   const [activeScreen, setActiveScreen] = useState(
-    () => window.localStorage.getItem('bumu-active-screen') || 'dashboard'
+    () => window.sessionStorage.getItem('bumu-active-screen') || 'dashboard'
   );
   const [profilePhoto, setProfilePhoto] = useState(
-    () => window.localStorage.getItem('bumu-profile-photo') || ''
+    () => window.sessionStorage.getItem('bumu-profile-photo') || ''
   );
   const [profileSettings, setProfileSettings] = useState(() => ({
     name: '',
@@ -214,12 +214,12 @@ export function App() {
   }, [themeMode]);
 
   useEffect(() => {
-    window.localStorage.setItem('bumu-active-screen', activeScreen);
+    window.sessionStorage.setItem('bumu-active-screen', activeScreen);
   }, [activeScreen]);
 
   useEffect(() => {
     if (profilePhoto) {
-      window.localStorage.setItem('bumu-profile-photo', profilePhoto);
+      window.sessionStorage.setItem('bumu-profile-photo', profilePhoto);
     }
   }, [profilePhoto]);
 
@@ -254,7 +254,7 @@ export function App() {
 
   function handleLogout() {
     authService.logout();
-    window.localStorage.removeItem('bumu-active-screen');
+    window.sessionStorage.removeItem('bumu-active-screen');
     setAuthenticated(false);
     setActiveScreen('dashboard');
   }

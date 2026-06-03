@@ -17,7 +17,7 @@ const AGENT_LOOKUP_RECORDS_KEY = 'bumu-riders-agent-lookup-records';
 
 function readAgentLookupDraft() {
   try {
-    const draft = JSON.parse(window.localStorage.getItem(AGENT_LOOKUP_DRAFT_KEY) || '{}');
+    const draft = JSON.parse(window.sessionStorage.getItem(AGENT_LOOKUP_DRAFT_KEY) || '{}');
     return {
       agentName: typeof draft.agentName === 'string' ? draft.agentName : '',
       agentId: typeof draft.agentId === 'string' ? draft.agentId : ''
@@ -29,7 +29,7 @@ function readAgentLookupDraft() {
 
 function readAgentLookupRecords() {
   try {
-    const saved = JSON.parse(window.localStorage.getItem(AGENT_LOOKUP_RECORDS_KEY) || '{}');
+    const saved = JSON.parse(window.sessionStorage.getItem(AGENT_LOOKUP_RECORDS_KEY) || '{}');
     return {
       hasSearched: Boolean(saved.hasSearched),
       agentPayments: Array.isArray(saved.agentPayments) ? saved.agentPayments : [],
@@ -79,14 +79,14 @@ export function CustomersScreen() {
   const [searchedAgentId, setSearchedAgentId] = useState(() => readAgentLookupRecords().searchedAgentId);
 
   useEffect(() => {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       AGENT_LOOKUP_DRAFT_KEY,
       JSON.stringify({ agentName, agentId })
     );
   }, [agentName, agentId]);
 
   useEffect(() => {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       AGENT_LOOKUP_RECORDS_KEY,
       JSON.stringify({ hasSearched, agentPayments, searchedAgentName, searchedAgentId })
     );
@@ -157,7 +157,7 @@ export function CustomersScreen() {
     setQuery('');
     setSearchedAgentName('');
     setSearchedAgentId('');
-    window.localStorage.removeItem(AGENT_LOOKUP_RECORDS_KEY);
+    window.sessionStorage.removeItem(AGENT_LOOKUP_RECORDS_KEY);
   }
 
   return (

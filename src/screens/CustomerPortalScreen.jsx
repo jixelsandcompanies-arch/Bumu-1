@@ -170,6 +170,10 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [notice, setNotice] = useState(message || '');
   const [submitting, setSubmitting] = useState(false);
 
@@ -227,7 +231,41 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
     setSubmitting(true);
     try {
       await customerPortalService.requestPasswordReset({ email: email.trim(), phone: phone.trim() });
-      setNotice('Password reset request sent. Admin will continue the OTP process from the backend.');
+      setOtpSent(true);
+      setNotice(`OTP sent to ${email.trim()}. If it does not arrive, go back and resend it.`);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function changePassword() {
+    setNotice('');
+    if (!/^\d{6}$/.test(resetOtp.trim())) {
+      setNotice('Enter the 6-digit OTP.');
+      return;
+    }
+    if (!resetNewPassword || resetNewPassword !== resetConfirmPassword) {
+      setNotice('Password and confirmation must match.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await customerPortalService.verifyPasswordResetOtp({ email: email.trim(), otp: resetOtp.trim() });
+      await customerPortalService.resetPassword({
+        email: email.trim(),
+        otp: resetOtp.trim(),
+        password: resetNewPassword
+      });
+      setPassword('');
+      setResetOtp('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+      setOtpSent(false);
+      setNotice('Password changed. Sign in with your new password.');
+      setMode('login');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -258,7 +296,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
               ? 'Use the email linked to your customer record.'
               : mode === 'register'
                 ? 'Create your customer account. Admin or an agent can attach product details after registration.'
-                : 'Submit your email and phone. The backend/admin flow handles OTP and password changes.'}
+                : 'Enter your email, verify the OTP, and change your password.'}
           </Text>
         </View>
 
@@ -274,7 +312,18 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
           {mode === 'login' ? (
             <Field label="Password" value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
           ) : mode === 'reset' ? (
-            <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
+            <>
+              {!otpSent ? (
+                <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
+              ) : (
+                <>
+                  <Field label="OTP" value={resetOtp} onChangeText={setResetOtp} placeholder="Enter 6-digit OTP" />
+                  <Field label="New password" value={resetNewPassword} onChangeText={setResetNewPassword} placeholder="At least 10 characters" secureTextEntry />
+                  <Field label="Confirm password" value={resetConfirmPassword} onChangeText={setResetConfirmPassword} placeholder="Repeat password" secureTextEntry />
+                  <Text style={styles.greenText}>Password must include uppercase, lowercase, number, and special character.</Text>
+                </>
+              )}
+            </>
           ) : (
             <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
           )}
@@ -284,8 +333,8 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
               {submitting ? 'Signing in...' : 'Sign in'}
             </Button>
           ) : mode === 'reset' ? (
-            <Button icon={Bell} onPress={requestReset} disabled={submitting} style={styles.fullButton}>
-              {submitting ? 'Sending...' : 'Request reset'}
+            <Button icon={Bell} onPress={otpSent ? changePassword : requestReset} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Working...' : otpSent ? 'Change password' : 'Send OTP'}
             </Button>
           ) : (
             <Button icon={UserRound} onPress={register} disabled={submitting} style={styles.fullButton}>

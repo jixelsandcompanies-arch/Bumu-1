@@ -201,6 +201,7 @@ create table if not exists public.payment_requests (
   status text not null default 'pending' check (status in ('pending', 'processing', 'completed', 'failed', 'cancelled')),
   provider_reference text,
   backend_reference text,
+  provider_response jsonb not null default '{}'::jsonb,
   failure_reason text,
   source_portal text not null default 'customer',
   created_at timestamptz not null default now(),
@@ -222,9 +223,12 @@ create table if not exists public.password_reset_requests (
   id text primary key default ('PRR-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
   email text not null,
   phone text not null,
-  otp_code text,
+  otp_hash text,
+  otp_expires_at timestamptz,
+  otp_verified_at timestamptz,
   status text not null default 'otp_required' check (status in ('otp_required', 'otp_sent', 'verified', 'completed', 'failed', 'cancelled')),
   source_portal text not null default 'customer',
+  provider_response jsonb not null default '{}'::jsonb,
   admin_note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -262,7 +266,13 @@ alter table public.commissions add column if not exists follow_up_sent_at timest
 alter table public.reconciliation add column if not exists provider_amount numeric(14,2) not null default 0;
 alter table public.payment_requests add column if not exists backend_reference text;
 alter table public.payment_requests add column if not exists source_portal text not null default 'customer';
+alter table public.payment_requests add column if not exists provider_response jsonb not null default '{}'::jsonb;
 alter table public.password_reset_requests add column if not exists source_portal text not null default 'customer';
+alter table public.password_reset_requests add column if not exists otp_hash text;
+alter table public.password_reset_requests add column if not exists otp_expires_at timestamptz;
+alter table public.password_reset_requests add column if not exists otp_verified_at timestamptz;
+alter table public.password_reset_requests add column if not exists provider_response jsonb not null default '{}'::jsonb;
+alter table public.password_reset_requests drop column if exists otp_code;
 alter table public.agents add column if not exists source_portal text not null default 'agent';
 alter table public.agent_tasks add column if not exists completed_at timestamptz;
 alter table public.agent_tasks add column if not exists source_portal text not null default 'agent';
@@ -364,9 +374,11 @@ create index if not exists idx_finance_notifications_type_created on public.fina
 create index if not exists idx_finance_notifications_customer on public.finance_notifications (customer_id, created_at desc);
 create index if not exists idx_payment_requests_customer_created on public.payment_requests (customer_id, created_at desc);
 create index if not exists idx_payment_requests_status_created on public.payment_requests (status, created_at desc);
+create index if not exists idx_payment_requests_provider_reference on public.payment_requests (provider_reference);
 create index if not exists idx_customer_notifications_customer_created on public.customer_notifications (customer_id, created_at desc);
 create index if not exists idx_customer_notifications_status_created on public.customer_notifications (status, created_at desc);
 create index if not exists idx_password_reset_requests_email_created on public.password_reset_requests (lower(email), created_at desc);
+create index if not exists idx_password_reset_requests_status_expires on public.password_reset_requests (status, otp_expires_at desc);
 
 create or replace view public.customer_portal_summary as
 select

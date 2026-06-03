@@ -21,11 +21,12 @@ import {
 import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
 import { Text } from '../components/ui/Text.jsx';
+import { authService } from '../services/authService.js';
 import { colors } from '../theme/colors.js';
 
 const savedProfile = () => {
   try {
-    const profile = JSON.parse(window.localStorage.getItem('bumu-profile-settings') || '{}');
+    const profile = JSON.parse(window.sessionStorage.getItem('bumu-profile-settings') || '{}');
     const { userCode, ...visibleProfile } = profile;
 
     return visibleProfile;
@@ -74,7 +75,7 @@ export function SettingsScreen({
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(passwordEmail.trim());
   const otpValid = /^\d{6}$/.test(otpCode.trim());
   const passwordChecks = {
-    length: newPassword.length >= 8,
+    length: newPassword.length >= 10,
     unique: new Set(newPassword).size >= 8,
     upper: /[A-Z]/.test(newPassword),
     lower: /[a-z]/.test(newPassword),
@@ -102,7 +103,7 @@ export function SettingsScreen({
 
   function saveProfile() {
     const nextProfile = { name, role, phone, branch };
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
       'bumu-profile-settings',
       JSON.stringify(nextProfile)
     );
@@ -112,8 +113,8 @@ export function SettingsScreen({
   }
 
   function deleteProfile() {
-    window.localStorage.removeItem('bumu-profile-settings');
-    window.localStorage.removeItem('bumu-profile-photo');
+    window.sessionStorage.removeItem('bumu-profile-settings');
+    window.sessionStorage.removeItem('bumu-profile-photo');
     setName('');
     setRole('');
     setPhone('');
@@ -128,21 +129,45 @@ export function SettingsScreen({
     showMessage('Profile deleted.');
   }
 
-  function sendOtp() {
+  async function sendOtp() {
     if (!emailValid) {
       setPasswordNotice('Enter a valid email before sending OTP.');
       return;
     }
-    setOtpSent(true);
-    setPasswordNotice(`OTP sent to ${passwordEmail}. If it does not arrive, go back and resend it.`);
+
+    try {
+      await authService.requestPasswordReset(passwordEmail.trim());
+      setOtpSent(true);
+      setPasswordNotice(`OTP sent to ${passwordEmail.trim()}. If it does not arrive, go back and resend it.`);
+    } catch (error) {
+      setPasswordNotice(error.message);
+    }
   }
 
-  function changePassword() {
+  async function changePassword() {
     if (!emailValid || !otpValid || !passwordValid || !passwordsMatch) {
       setPasswordNotice('Complete all security checks before changing password.');
       return;
     }
-    setPasswordNotice('Password changed successfully.');
+
+    try {
+      await authService.verifyPasswordResetOtp({
+        identifier: passwordEmail.trim(),
+        otp: otpCode.trim()
+      });
+      await authService.resetPassword({
+        identifier: passwordEmail.trim(),
+        otp: otpCode.trim(),
+        password: newPassword
+      });
+      setOtpCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtpSent(false);
+      setPasswordNotice('Password changed successfully.');
+    } catch (error) {
+      setPasswordNotice(error.message);
+    }
   }
 
   return (
@@ -344,7 +369,7 @@ export function SettingsScreen({
                     {otpValid ? 'OTP code ready' : 'OTP must be 6 digits'}
                   </Text>
                   <Text style={[styles.validationText, passwordChecks.length && styles.validationOk]}>
-                  {passwordChecks.length ? '8 characters minimum' : 'Use at least 8 characters'}
+                    {passwordChecks.length ? '10 characters minimum' : 'Use at least 10 characters'}
                 </Text>
                 <Text style={[styles.validationText, passwordChecks.unique && styles.validationOk]}>
                   {passwordChecks.unique ? '8 different characters included' : 'Use at least 8 different characters'}

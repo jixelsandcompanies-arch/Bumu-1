@@ -82,6 +82,24 @@ export const agentWorkspaceService = {
     });
   },
 
+  async verifyPasswordResetOtp({ email, otp }) {
+    return request('/api/auth/verify-otp', {
+      method: 'POST',
+      body: { identifier: email, otp }
+    });
+  },
+
+  async resetPassword({ email, otp, password }) {
+    if (!isStrongPassword(password)) {
+      throw new Error('Password must be at least 10 characters and include uppercase, lowercase, number, and special character.');
+    }
+
+    return request('/api/auth/reset-password', {
+      method: 'POST',
+      body: { identifier: email, otp, password }
+    });
+  },
+
   logout() {
     clearSession();
   },

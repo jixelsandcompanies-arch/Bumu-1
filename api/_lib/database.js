@@ -1,4 +1,7 @@
+import crypto from 'node:crypto';
 import { getSupabase } from './supabase.js';
+import { initiateB2CPayout, initiateStkPush } from './daraja.js';
+import { validateStrongPassword } from './security.js';
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -28,6 +31,56 @@ function mapDisplayStatus(value, fallback = 'Pending') {
   const normalized = String(value || '').trim();
   if (!normalized) return fallback;
   return normalized.charAt(0).toUpperCase() + normalized.slice(1).replaceAll('_', ' ');
+}
+
+function hashOtp(identifier, otp) {
+  return crypto
+    .createHash('sha256')
+    .update(`${normalizeEmail(identifier)}:${otp}:${process.env.OTP_PEPPER || 'bumu-paygo'}`)
+    .digest('hex');
+}
+
+function createOtp() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+async function sendOtpEmail(email, otp) {
+  if (!process.env.RESEND_API_KEY || !process.env.OTP_FROM_EMAIL) {
+    return { delivered: false, provider: 'not_configured' };
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: process.env.OTP_FROM_EMAIL,
+      to: email,
+      subject: 'Bumu Paygo password reset OTP',
+      text: `Your Bumu Paygo OTP is ${otp}. It expires in 10 minutes.`
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+
+  return { delivered: response.ok, provider: 'resend', response: data };
+}
+
+async function findAuthUserByEmail(email) {
+  const normalized = normalizeEmail(email);
+  let page = 1;
+
+  while (page <= 10) {
+    const { data, error } = await getSupabase().auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw mapSupabaseError(error);
+    const user = data.users.find((item) => normalizeEmail(item.email) === normalized);
+    if (user) return user;
+    if (data.users.length < 100) return null;
+    page += 1;
+  }
+
+  return null;
 }
 
 function paymentAmount(payment) {
@@ -157,6 +210,12 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
 
   const requestedAt = new Date().toISOString();
   const approvalReference = financeReference(referencePrefix);
+  if (!commission.agent_phone) {
+    const error = new Error('Agent phone is required before payout can be sent.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const payoutRecord = {
     commission_id: commission.id,
     agent_name: commission.agent_name,
@@ -176,23 +235,60 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
 
   if (payoutRequest.error) throw mapSupabaseError(payoutRequest.error);
 
+  let payoutStatus = 'queued';
+  let providerResponse = {};
+  let backendReference = null;
+  let payoutError = null;
+
+  try {
+    const daraja = await initiateB2CPayout({
+      amount: payoutRecord.amount,
+      phone: payoutRecord.agent_phone,
+      remarks: `Commission ${commission.id}`,
+      occasion: approvalReference
+    });
+    payoutStatus = daraja.status;
+    providerResponse = daraja.providerResponse || {};
+    backendReference = daraja.conversationId || daraja.originatorConversationId || null;
+  } catch (error) {
+    payoutStatus = 'failed';
+    providerResponse = error.providerResponse || {};
+    payoutError = error.message;
+  }
+
+  const payoutUpdate = await getSupabase()
+    .from('agent_payout_requests')
+    .update({
+      status: payoutStatus,
+      backend_reference: backendReference,
+      provider_reference: backendReference,
+      provider_response: providerResponse,
+      processed_at: payoutStatus === 'failed' ? new Date().toISOString() : null
+    })
+    .eq('id', payoutRequest.data.id)
+    .select()
+    .single();
+
+  if (payoutUpdate.error) throw mapSupabaseError(payoutUpdate.error);
+
   const updated = await getSupabase()
     .from('commissions')
     .update({
-      status: 'processing',
+      status: payoutStatus === 'failed' ? 'failed' : 'processing',
       finance_approved_at: requestedAt,
       finance_approval_reference: approvalReference,
-      payout_status: 'queued',
+      payout_status: payoutStatus,
       payout_requested_at: requestedAt,
-      payout_reference: payoutRequest.data?.id || null,
-      payout_error: null
+      payout_reference: backendReference || payoutRequest.data?.id || null,
+      provider_response: providerResponse,
+      payout_error: payoutError
     })
     .eq('id', commission.id)
     .select()
     .single();
 
   if (updated.error) throw mapSupabaseError(updated.error);
-  return { commission: updated.data, payoutRequest: payoutRequest.data };
+  return { commission: updated.data, payoutRequest: payoutUpdate.data };
 }
 
 export async function listPayments(query = {}) {
@@ -375,6 +471,46 @@ export async function createCustomerPaymentRequest(user, body) {
 
   if (error) throw mapSupabaseError(error);
 
+  let request = data;
+
+  try {
+    const daraja = await initiateStkPush({
+      amount,
+      phone,
+      accountReference: customer.id,
+      transactionDescription: `Bumu Paygo ${customer.customer_name}`
+    });
+    const updated = await getSupabase()
+      .from('payment_requests')
+      .update({
+        status: daraja.status,
+        provider_reference: daraja.checkoutRequestId || data.id,
+        backend_reference: daraja.merchantRequestId || null,
+        provider_response: daraja.providerResponse || {},
+        failure_reason: null
+      })
+      .eq('id', data.id)
+      .select()
+      .single();
+
+    if (updated.error) throw mapSupabaseError(updated.error);
+    request = updated.data;
+  } catch (error) {
+    const failed = await getSupabase()
+      .from('payment_requests')
+      .update({
+        status: 'failed',
+        failure_reason: error.message,
+        provider_response: error.providerResponse || {}
+      })
+      .eq('id', data.id)
+      .select()
+      .single();
+
+    if (failed.error) throw mapSupabaseError(failed.error);
+    request = failed.data;
+  }
+
   await getSupabase()
     .from('customer_notifications')
     .insert({
@@ -385,7 +521,7 @@ export async function createCustomerPaymentRequest(user, body) {
       status: 'unread'
     });
 
-  return { paymentRequest: data };
+  return { paymentRequest: request };
 }
 
 export async function createCustomerPasswordResetRequest(body) {
@@ -436,6 +572,143 @@ export async function createAgentPasswordResetRequest(body) {
 
   if (error) throw mapSupabaseError(error);
   return { request: data };
+}
+
+export async function requestPasswordResetOtp(body) {
+  const identifier = normalizeEmail(body.identifier || body.email);
+
+  if (!identifier || !identifier.includes('@')) {
+    const error = new Error('Enter your email to receive OTP.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await findAuthUserByEmail(identifier);
+  if (!user) {
+    return { sent: true, delivered: false };
+  }
+
+  const otp = createOtp();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const delivery = await sendOtpEmail(identifier, otp);
+
+  const { data, error } = await getSupabase()
+    .from('password_reset_requests')
+    .insert({
+      email: identifier,
+      phone: body.phone || '',
+      otp_hash: hashOtp(identifier, otp),
+      status: delivery.delivered ? 'otp_sent' : 'otp_required',
+      source_portal: body.sourcePortal || body.source_portal || 'finance',
+      otp_expires_at: expiresAt,
+      provider_response: delivery
+    })
+    .select('id,email,status,otp_expires_at,source_portal,created_at')
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+
+  return {
+    sent: true,
+    delivered: delivery.delivered,
+    request: data,
+    message: delivery.delivered
+      ? 'OTP sent. If it does not arrive, go back and resend it.'
+      : 'OTP request saved. Configure RESEND_API_KEY and OTP_FROM_EMAIL to send email automatically.'
+  };
+}
+
+export async function verifyPasswordResetOtp(body) {
+  const identifier = normalizeEmail(body.identifier || body.email);
+  const otp = String(body.otp || '').trim();
+
+  if (!identifier || !/^\d{6}$/.test(otp)) {
+    const error = new Error('Enter the 6-digit OTP.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('password_reset_requests')
+    .select('*')
+    .eq('email', identifier)
+    .in('status', ['otp_sent', 'otp_required'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw mapSupabaseError(error);
+
+  if (!data || data.otp_hash !== hashOtp(identifier, otp) || new Date(data.otp_expires_at).getTime() < Date.now()) {
+    const invalid = new Error('Invalid or expired OTP.');
+    invalid.statusCode = 400;
+    throw invalid;
+  }
+
+  const updated = await getSupabase()
+    .from('password_reset_requests')
+    .update({
+      status: 'verified',
+      otp_verified_at: new Date().toISOString()
+    })
+    .eq('id', data.id)
+    .select('id,email,status,otp_verified_at')
+    .single();
+
+  if (updated.error) throw mapSupabaseError(updated.error);
+  return { verified: true, request: updated.data };
+}
+
+export async function resetPasswordWithOtp(body) {
+  const identifier = normalizeEmail(body.identifier || body.email);
+  const otp = String(body.otp || '').trim();
+  const password = String(body.password || '');
+
+  if (!identifier || !/^\d{6}$/.test(otp) || !validateStrongPassword(password)) {
+    const error = new Error('Verify OTP and enter a valid new password.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('password_reset_requests')
+    .select('*')
+    .eq('email', identifier)
+    .in('status', ['verified', 'otp_sent', 'otp_required'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw mapSupabaseError(error);
+
+  if (!data || data.otp_hash !== hashOtp(identifier, otp) || new Date(data.otp_expires_at).getTime() < Date.now()) {
+    const invalid = new Error('Invalid or expired OTP.');
+    invalid.statusCode = 400;
+    throw invalid;
+  }
+
+  const user = await findAuthUserByEmail(identifier);
+  if (!user) {
+    const missing = new Error('Account was not found.');
+    missing.statusCode = 404;
+    throw missing;
+  }
+
+  const updateUser = await getSupabase().auth.admin.updateUserById(user.id, { password });
+  if (updateUser.error) throw mapSupabaseError(updateUser.error);
+
+  const updated = await getSupabase()
+    .from('password_reset_requests')
+    .update({
+      status: 'completed',
+      otp_verified_at: data.otp_verified_at || new Date().toISOString()
+    })
+    .eq('id', data.id)
+    .select('id,email,status')
+    .single();
+
+  if (updated.error) throw mapSupabaseError(updated.error);
+  return { updated: true, request: updated.data };
 }
 
 export async function findAgentForAuthUser(user) {
