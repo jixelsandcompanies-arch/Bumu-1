@@ -1803,18 +1803,6 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
     const balance = Number(customer.balance || 0);
     const amount = customerReminderAmount(customer);
 
-    if (!dryRun && Number(customer.overdue_days || 0) !== overdueDays) {
-      const nextStatus = balance <= 0 ? 'paid' : overdueDays >= 3 ? 'defaulted' : customer.status;
-      const update = await getSupabase()
-        .from('customers')
-        .update({ overdue_days: overdueDays, status: nextStatus })
-        .eq('id', customer.id);
-      if (update.error) throw mapSupabaseError(update.error);
-      summary.statusUpdates += 1;
-      customer.overdue_days = overdueDays;
-      customer.status = nextStatus;
-    }
-
     if (customer.status === 'next_of_kin_pending') {
       const type = 'next_of_kin_pending';
       const message = `${customer.customer_name} is waiting for next-of-kin acceptance.`;
@@ -1856,6 +1844,18 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
         if (finance) summary.financeNotifications += 1;
       }
       continue;
+    }
+
+    if (!dryRun && ['active', 'defaulted'].includes(customer.status) && Number(customer.overdue_days || 0) !== overdueDays) {
+      const nextStatus = balance <= 0 ? 'paid' : overdueDays >= 3 ? 'defaulted' : customer.status;
+      const update = await getSupabase()
+        .from('customers')
+        .update({ overdue_days: overdueDays, status: nextStatus })
+        .eq('id', customer.id);
+      if (update.error) throw mapSupabaseError(update.error);
+      summary.statusUpdates += 1;
+      customer.overdue_days = overdueDays;
+      customer.status = nextStatus;
     }
 
     if (balance <= 0 || (!dueToday && overdueDays <= 0)) continue;
