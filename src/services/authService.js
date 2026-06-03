@@ -1,11 +1,7 @@
 import { getAuthToken, setAuthToken } from './authSession.js';
+import { buildApiUrl } from './apiUrl.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const REQUEST_TIMEOUT_MS = 20000;
-
-function buildUrl(path) {
-  return new URL(`${API_BASE_URL}${path}`, window.location.origin).toString();
-}
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
@@ -28,7 +24,7 @@ async function apiRequest(path, { method = 'GET', body } = {}) {
   let response;
 
   try {
-    response = await fetch(buildUrl(path), {
+    response = await fetch(buildApiUrl(path), {
       method,
       headers: {
         Accept: 'application/json',

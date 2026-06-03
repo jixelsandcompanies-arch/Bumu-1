@@ -1,11 +1,8 @@
+import { buildApiUrl } from './apiUrl.js';
+
 const AGENT_TOKEN_KEY = 'bumu-agent-token';
 const AGENT_USER_KEY = 'bumu-agent-user';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const REQUEST_TIMEOUT_MS = 20000;
-
-function buildUrl(path) {
-  return new URL(`${API_BASE_URL}${path}`, window.location.origin).toString();
-}
 
 function getToken() {
   return window.sessionStorage.getItem(AGENT_TOKEN_KEY) || '';
@@ -28,7 +25,7 @@ async function request(path, { method = 'GET', body } = {}) {
   let response;
 
   try {
-    response = await fetch(buildUrl(path), {
+    response = await fetch(buildApiUrl(path), {
       method,
       headers: {
         Accept: 'application/json',

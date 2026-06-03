@@ -1,11 +1,8 @@
+import { buildApiUrl } from './apiUrl.js';
+
 const CUSTOMER_TOKEN_KEY = 'bumu-customer-token';
 const CUSTOMER_USER_KEY = 'bumu-customer-user';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const REQUEST_TIMEOUT_MS = 20000;
-
-function buildUrl(path) {
-  return new URL(`${API_BASE_URL}${path}`, window.location.origin).toString();
-}
 
 export function getCustomerToken() {
   return window.sessionStorage.getItem(CUSTOMER_TOKEN_KEY) || '';
@@ -28,7 +25,7 @@ async function request(path, { method = 'GET', body } = {}) {
   let response;
 
   try {
-    response = await fetch(buildUrl(path), {
+    response = await fetch(buildApiUrl(path), {
       method,
       headers: {
         Accept: 'application/json',
