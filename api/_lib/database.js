@@ -19,6 +19,10 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function nonEmpty(value) {
+  return String(value || '').trim();
+}
+
 function formatDate(value) {
   if (!value) return '';
   return new Date(value).toLocaleDateString('en-GB', {
@@ -893,21 +897,68 @@ export async function createAgentCustomer(user, body) {
     throw error;
   }
 
-  const customerName = String(body.customerName || '').trim();
-  const customerPhone = String(body.customerPhone || '').trim();
-  if (!customerName || !customerPhone) {
-    const error = new Error('Enter customer name and phone number.');
+  const customerName = nonEmpty(body.customerName);
+  const customerPhone = nonEmpty(body.customerPhone);
+  const nationalId = nonEmpty(body.nationalId);
+  const dateOfBirth = nonEmpty(body.dateOfBirth || body.date_of_birth);
+  const gender = nonEmpty(body.gender);
+  const location = nonEmpty(body.location);
+  const occupation = nonEmpty(body.occupation);
+  const passportPhotoUrl = nonEmpty(body.passportPhotoUrl || body.passport_photo_url);
+  const idFrontUrl = nonEmpty(body.idFrontUrl || body.id_front_url);
+  const idBackUrl = nonEmpty(body.idBackUrl || body.id_back_url);
+  const nextOfKinName = nonEmpty(body.nextOfKinName || body.next_of_kin_name);
+  const nextOfKinPhone = nonEmpty(body.nextOfKinPhone || body.next_of_kin_phone);
+  const nextOfKinRelationship = nonEmpty(body.nextOfKinRelationship || body.next_of_kin_relationship);
+  const nextOfKinPassportPhotoUrl = nonEmpty(body.nextOfKinPassportPhotoUrl || body.next_of_kin_passport_photo_url);
+  const nextOfKinIdFrontUrl = nonEmpty(body.nextOfKinIdFrontUrl || body.next_of_kin_id_front_url);
+  const nextOfKinIdBackUrl = nonEmpty(body.nextOfKinIdBackUrl || body.next_of_kin_id_back_url);
+  const productType = nonEmpty(body.productType) || 'product';
+  const productModel = nonEmpty(body.productModel || body.bikeModel);
+  const serialNumber = nonEmpty(body.serialNumber);
+  const chassisNumber = nonEmpty(body.chassisNumber);
+  const dueDate = nonEmpty(body.dueDate);
+
+  const required = [
+    ['customer name', customerName],
+    ['customer phone', customerPhone],
+    ['national ID', nationalId],
+    ['date of birth', dateOfBirth],
+    ['gender', gender],
+    ['location', location],
+    ['occupation', occupation],
+    ['customer passport photo', passportPhotoUrl],
+    ['customer ID front photo', idFrontUrl],
+    ['customer ID back photo', idBackUrl],
+    ['next-of-kin name', nextOfKinName],
+    ['next-of-kin phone', nextOfKinPhone],
+    ['next-of-kin relationship', nextOfKinRelationship],
+    ['next-of-kin passport photo', nextOfKinPassportPhotoUrl],
+    ['next-of-kin ID front photo', nextOfKinIdFrontUrl],
+    ['next-of-kin ID back photo', nextOfKinIdBackUrl],
+    ['product type', productType],
+    ['product model', productModel],
+    ['serial number or chassis number', serialNumber || chassisNumber],
+    ['due date', dueDate]
+  ];
+  const missing = required.filter(([, value]) => !value).map(([label]) => label);
+
+  if (missing.length > 0) {
+    const error = new Error(`Complete required fields: ${missing.join(', ')}.`);
     error.statusCode = 400;
     throw error;
   }
 
   const totalPayable = Number(body.totalPayable || 0);
   const paidAmount = Number(body.paidAmount || 0);
+  const dailyInstallment = Number(body.dailyInstallment || 0);
+  if (!Number.isFinite(totalPayable) || totalPayable <= 0 || !Number.isFinite(dailyInstallment) || dailyInstallment <= 0 || paidAmount < 0 || paidAmount > totalPayable) {
+    const error = new Error('Enter valid total payable, paid amount, and daily installment.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const agentCode = agent.agent_code || agent.agent_id;
-  const productType = body.productType || 'product';
-  const productModel = body.productModel || body.bikeModel || null;
-  const nationalId = String(body.nationalId || '').trim();
-  const nextOfKinPhone = String(body.nextOfKinPhone || body.next_of_kin_phone || '').trim();
   const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
   const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
   const nextOfKinOtpDelivery = nextOfKinOtp
@@ -940,21 +991,21 @@ export async function createAgentCustomer(user, body) {
     .insert({
       customer_name: customerName,
       customer_phone: customerPhone,
-      national_id: nationalId || null,
+      national_id: nationalId,
       email: normalizeEmail(body.email) || null,
-      date_of_birth: body.dateOfBirth || body.date_of_birth || null,
-      gender: body.gender || null,
-      location: body.location || null,
-      occupation: body.occupation || null,
-      passport_photo_url: body.passportPhotoUrl || body.passport_photo_url || null,
-      id_front_url: body.idFrontUrl || body.id_front_url || null,
-      id_back_url: body.idBackUrl || body.id_back_url || null,
-      next_of_kin_name: body.nextOfKinName || body.next_of_kin_name || null,
-      next_of_kin_phone: nextOfKinPhone || null,
-      next_of_kin_relationship: body.nextOfKinRelationship || body.next_of_kin_relationship || null,
-      next_of_kin_passport_photo_url: body.nextOfKinPassportPhotoUrl || body.next_of_kin_passport_photo_url || null,
-      next_of_kin_id_front_url: body.nextOfKinIdFrontUrl || body.next_of_kin_id_front_url || null,
-      next_of_kin_id_back_url: body.nextOfKinIdBackUrl || body.next_of_kin_id_back_url || null,
+      date_of_birth: dateOfBirth,
+      gender,
+      location,
+      occupation,
+      passport_photo_url: passportPhotoUrl,
+      id_front_url: idFrontUrl,
+      id_back_url: idBackUrl,
+      next_of_kin_name: nextOfKinName,
+      next_of_kin_phone: nextOfKinPhone,
+      next_of_kin_relationship: nextOfKinRelationship,
+      next_of_kin_passport_photo_url: nextOfKinPassportPhotoUrl,
+      next_of_kin_id_front_url: nextOfKinIdFrontUrl,
+      next_of_kin_id_back_url: nextOfKinIdBackUrl,
       next_of_kin_otp_hash: nextOfKinOtp ? hashOtp(nextOfKinPhone, nextOfKinOtp) : null,
       next_of_kin_otp_expires_at: nextOfKinOtpExpiresAt,
       next_of_kin_otp_sent_at: nextOfKinOtp ? new Date().toISOString() : null,
@@ -962,15 +1013,15 @@ export async function createAgentCustomer(user, body) {
       product_type: productType,
       product_model: productModel,
       bike_model: productType === 'bike' ? productModel : null,
-      serial_number: body.serialNumber || body.chassisNumber || null,
-      chassis_number: body.chassisNumber || null,
+      serial_number: serialNumber || chassisNumber,
+      chassis_number: chassisNumber || null,
       agent_name: agent.full_name || agent.agent_name,
       agent_id: agentCode,
       total_payable: totalPayable,
       paid_amount: paidAmount,
       balance: Math.max(totalPayable - paidAmount, 0),
-      due_date: body.dueDate || null,
-      daily_installment: Number(body.dailyInstallment || 0),
+      due_date: dueDate,
+      daily_installment: dailyInstallment,
       application_status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
       status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
       source_portal: 'agent'

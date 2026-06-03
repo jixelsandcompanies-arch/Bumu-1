@@ -363,6 +363,37 @@ alter table public.customers add constraint customers_next_of_kin_otp_status_che
 alter table public.customer_applications drop constraint if exists customer_applications_status_check;
 alter table public.customer_applications add constraint customer_applications_status_check
   check (status in ('next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected'));
+alter table public.customers drop constraint if exists customers_agent_required_kyc_check;
+alter table public.customers add constraint customers_agent_required_kyc_check
+  check (
+    source_portal <> 'agent'
+    or (
+      nullif(trim(customer_name), '') is not null
+      and nullif(trim(customer_phone), '') is not null
+      and nullif(trim(national_id), '') is not null
+      and date_of_birth is not null
+      and nullif(trim(gender), '') is not null
+      and nullif(trim(location), '') is not null
+      and nullif(trim(occupation), '') is not null
+      and nullif(trim(passport_photo_url), '') is not null
+      and nullif(trim(id_front_url), '') is not null
+      and nullif(trim(id_back_url), '') is not null
+      and nullif(trim(next_of_kin_name), '') is not null
+      and nullif(trim(next_of_kin_phone), '') is not null
+      and nullif(trim(next_of_kin_relationship), '') is not null
+      and nullif(trim(next_of_kin_passport_photo_url), '') is not null
+      and nullif(trim(next_of_kin_id_front_url), '') is not null
+      and nullif(trim(next_of_kin_id_back_url), '') is not null
+      and nullif(trim(product_type), '') is not null
+      and nullif(trim(product_model), '') is not null
+      and (nullif(trim(serial_number), '') is not null or nullif(trim(chassis_number), '') is not null)
+      and total_payable > 0
+      and paid_amount >= 0
+      and paid_amount <= total_payable
+      and daily_installment > 0
+      and due_date is not null
+    )
+  );
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;
