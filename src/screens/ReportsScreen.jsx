@@ -34,7 +34,7 @@ const reportColumnWidths = {
   Status: 120,
   'National ID': 150,
   Type: 170,
-  'Chassis / IMEI': 180,
+  'Product identifier': 180,
   Bike: 170,
   Amount: 140,
   Balance: 140,
@@ -270,7 +270,7 @@ function buildReportRows(category, payments, riders, commissions, reconciliation
       Phone: rider.customerPhone ?? rider.phone,
       Agent: rider.agentName,
       Bike: rider.bikeModel,
-      'Chassis / IMEI': rider.imei || rider.chassisNumber || rider.serialNumber,
+      'Product identifier': rider.chassisNumber || rider.serialNumber,
       'Total payable': rider.totalPayable,
       Paid: rider.paidAmount,
       Balance: rider.balance,
@@ -509,7 +509,7 @@ function downloadSelectedReport(type, filenameBase, title, startDate, endDate, r
 
 async function exportExcel(filename, rows) {
   const headers = Object.keys(rows[0] ?? {});
-  const textHeaders = new Set(['Date', 'Due date', 'Phone number', 'Phone', 'Receipt', 'Chassis / IMEI', 'Customer', 'Rider', 'Agent', 'Method', 'Status', 'Type', 'National ID']);
+  const textHeaders = new Set(['Date', 'Due date', 'Phone number', 'Phone', 'Receipt', 'Product identifier', 'Customer', 'Rider', 'Agent', 'Method', 'Status', 'Type', 'National ID']);
   const sheetRows = [
     headers,
     ...rows.map((row) =>

@@ -389,7 +389,6 @@ function DashboardTab({ portal, onNavigate }) {
           <Detail label="Type" value={fallback(product.type)} />
           <Detail label="Serial number" value={fallback(product.serialNumber)} />
           <Detail label="Chassis number" value={fallback(product.chassisNumber)} />
-          <Detail label="IMEI" value={fallback(product.imei)} />
           <Detail label="Next due date" value={fallback(product.dueDate)} />
           <Button icon={CreditCard} onPress={() => onNavigate('pay')} style={styles.fullButton}>Make payment request</Button>
         </View>
@@ -541,7 +540,6 @@ function ProfileTab({ portal }) {
         <Detail label="Model" value={fallback(product?.model)} />
         <Detail label="Serial number" value={fallback(product?.serialNumber)} />
         <Detail label="Chassis number" value={fallback(product?.chassisNumber)} />
-        <Detail label="IMEI" value={fallback(product?.imei)} />
       </View>
     </View>
   );

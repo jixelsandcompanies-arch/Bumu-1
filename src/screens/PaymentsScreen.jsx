@@ -34,19 +34,8 @@ function displayAgentCode(payment) {
   return payment.agentId || payment.agentCode || NO_DATA;
 }
 
-function isPhoneIdentifier(value) {
-  const text = String(value || '').trim().toLowerCase();
-  const digits = text.replace(/\D/g, '');
-
-  return text.includes('imei') || digits.length >= 14;
-}
-
 function identifierForPayment(payment) {
-  if (String(payment.productType || '').toLowerCase() === 'phone') {
-    return payment.imei || payment.serialNumber;
-  }
-
-  return payment.chassisNumber || payment.serialNumber || payment.imei;
+  return payment.chassisNumber || payment.serialNumber;
 }
 
 export function PaymentsScreen({ onPaymentRecordsChange }) {
@@ -125,7 +114,7 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
       'Customer',
       'Phone',
       'Receipt',
-      'Chassis / IMEI Number',
+      'Product identifier',
       'Total Payable',
       'Deposit / Credit',
       'Paygo Payment',
@@ -207,7 +196,6 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
 
     try {
       const identifier = manualPayment.serialNumber.trim();
-      const phoneIdentifier = isPhoneIdentifier(identifier);
 
       savedPayment = await paymentService.saveManualPayment({
         id: generatePaymentId(),
@@ -216,8 +204,7 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
         receipt: generateReceipt(),
         agentName: manualPayment.agentName.trim(),
         serialNumber: identifier,
-        chassisNumber: phoneIdentifier ? '' : identifier,
-        imei: phoneIdentifier ? identifier : '',
+        chassisNumber: identifier,
         totalPayable,
         depositCredit,
         paygoPayment,
@@ -296,7 +283,7 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
               value={manualPayment.serialNumber}
               onChangeText={(value) => updateManualPayment('serialNumber', value)}
               style={styles.formInput}
-              placeholder="Chassis number or phone IMEI"
+              placeholder="Chassis or serial number"
               placeholderTextColor="var(--app-muted)"
             />
             <TextInput
@@ -385,7 +372,7 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
             <View style={styles.tableHeader}>
               <Text style={[styles.th, styles.customerCol]}>Customer</Text>
               <Text style={[styles.th, styles.phoneCol]}>Phone / Receipt</Text>
-              <Text style={[styles.th, styles.chassisCol]}>Chassis / IMEI</Text>
+              <Text style={[styles.th, styles.chassisCol]}>Product identifier</Text>
               <Text style={[styles.th, styles.moneyCol]}>Total Payable</Text>
               <Text style={[styles.th, styles.moneyCol]}>Deposit / Credit</Text>
               <Text style={[styles.th, styles.moneyCol]}>Paygo Payment</Text>

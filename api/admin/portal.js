@@ -87,7 +87,6 @@ export default async function handler(req, res) {
           productModel: item.product_model || '',
           serialNumber: item.serial_number || '',
           chassisNumber: item.chassis_number || '',
-          imei: item.imei || '',
           branch: item.branch || '',
           status: item.status || 'available'
         })),

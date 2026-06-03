@@ -40,7 +40,6 @@ export default async function handler(req, res) {
         product_model: productModel,
         serial_number: body.serialNumber || null,
         chassis_number: body.chassisNumber || null,
-        imei: body.imei || null,
         branch: body.branch || null,
         status: body.status || 'available',
         source_portal: 'admin'

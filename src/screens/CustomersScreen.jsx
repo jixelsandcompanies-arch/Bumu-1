@@ -62,11 +62,7 @@ function displayAgentCode(payment) {
 }
 
 function identifierForPayment(payment) {
-  if (String(payment.productType || '').toLowerCase() === 'phone') {
-    return payment.imei || payment.serialNumber;
-  }
-
-  return payment.chassisNumber || payment.serialNumber || payment.imei;
+  return payment.chassisNumber || payment.serialNumber;
 }
 
 export function CustomersScreen() {
@@ -95,7 +91,7 @@ export function CustomersScreen() {
   const payments = useMemo(() => {
     const value = query.toLowerCase();
     return agentPayments.filter((payment) =>
-      `${payment.customerName} ${payment.customerPhone} ${payment.receipt} ${payment.agentName} ${payment.serialNumber} ${payment.chassisNumber} ${payment.imei} ${payment.status}`
+      `${payment.customerName} ${payment.customerPhone} ${payment.receipt} ${payment.agentName} ${payment.serialNumber} ${payment.chassisNumber} ${payment.status}`
         .toLowerCase()
         .includes(value)
     );
@@ -216,7 +212,7 @@ export function CustomersScreen() {
                   <View style={styles.tableHeader}>
                     <Text style={[styles.th, styles.customerCol]}>Customer</Text>
                     <Text style={[styles.th, styles.phoneCol]}>Phone / Receipt</Text>
-                    <Text style={[styles.th, styles.chassisCol]}>Chassis / IMEI</Text>
+                    <Text style={[styles.th, styles.chassisCol]}>Product identifier</Text>
                     <Text style={[styles.th, styles.moneyCol]}>Total Payable</Text>
                     <Text style={[styles.th, styles.moneyCol]}>Payment %</Text>
                     <Text style={[styles.th, styles.moneyCol]}>Commission Rate</Text>

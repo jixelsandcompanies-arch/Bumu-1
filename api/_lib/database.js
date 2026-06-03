@@ -149,9 +149,8 @@ function buildSaleCommissionsFromPayments(payments) {
         customer_name: payment.customer_name,
         product_type: productType,
         product_model: payment.product_model || payment.bike_model || 'Product',
-        serial_number: payment.serial_number || payment.imei || payment.chassis_number,
+        serial_number: payment.serial_number || payment.chassis_number,
         chassis_number: payment.chassis_number || null,
-        imei: payment.imei || null,
         type: 'sale_activation_commission',
         amount: Math.round(deposit * rate),
         status: 'earned',
@@ -413,7 +412,6 @@ export async function getCustomerPortal(user) {
       model: customer.product_model || customer.bike_model || '',
       serialNumber: customer.serial_number || '',
       chassisNumber: customer.chassis_number || '',
-      imei: customer.imei || '',
       totalPrice: totalPayable,
       dailyInstallment,
       dueDate: customer.due_date || '',
@@ -495,7 +493,7 @@ export async function createCustomerPaymentRequest(user, body) {
           amount,
           phone,
           customerId: customer.id,
-          customerBikeId: customer.serial_number || customer.chassis_number || customer.imei || customer.id,
+          customerBikeId: customer.serial_number || customer.chassis_number || customer.id,
           narration: 'Bumu Paygo Installment'
         })
       : await initiateStkPush({
@@ -853,7 +851,6 @@ export async function getAgentPortal(user) {
       productModel: customer.product_model || customer.bike_model || '',
       serialNumber: customer.serial_number || '',
       chassisNumber: customer.chassis_number || '',
-      imei: customer.imei || '',
       totalPayable: Number(customer.total_payable || 0),
       paidAmount: Number(customer.paid_amount || 0),
       balance: Number(customer.balance || 0),
@@ -941,9 +938,8 @@ export async function createAgentCustomer(user, body) {
       product_type: productType,
       product_model: productModel,
       bike_model: productType === 'bike' ? productModel : null,
-      serial_number: body.serialNumber || body.imei || body.chassisNumber || null,
+      serial_number: body.serialNumber || body.chassisNumber || null,
       chassis_number: body.chassisNumber || null,
-      imei: body.imei || null,
       agent_name: agent.full_name || agent.agent_name,
       agent_id: agentCode,
       total_payable: totalPayable,
@@ -1051,9 +1047,8 @@ export async function createManualPayment(body) {
     agent_name: body.agentName || body.agent_name,
     agent_id: body.agentId || body.agent_id,
     bike_model: body.bikeModel || body.bike_model || body.productModel || body.product_model || null,
-    serial_number: body.serialNumber || body.serial_number || body.imei || body.chassisNumber || body.chassis_number,
+    serial_number: body.serialNumber || body.serial_number || body.chassisNumber || body.chassis_number,
     chassis_number: body.chassisNumber || body.chassis_number || null,
-    imei: body.imei || null,
     total_payable: totalPayable,
     paid_amount: Number(body.paidAmount || body.paid_amount || amount),
     balance: Math.max(totalPayable - amount, 0),
@@ -1116,7 +1111,7 @@ export async function listCommissions(query = {}) {
   if ((data || []).length === 0 && normalizeOffset(query.offset) === 0) {
     const payments = await getSupabase()
       .from('payments')
-      .select('id,receipt,customer_name,agent_name,agent_id,agent_phone,bike_model,serial_number,chassis_number,imei,product_type,product_model,deposit_credit,date,created_at')
+      .select('id,receipt,customer_name,agent_name,agent_id,agent_phone,bike_model,serial_number,chassis_number,product_type,product_model,deposit_credit,date,created_at')
       .order('date', { ascending: false })
       .limit(500);
 

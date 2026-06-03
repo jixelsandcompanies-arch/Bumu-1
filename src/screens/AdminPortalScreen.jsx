@@ -418,7 +418,7 @@ function CustomersTab({ portal, onRefresh }) {
 }
 
 function ProductsTab({ portal, onRefresh }) {
-  const [form, setForm] = useState({ productType: 'bike', productModel: '', serialNumber: '', chassisNumber: '', imei: '', branch: '', status: 'available' });
+  const [form, setForm] = useState({ productType: 'bike', productModel: '', serialNumber: '', chassisNumber: '', branch: '', status: 'available' });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -427,7 +427,7 @@ function ProductsTab({ portal, onRefresh }) {
     setSubmitting(true);
     try {
       await adminPortalService.createProduct(form);
-      setForm({ productType: 'bike', productModel: '', serialNumber: '', chassisNumber: '', imei: '', branch: '', status: 'available' });
+      setForm({ productType: 'bike', productModel: '', serialNumber: '', chassisNumber: '', branch: '', status: 'available' });
       setMessage('Product added to inventory.');
       await onRefresh();
     } catch (error) {
@@ -445,12 +445,11 @@ function ProductsTab({ portal, onRefresh }) {
         <Field label="Product model" value={form.productModel} onChangeText={(value) => setForm((current) => ({ ...current, productModel: value }))} placeholder="Model" />
         <Field label="Serial number" value={form.serialNumber} onChangeText={(value) => setForm((current) => ({ ...current, serialNumber: value }))} placeholder="Serial number" />
         <Field label="Chassis number" value={form.chassisNumber} onChangeText={(value) => setForm((current) => ({ ...current, chassisNumber: value }))} placeholder="Bike chassis" />
-        <Field label="IMEI" value={form.imei} onChangeText={(value) => setForm((current) => ({ ...current, imei: value }))} placeholder="Phone IMEI" />
         <Field label="Branch" value={form.branch} onChangeText={(value) => setForm((current) => ({ ...current, branch: value }))} placeholder="Branch" />
         {message ? <Text style={styles.greenText}>{message}</Text> : null}
         <Button icon={PackagePlus} onPress={submit} disabled={submitting} style={styles.fullButton}>{submitting ? 'Saving...' : 'Add product'}</Button>
       </View>
-      <PanelList title="Products" items={portal.products.map((item) => ({ id: item.id, title: `${item.productType} ${item.productModel}`, text: `${fallback(item.serialNumber)} | ${fallback(item.chassisNumber || item.imei)} | ${item.status}` }))} emptyText="No products yet." />
+      <PanelList title="Products" items={portal.products.map((item) => ({ id: item.id, title: `${item.productType} ${item.productModel}`, text: `${fallback(item.serialNumber)} | ${fallback(item.chassisNumber)} | ${item.status}` }))} emptyText="No products yet." />
     </View>
   );
 }

@@ -85,7 +85,6 @@ export default async function handler(req, res) {
           bike_model: customer.bike_model || null,
           serial_number: customer.serial_number || null,
           chassis_number: customer.chassis_number || null,
-          imei: customer.imei || null,
           total_payable: totalPayable,
           paid_amount: paidAmount,
           balance: nextBalance,

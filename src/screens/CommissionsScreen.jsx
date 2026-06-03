@@ -26,7 +26,7 @@ export function CommissionsScreen() {
     if (!value) return commissions;
 
     return commissions.filter((commission) =>
-      `${commission.agentName} ${commission.agentCode} ${commission.agentPhone} ${commission.productType} ${commission.productModel} ${commission.serialNumber} ${commission.chassisNumber} ${commission.imei}`
+      `${commission.agentName} ${commission.agentCode} ${commission.agentPhone} ${commission.productType} ${commission.productModel} ${commission.serialNumber} ${commission.chassisNumber}`
         .toLowerCase()
         .includes(value)
     );
@@ -134,7 +134,7 @@ export function CommissionsScreen() {
       'Customer',
       'Product type',
       'Product model',
-      'Chassis / IMEI',
+      'Product identifier',
       'Customer payment status',
       'Payment percentage',
       'Commission rate',
@@ -151,7 +151,7 @@ export function CommissionsScreen() {
       twoNames(commission.customerName),
       humanizeStatus(commission.productType),
       commission.productModel,
-      commission.imei || commission.chassisNumber || commission.serialNumber,
+      commission.chassisNumber || commission.serialNumber,
       commission.customerPaymentStatus === 'paid' ? 'Paid' : 'Unpaid',
       formatPercent(commission.paymentPercentage),
       formatPercent(commission.commissionRate * 100),
@@ -188,7 +188,7 @@ export function CommissionsScreen() {
       <View style={styles.summary}>
         <View style={styles.searchRow}>
           <View style={styles.searchWrap}>
-            <SearchInput value={agentQuery} onChangeText={setAgentQuery} placeholder="Search agent, product, serial, or IMEI" />
+            <SearchInput value={agentQuery} onChangeText={setAgentQuery} placeholder="Search agent, product, serial, or chassis" />
           </View>
           {agentQuery ? <Button variant="secondary" onPress={() => setAgentQuery('')}>Clear</Button> : null}
         </View>
@@ -257,8 +257,8 @@ export function CommissionsScreen() {
                   <Text style={styles.meta}>{commission.customerName}</Text>
                   <Text style={styles.meta}>
                     {humanizeStatus(commission.productType)}: {commission.productModel}
-                    {commission.imei || commission.chassisNumber || commission.serialNumber
-                      ? ` | ${commission.imei || commission.chassisNumber || commission.serialNumber}`
+                    {commission.chassisNumber || commission.serialNumber
+                      ? ` | ${commission.chassisNumber || commission.serialNumber}`
                       : ''}
                   </Text>
                   <Text style={styles.meta}>Customer payment: {commission.customerPaymentStatus === 'paid' ? 'Paid' : 'Unpaid'}</Text>

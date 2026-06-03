@@ -101,7 +101,6 @@ export default async function handler(req, res) {
           bike_model: customer.bike_model || null,
           serial_number: customer.serial_number || null,
           chassis_number: customer.chassis_number || null,
-          imei: customer.imei || null,
           total_payable: Number(customer.total_payable || 0),
           paid_amount: amount,
           balance: Math.max(Number(customer.balance || 0) - amount, 0),

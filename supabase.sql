@@ -34,7 +34,6 @@ create table if not exists public.inventory_products (
   product_model text not null,
   serial_number text,
   chassis_number text,
-  imei text,
   branch text,
   assigned_customer_id text,
   status text not null default 'available' check (status in ('available', 'reserved', 'sold', 'maintenance', 'inactive')),
@@ -64,7 +63,6 @@ create table if not exists public.customers (
   bike_model text,
   serial_number text,
   chassis_number text,
-  imei text,
   agent_name text,
   agent_id text,
   total_payable numeric(14,2) not null default 0,
@@ -139,7 +137,6 @@ create table if not exists public.payments (
   bike_model text,
   serial_number text,
   chassis_number text,
-  imei text,
   total_payable numeric(14,2) not null default 0,
   paid_amount numeric(14,2) not null default 0,
   balance numeric(14,2) not null default 0,
@@ -173,7 +170,6 @@ create table if not exists public.commissions (
   product_model text,
   serial_number text,
   chassis_number text,
-  imei text,
   type text not null default 'payment_percentage',
   amount numeric(14,2) not null default 0,
   status text not null default 'earned' check (status in ('earned', 'processing', 'paid', 'failed', 'cancelled')),
@@ -321,7 +317,6 @@ alter table public.customers add column if not exists auth_user_id uuid referenc
 alter table public.customers add column if not exists product_type text not null default 'bike';
 alter table public.customers add column if not exists product_model text;
 alter table public.customers add column if not exists chassis_number text;
-alter table public.customers add column if not exists imei text;
 alter table public.customers add column if not exists daily_installment numeric(14,2) not null default 0;
 alter table public.customers add column if not exists final_payment_date date;
 alter table public.customers add column if not exists date_of_birth date;
@@ -349,7 +344,6 @@ alter table public.customers add constraint customers_application_status_check
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;
-alter table public.payments add column if not exists imei text;
 alter table public.payments add column if not exists provider_reference text;
 alter table public.payments add column if not exists provider_transaction_id text;
 alter table public.payments add column if not exists provider_account_reference text;
@@ -359,7 +353,6 @@ alter table public.commissions add column if not exists product_type text not nu
 alter table public.commissions add column if not exists product_model text;
 alter table public.commissions add column if not exists serial_number text;
 alter table public.commissions add column if not exists chassis_number text;
-alter table public.commissions add column if not exists imei text;
 alter table public.commissions add column if not exists payout_status text not null default 'not_requested';
 alter table public.commissions add column if not exists payout_requested_at timestamptz;
 alter table public.commissions add column if not exists payout_completed_at timestamptz;
@@ -382,6 +375,11 @@ alter table public.agents add column if not exists source_portal text not null d
 alter table public.agents add column if not exists agent_name text;
 alter table public.agent_tasks add column if not exists completed_at timestamptz;
 alter table public.agent_tasks add column if not exists source_portal text not null default 'agent';
+
+alter table public.customers drop column if exists imei;
+alter table public.payments drop column if exists imei;
+alter table public.commissions drop column if exists imei;
+alter table public.inventory_products drop column if exists imei;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -468,7 +466,6 @@ create index if not exists idx_payments_provider_reference on public.payments (p
 create index if not exists idx_payments_provider_account on public.payments (provider_account_reference);
 create index if not exists idx_payments_provider_paid_at on public.payments (provider_paid_at desc);
 create index if not exists idx_payments_chassis_number on public.payments (chassis_number);
-create index if not exists idx_payments_imei on public.payments (imei);
 create index if not exists idx_payments_search_customer on public.payments using gin (lower(customer_name) gin_trgm_ops);
 create index if not exists idx_commissions_agent on public.commissions (lower(agent_code), lower(agent_name));
 create index if not exists idx_commissions_status on public.commissions (status);
@@ -476,7 +473,6 @@ create index if not exists idx_commissions_status_earned on public.commissions (
 create index if not exists idx_commissions_payment on public.commissions (payment_id);
 create index if not exists idx_commissions_product on public.commissions (product_type, earned_at desc);
 create index if not exists idx_commissions_chassis_number on public.commissions (chassis_number);
-create index if not exists idx_commissions_imei on public.commissions (imei);
 create index if not exists idx_commissions_payout_status on public.commissions (payout_status, payout_requested_at desc);
 create unique index if not exists idx_agent_payout_requests_commission_unique on public.agent_payout_requests (commission_id);
 create index if not exists idx_agent_payout_requests_status_requested on public.agent_payout_requests (status, requested_at desc);
@@ -510,7 +506,6 @@ create index if not exists idx_inventory_products_status on public.inventory_pro
 create index if not exists idx_inventory_products_type_model on public.inventory_products (product_type, product_model);
 create index if not exists idx_inventory_products_serial on public.inventory_products (serial_number);
 create index if not exists idx_inventory_products_chassis on public.inventory_products (chassis_number);
-create index if not exists idx_inventory_products_imei on public.inventory_products (imei);
 create index if not exists idx_admin_audit_logs_created on public.admin_audit_logs (created_at desc);
 create index if not exists idx_admin_audit_logs_target on public.admin_audit_logs (target_table, target_id);
 create index if not exists idx_customer_applications_status on public.customer_applications (status, created_at desc);
@@ -529,7 +524,6 @@ select
   coalesce(c.product_model, c.bike_model) as product_model,
   c.serial_number,
   c.chassis_number,
-  c.imei,
   c.agent_name,
   c.agent_id,
   c.total_payable,

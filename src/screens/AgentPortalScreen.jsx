@@ -413,7 +413,6 @@ function RegisterTab({ onRefresh }) {
     productModel: '',
     serialNumber: '',
     chassisNumber: '',
-    imei: '',
     nextOfKinName: '',
     nextOfKinPhone: '',
     nextOfKinRelationship: '',
@@ -447,7 +446,6 @@ function RegisterTab({ onRefresh }) {
         occupation: '',
         serialNumber: '',
         chassisNumber: '',
-        imei: '',
         nextOfKinName: '',
         nextOfKinPhone: '',
         nextOfKinRelationship: ''
@@ -482,7 +480,6 @@ function RegisterTab({ onRefresh }) {
         <Field fieldStyle={styles.gridField} label="Product model" value={form.productModel} onChangeText={(value) => update('productModel', value)} placeholder="Model name" />
         <Field fieldStyle={styles.gridField} label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
         <Field fieldStyle={styles.gridField} label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />
-        <Field fieldStyle={styles.gridField} label="IMEI" value={form.imei} onChangeText={(value) => update('imei', value)} placeholder="For phones" />
         <Field fieldStyle={styles.gridField} label="Next of kin name" value={form.nextOfKinName} onChangeText={(value) => update('nextOfKinName', value)} placeholder="Next of kin" />
         <Field fieldStyle={styles.gridField} label="Next of kin phone" value={form.nextOfKinPhone} onChangeText={(value) => update('nextOfKinPhone', value)} placeholder="Phone number" />
         <Field fieldStyle={styles.gridField} label="Next of kin relationship" value={form.nextOfKinRelationship} onChangeText={(value) => update('nextOfKinRelationship', value)} placeholder="Relationship" />
@@ -509,7 +506,7 @@ function CustomersTab({ portal }) {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.rowTitle}>{customer.name}</Text>
               <Text style={styles.rowText}>{customer.phone} | {customer.productType} | {fallback(customer.productModel)}</Text>
-              <Text style={styles.rowText}>Serial {fallback(customer.serialNumber)} | Chassis {fallback(customer.chassisNumber)} | IMEI {fallback(customer.imei)}</Text>
+              <Text style={styles.rowText}>Serial {fallback(customer.serialNumber)} | Chassis {fallback(customer.chassisNumber)}</Text>
             </View>
             <View style={styles.rowRight}>
               <Text style={styles.rowAmount}>{formatKes(customer.balance)}</Text>

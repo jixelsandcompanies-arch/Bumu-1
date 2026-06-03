@@ -100,7 +100,6 @@ function getProductSerial(record) {
   return (
     record.serialNumber ??
     record.serial_number ??
-    record.imei ??
     record.chassisNumber ??
     record.chassis_number ??
     ''
@@ -116,7 +115,6 @@ function buildSaleActivationCommissions(payments) {
       const productModel = getProductModel(payment);
       const serialNumber = getProductSerial(payment);
       const chassisNumber = payment.chassisNumber ?? payment.chassis_number ?? '';
-      const imei = payment.imei ?? '';
       const receipt = payment.receipt || payment.receipt_number || payment.id || Date.now();
       const commissionRate = productType === 'phone' ? 0.03 : 0.04;
 
@@ -130,7 +128,6 @@ function buildSaleActivationCommissions(payments) {
         productModel,
         serialNumber,
         chassisNumber,
-        imei,
         earnedMonth: String(payment.date || payment.createdAt || payment.created_at || new Date().toISOString()).slice(0, 7),
         earnedAt: payment.date ?? payment.createdAt ?? payment.created_at,
         type: 'sale_activation_commission',
@@ -196,7 +193,6 @@ export function buildMonthlyPaygoCommissions(payments, now = new Date()) {
       productModel: getProductModel(payment),
       serialNumber: getProductSerial(payment),
       chassisNumber: payment.chassisNumber ?? payment.chassis_number ?? '',
-      imei: payment.imei ?? '',
       earnedMonth,
       earnedAt: payment.date ?? payment.createdAt ?? payment.created_at,
       monthlyPaygoCollected: 0,

@@ -19,7 +19,6 @@ function buildPaymentSearchIndex(payment) {
     payment.bikeModel,
     payment.serialNumber,
     payment.chassisNumber,
-    payment.imei,
     payment.status,
     payment.sourcePortal
   ].map((value) => String(value ?? '').toLowerCase()).join(' ');
@@ -36,8 +35,7 @@ function normalizePayment(payment) {
     productType: payment.productType ?? payment.product_type ?? 'product',
     productModel: payment.productModel ?? payment.product_model ?? payment.bikeModel ?? payment.bike_model ?? '',
     chassisNumber: payment.chassisNumber ?? payment.chassis_number ?? '',
-    imei: payment.imei ?? '',
-    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.imei ?? payment.chassisNumber ?? payment.chassis_number ?? '',
+    serialNumber: payment.serialNumber ?? payment.serial_number ?? payment.chassisNumber ?? payment.chassis_number ?? '',
     totalPayable: payment.totalPayable ?? payment.total_payable ?? 0,
     paidAmount: payment.paidAmount ?? payment.paid_amount ?? getPaymentAmount(payment),
     balance: getPaymentBalance(payment),
