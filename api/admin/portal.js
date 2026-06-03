@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       products,
       payments,
       commissions,
+      applications,
       audits
     ] = await Promise.all([
       getSupabase().from('agents').select('*').order('created_at', { ascending: false }).limit(200),
@@ -33,10 +34,11 @@ export default async function handler(req, res) {
       getSupabase().from('inventory_products').select('*').order('created_at', { ascending: false }).limit(200),
       getSupabase().from('payments').select('*').order('date', { ascending: false }).limit(100),
       getSupabase().from('commissions').select('*').order('earned_at', { ascending: false }).limit(100),
+      getSupabase().from('customer_applications').select('*, customers(*)').order('created_at', { ascending: false }).limit(100),
       getSupabase().from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
     ]);
 
-    [agents, customers, products, payments, commissions, audits].forEach(({ error }) => {
+    [agents, customers, products, payments, commissions, applications, audits].forEach(({ error }) => {
       if (error) throw error;
     });
 
@@ -55,6 +57,7 @@ export default async function handler(req, res) {
         summary: {
           agents: (agents.data || []).length,
           customers: customerRows.length,
+          pendingApplications: (applications.data || []).filter((item) => item.status === 'pending_screening').length,
           activeProducts: (products.data || []).filter((item) => item.status !== 'sold').length,
           totalBalance: customerRows.reduce((total, item) => total + Number(item.balance || 0), 0),
           todayCollections: paymentRows.filter((item) => String(item.date || '').startsWith(today)).reduce((total, item) => total + amount(item), 0),
@@ -102,6 +105,22 @@ export default async function handler(req, res) {
           customerName: item.customer_name || '',
           amount: Number(item.amount || 0),
           status: item.status || ''
+        })),
+        applications: (applications.data || []).map((item) => ({
+          id: item.id,
+          customerId: item.customer_id,
+          customerName: item.customers?.customer_name || '',
+          phone: item.customers?.customer_phone || '',
+          nationalId: item.national_id || item.customers?.national_id || '',
+          agentName: item.agent_name || '',
+          agentId: item.agent_id || '',
+          productType: item.customers?.product_type || 'product',
+          productModel: item.customers?.product_model || item.customers?.bike_model || '',
+          nextOfKin: item.customers?.next_of_kin_name || '',
+          duplicateNationalId: Boolean(item.duplicate_national_id),
+          status: item.status || 'pending_screening',
+          reason: item.review_reason || '',
+          createdAt: formatDate(item.created_at)
         })),
         audits: (audits.data || []).map((item) => ({
           id: item.id,

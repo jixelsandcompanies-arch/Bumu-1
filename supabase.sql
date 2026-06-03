@@ -72,10 +72,42 @@ create table if not exists public.customers (
   balance numeric(14,2) not null default 0,
   due_date date,
   last_payment_date date,
-  status text not null default 'active' check (status in ('active', 'defaulted', 'paid', 'not_registered')),
+  date_of_birth date,
+  gender text,
+  location text,
+  occupation text,
+  passport_photo_url text,
+  id_front_url text,
+  id_back_url text,
+  next_of_kin_name text,
+  next_of_kin_phone text,
+  next_of_kin_relationship text,
+  customer_phone_verified_at timestamptz,
+  next_of_kin_verified_at timestamptz,
+  application_status text not null default 'active' check (application_status in ('draft', 'pending_screening', 'info_required', 'approved', 'rejected', 'active')),
+  screening_reason text,
+  screened_at timestamptz,
+  screened_by uuid references auth.users(id) on delete set null,
+  status text not null default 'active' check (status in ('active', 'defaulted', 'paid', 'not_registered', 'pending_screening', 'rejected')),
   overdue_days integer not null default 0,
   registration_status text generated always as (status) stored,
   source_portal text not null default 'finance',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.customer_applications (
+  id text primary key default ('APP-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
+  customer_id text not null references public.customers(id) on delete cascade,
+  agent_id text,
+  agent_name text,
+  national_id text,
+  status text not null default 'pending_screening' check (status in ('pending_screening', 'info_required', 'approved', 'rejected')),
+  duplicate_national_id boolean not null default false,
+  review_reason text,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  source_portal text not null default 'agent',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -292,6 +324,28 @@ alter table public.customers add column if not exists chassis_number text;
 alter table public.customers add column if not exists imei text;
 alter table public.customers add column if not exists daily_installment numeric(14,2) not null default 0;
 alter table public.customers add column if not exists final_payment_date date;
+alter table public.customers add column if not exists date_of_birth date;
+alter table public.customers add column if not exists gender text;
+alter table public.customers add column if not exists location text;
+alter table public.customers add column if not exists occupation text;
+alter table public.customers add column if not exists passport_photo_url text;
+alter table public.customers add column if not exists id_front_url text;
+alter table public.customers add column if not exists id_back_url text;
+alter table public.customers add column if not exists next_of_kin_name text;
+alter table public.customers add column if not exists next_of_kin_phone text;
+alter table public.customers add column if not exists next_of_kin_relationship text;
+alter table public.customers add column if not exists customer_phone_verified_at timestamptz;
+alter table public.customers add column if not exists next_of_kin_verified_at timestamptz;
+alter table public.customers add column if not exists application_status text not null default 'active';
+alter table public.customers add column if not exists screening_reason text;
+alter table public.customers add column if not exists screened_at timestamptz;
+alter table public.customers add column if not exists screened_by uuid references auth.users(id) on delete set null;
+alter table public.customers drop constraint if exists customers_status_check;
+alter table public.customers add constraint customers_status_check
+  check (status in ('active', 'defaulted', 'paid', 'not_registered', 'pending_screening', 'rejected'));
+alter table public.customers drop constraint if exists customers_application_status_check;
+alter table public.customers add constraint customers_application_status_check
+  check (application_status in ('draft', 'pending_screening', 'info_required', 'approved', 'rejected', 'active'));
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;
@@ -341,6 +395,10 @@ $$;
 
 drop trigger if exists customers_set_updated_at on public.customers;
 create trigger customers_set_updated_at before update on public.customers
+for each row execute function public.set_updated_at();
+
+drop trigger if exists customer_applications_set_updated_at on public.customer_applications;
+create trigger customer_applications_set_updated_at before update on public.customer_applications
 for each row execute function public.set_updated_at();
 
 drop trigger if exists agents_set_updated_at on public.agents;
@@ -396,6 +454,7 @@ create index if not exists idx_customers_email on public.customers (lower(email)
 create index if not exists idx_customers_agent on public.customers (lower(agent_name), lower(agent_id));
 create index if not exists idx_customers_phone on public.customers (customer_phone);
 create index if not exists idx_customers_status_due on public.customers (status, due_date);
+create index if not exists idx_customers_application_status on public.customers (application_status, created_at desc);
 create index if not exists idx_customers_search_name on public.customers using gin (lower(customer_name) gin_trgm_ops);
 create index if not exists idx_customers_search_phone on public.customers using gin (customer_phone gin_trgm_ops);
 create index if not exists idx_payments_customer on public.payments (customer_id);
@@ -454,6 +513,9 @@ create index if not exists idx_inventory_products_chassis on public.inventory_pr
 create index if not exists idx_inventory_products_imei on public.inventory_products (imei);
 create index if not exists idx_admin_audit_logs_created on public.admin_audit_logs (created_at desc);
 create index if not exists idx_admin_audit_logs_target on public.admin_audit_logs (target_table, target_id);
+create index if not exists idx_customer_applications_status on public.customer_applications (status, created_at desc);
+create index if not exists idx_customer_applications_customer on public.customer_applications (customer_id);
+create index if not exists idx_customer_applications_national_id on public.customer_applications (national_id);
 
 create or replace view public.customer_portal_summary as
 select
@@ -580,6 +642,7 @@ alter table public.finance_notifications enable row level security;
 alter table public.payment_requests enable row level security;
 alter table public.customer_notifications enable row level security;
 alter table public.password_reset_requests enable row level security;
+alter table public.customer_applications enable row level security;
 alter table public.admin_profiles enable row level security;
 alter table public.branches enable row level security;
 alter table public.inventory_products enable row level security;
@@ -597,6 +660,7 @@ revoke all on table public.finance_notifications from anon, authenticated;
 revoke all on table public.payment_requests from anon, authenticated;
 revoke all on table public.customer_notifications from anon, authenticated;
 revoke all on table public.password_reset_requests from anon, authenticated;
+revoke all on table public.customer_applications from anon, authenticated;
 revoke all on table public.admin_profiles from anon, authenticated;
 revoke all on table public.branches from anon, authenticated;
 revoke all on table public.inventory_products from anon, authenticated;

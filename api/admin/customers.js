@@ -45,6 +45,13 @@ export default async function handler(req, res) {
         customer_phone: customerPhone,
         email: String(body.email || '').trim().toLowerCase() || null,
         national_id: body.nationalId || null,
+        date_of_birth: body.dateOfBirth || body.date_of_birth || null,
+        gender: body.gender || null,
+        location: body.location || null,
+        occupation: body.occupation || null,
+        next_of_kin_name: body.nextOfKinName || body.next_of_kin_name || null,
+        next_of_kin_phone: body.nextOfKinPhone || body.next_of_kin_phone || null,
+        next_of_kin_relationship: body.nextOfKinRelationship || body.next_of_kin_relationship || null,
         product_type: productType,
         product_model: productModel,
         bike_model: productType === 'bike' ? productModel : null,
@@ -55,6 +62,7 @@ export default async function handler(req, res) {
         paid_amount: paidAmount,
         balance: Math.max(totalPayable - paidAmount, 0),
         daily_installment: Number(body.dailyInstallment || 0),
+        application_status: 'active',
         status: 'active',
         source_portal: 'admin'
       })

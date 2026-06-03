@@ -103,5 +103,12 @@ export const adminPortalService = {
       method: 'POST',
       body: product
     });
+  },
+
+  async reviewApplication(id, { action, reason }) {
+    return request(`/api/admin/applications/${encodeURIComponent(id)}/review`, {
+      method: 'POST',
+      body: { action, reason }
+    });
   }
 };

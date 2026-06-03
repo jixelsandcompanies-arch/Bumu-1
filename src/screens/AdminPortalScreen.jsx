@@ -23,17 +23,19 @@ import bumuLogo from '../../BumuLogo.jpeg';
 
 const emptyPortal = {
   admin: null,
-  summary: { agents: 0, customers: 0, activeProducts: 0, totalBalance: 0, todayCollections: 0, pendingCommissions: 0 },
+  summary: { agents: 0, customers: 0, pendingApplications: 0, activeProducts: 0, totalBalance: 0, todayCollections: 0, pendingCommissions: 0 },
   agents: [],
   customers: [],
   products: [],
   payments: [],
   commissions: [],
+  applications: [],
   audits: []
 };
 
 const tabs = [
   ['dashboard', 'Dashboard', Home],
+  ['screening', 'Screening', ShieldCheck],
   ['agents', 'Agents', UsersRound],
   ['customers', 'Customers', UserPlus],
   ['products', 'Products', Bike],
@@ -155,6 +157,7 @@ export function AdminPortalScreen() {
           </View>
 
           {activeTab === 'dashboard' && <DashboardTab {...props} />}
+          {activeTab === 'screening' && <ScreeningTab {...props} />}
           {activeTab === 'agents' && <AgentsTab {...props} />}
           {activeTab === 'customers' && <CustomersTab {...props} />}
           {activeTab === 'products' && <ProductsTab {...props} />}
@@ -271,6 +274,7 @@ function DashboardTab({ portal }) {
       <View style={styles.statsGrid}>
         <StatCard label="Agents" value={portal.summary.agents} />
         <StatCard label="Customers" value={portal.summary.customers} />
+        <StatCard label="Pending screening" value={portal.summary.pendingApplications} />
         <StatCard label="Active products" value={portal.summary.activeProducts} />
         <StatCard label="Total balance" value={formatKes(portal.summary.totalBalance)} />
         <StatCard label="Today collections" value={formatKes(portal.summary.todayCollections)} />
@@ -279,6 +283,59 @@ function DashboardTab({ portal }) {
       <View style={styles.twoColumn}>
         <PanelList title="Recent customers" items={portal.customers.slice(0, 5).map((item) => ({ id: item.id, title: item.name, text: `${item.productType} | ${formatKes(item.balance)} balance` }))} emptyText="No customers yet." />
         <PanelList title="Recent audit activity" items={portal.audits.slice(0, 5).map((item) => ({ id: item.id, title: item.action, text: `${item.actorEmail || 'system'} | ${item.createdAt}` }))} emptyText="No audit records yet." />
+      </View>
+    </View>
+  );
+}
+
+function ScreeningTab({ portal, onRefresh }) {
+  const [reasonById, setReasonById] = useState({});
+  const [message, setMessage] = useState('');
+  const [submittingId, setSubmittingId] = useState('');
+
+  async function review(id, action) {
+    setMessage('');
+    setSubmittingId(id);
+    try {
+      await adminPortalService.reviewApplication(id, {
+        action,
+        reason: reasonById[id] || ''
+      });
+      setMessage('Application review saved.');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSubmittingId('');
+    }
+  }
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>Screening queue</Text>
+      <Text style={styles.panelText}>Review KYC submissions, duplicate national ID flags, next-of-kin details, and product identifiers.</Text>
+      {message ? <Text style={styles.greenText}>{message}</Text> : null}
+      <View style={styles.miniList}>
+        {portal.applications.map((item) => (
+          <View key={item.id} style={styles.miniItem}>
+            <Text style={styles.rowTitle}>{item.customerName}</Text>
+            <Text style={styles.rowText}>{item.phone} | ID {fallback(item.nationalId)} | {item.productType} {fallback(item.productModel)}</Text>
+            <Text style={styles.rowText}>Agent {fallback(item.agentName)} | Next of kin {fallback(item.nextOfKin)} | {item.status}</Text>
+            {item.duplicateNationalId ? <Text style={styles.dangerText}>Duplicate national ID flagged.</Text> : null}
+            <Field
+              label="Review note"
+              value={reasonById[item.id] || ''}
+              onChangeText={(value) => setReasonById((current) => ({ ...current, [item.id]: value }))}
+              placeholder="Reason for reject/info request, or approval note"
+            />
+            <View style={styles.actionRow}>
+              <Button icon={ShieldCheck} onPress={() => review(item.id, 'approve')} disabled={Boolean(submittingId)} style={styles.actionButton}>Approve</Button>
+              <Button variant="secondary" onPress={() => review(item.id, 'request_info')} disabled={Boolean(submittingId)} style={styles.actionButton}>Request info</Button>
+              <Button variant="danger" onPress={() => review(item.id, 'reject')} disabled={Boolean(submittingId)} style={styles.actionButton}>Reject</Button>
+            </View>
+          </View>
+        ))}
+        {!portal.applications.length && <Text style={styles.panelText}>No screening applications yet.</Text>}
       </View>
     </View>
   );
@@ -483,11 +540,14 @@ const styles = StyleSheet.create({
   panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   panelTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
   panelText: { color: colors.muted, lineHeight: 21 },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actionButton: { flexGrow: 1 },
   field: { gap: 6, width: '100%' },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   input: { minHeight: 40, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, paddingHorizontal: 12, color: colors.text, backgroundColor: '#ffffff', outlineStyle: 'none' },
   fullButton: { width: '100%' },
   greenText: { color: colors.success, fontWeight: '500', lineHeight: 20 },
+  dangerText: { color: colors.danger, fontWeight: '600', lineHeight: 20 },
   miniList: { gap: 9 },
   miniItem: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 10, gap: 7 },
   rowTitle: { color: colors.text, fontWeight: '600' },

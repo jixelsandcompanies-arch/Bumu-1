@@ -405,11 +405,18 @@ function RegisterTab({ onRefresh }) {
     customerPhone: '',
     nationalId: '',
     email: '',
+    dateOfBirth: '',
+    gender: '',
+    location: '',
+    occupation: '',
     productType: 'bike',
     productModel: '',
     serialNumber: '',
     chassisNumber: '',
     imei: '',
+    nextOfKinName: '',
+    nextOfKinPhone: '',
+    nextOfKinRelationship: '',
     totalPayable: '',
     paidAmount: '',
     dailyInstallment: '',
@@ -427,8 +434,24 @@ function RegisterTab({ onRefresh }) {
     setSubmitting(true);
     try {
       await agentWorkspaceService.createCustomer(form);
-      setMessage('Customer registered into the shared CRM.');
-      setForm((current) => ({ ...current, customerName: '', customerPhone: '', nationalId: '', email: '', serialNumber: '', chassisNumber: '', imei: '' }));
+      setMessage('Customer application submitted for admin screening.');
+      setForm((current) => ({
+        ...current,
+        customerName: '',
+        customerPhone: '',
+        nationalId: '',
+        email: '',
+        dateOfBirth: '',
+        gender: '',
+        location: '',
+        occupation: '',
+        serialNumber: '',
+        chassisNumber: '',
+        imei: '',
+        nextOfKinName: '',
+        nextOfKinPhone: '',
+        nextOfKinRelationship: ''
+      }));
       await onRefresh();
     } catch (error) {
       setMessage(error.message);
@@ -443,7 +466,7 @@ function RegisterTab({ onRefresh }) {
         <Bike size={22} color={colors.primary} />
         <View>
           <Text style={styles.panelTitle}>Register customer and product</Text>
-          <Text style={styles.panelText}>This writes into the same customer table finance and customer portals use.</Text>
+          <Text style={styles.panelText}>This submits a KYC application to the admin screening queue.</Text>
         </View>
       </View>
       <View style={styles.formGrid}>
@@ -451,11 +474,18 @@ function RegisterTab({ onRefresh }) {
         <Field fieldStyle={styles.gridField} label="Phone number" value={form.customerPhone} onChangeText={(value) => update('customerPhone', value)} placeholder="Customer phone" />
         <Field fieldStyle={styles.gridField} label="National ID" value={form.nationalId} onChangeText={(value) => update('nationalId', value)} placeholder="National ID" />
         <Field fieldStyle={styles.gridField} label="Email" value={form.email} onChangeText={(value) => update('email', value)} placeholder="Customer email" />
+        <Field fieldStyle={styles.gridField} label="Date of birth" value={form.dateOfBirth} onChangeText={(value) => update('dateOfBirth', value)} placeholder="YYYY-MM-DD" />
+        <Field fieldStyle={styles.gridField} label="Gender" value={form.gender} onChangeText={(value) => update('gender', value)} placeholder="Gender" />
+        <Field fieldStyle={styles.gridField} label="Location" value={form.location} onChangeText={(value) => update('location', value)} placeholder="Customer location" />
+        <Field fieldStyle={styles.gridField} label="Occupation" value={form.occupation} onChangeText={(value) => update('occupation', value)} placeholder="Occupation" />
         <Field fieldStyle={styles.gridField} label="Product type" value={form.productType} onChangeText={(value) => update('productType', value)} placeholder="bike or phone" />
         <Field fieldStyle={styles.gridField} label="Product model" value={form.productModel} onChangeText={(value) => update('productModel', value)} placeholder="Model name" />
         <Field fieldStyle={styles.gridField} label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
         <Field fieldStyle={styles.gridField} label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />
         <Field fieldStyle={styles.gridField} label="IMEI" value={form.imei} onChangeText={(value) => update('imei', value)} placeholder="For phones" />
+        <Field fieldStyle={styles.gridField} label="Next of kin name" value={form.nextOfKinName} onChangeText={(value) => update('nextOfKinName', value)} placeholder="Next of kin" />
+        <Field fieldStyle={styles.gridField} label="Next of kin phone" value={form.nextOfKinPhone} onChangeText={(value) => update('nextOfKinPhone', value)} placeholder="Phone number" />
+        <Field fieldStyle={styles.gridField} label="Next of kin relationship" value={form.nextOfKinRelationship} onChangeText={(value) => update('nextOfKinRelationship', value)} placeholder="Relationship" />
         <Field fieldStyle={styles.gridField} label="Total payable" value={form.totalPayable} onChangeText={(value) => update('totalPayable', value)} placeholder="Amount" />
         <Field fieldStyle={styles.gridField} label="Paid amount" value={form.paidAmount} onChangeText={(value) => update('paidAmount', value)} placeholder="Deposit paid" />
         <Field fieldStyle={styles.gridField} label="Daily installment" value={form.dailyInstallment} onChangeText={(value) => update('dailyInstallment', value)} placeholder="Daily amount" />

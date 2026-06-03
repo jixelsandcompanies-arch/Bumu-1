@@ -884,14 +884,35 @@ export async function createAgentCustomer(user, body) {
   const agentCode = agent.agent_code || agent.agent_id;
   const productType = body.productType || 'product';
   const productModel = body.productModel || body.bikeModel || null;
+  const nationalId = String(body.nationalId || '').trim();
+  const duplicateCheck = nationalId
+    ? await getSupabase()
+        .from('customers')
+        .select('id')
+        .eq('national_id', nationalId)
+        .limit(1)
+    : { data: [] };
+
+  if (duplicateCheck.error) throw mapSupabaseError(duplicateCheck.error);
+  const duplicateNationalId = Boolean(duplicateCheck.data?.length);
 
   const { data, error } = await getSupabase()
     .from('customers')
     .insert({
       customer_name: customerName,
       customer_phone: customerPhone,
-      national_id: body.nationalId || null,
+      national_id: nationalId || null,
       email: normalizeEmail(body.email) || null,
+      date_of_birth: body.dateOfBirth || body.date_of_birth || null,
+      gender: body.gender || null,
+      location: body.location || null,
+      occupation: body.occupation || null,
+      passport_photo_url: body.passportPhotoUrl || body.passport_photo_url || null,
+      id_front_url: body.idFrontUrl || body.id_front_url || null,
+      id_back_url: body.idBackUrl || body.id_back_url || null,
+      next_of_kin_name: body.nextOfKinName || body.next_of_kin_name || null,
+      next_of_kin_phone: body.nextOfKinPhone || body.next_of_kin_phone || null,
+      next_of_kin_relationship: body.nextOfKinRelationship || body.next_of_kin_relationship || null,
       product_type: productType,
       product_model: productModel,
       bike_model: productType === 'bike' ? productModel : null,
@@ -905,13 +926,47 @@ export async function createAgentCustomer(user, body) {
       balance: Math.max(totalPayable - paidAmount, 0),
       due_date: body.dueDate || null,
       daily_installment: Number(body.dailyInstallment || 0),
-      status: 'active',
+      application_status: 'pending_screening',
+      status: 'not_registered',
       source_portal: 'agent'
     })
     .select()
     .single();
 
   if (error) throw mapSupabaseError(error);
+  const application = await getSupabase()
+    .from('customer_applications')
+    .insert({
+      customer_id: data.id,
+      agent_id: agentCode,
+      agent_name: agent.full_name || agent.agent_name,
+      national_id: nationalId || null,
+      status: 'pending_screening',
+      duplicate_national_id: duplicateNationalId,
+      source_portal: 'agent'
+    })
+    .select()
+    .single();
+
+  if (application.error) throw mapSupabaseError(application.error);
+
+  await getSupabase()
+    .from('finance_notifications')
+    .insert({
+      type: duplicateNationalId ? 'screening_duplicate' : 'screening_pending',
+      title: duplicateNationalId ? 'Duplicate national ID flagged' : 'Customer screening required',
+      message: `${customerName} was submitted by ${agent.full_name || agent.agent_name || 'agent'} for screening.`,
+      issue: duplicateNationalId ? 'National ID already exists in customer records.' : 'Review KYC details and approve, reject, or request more information.',
+      follow_up: 'Open Admin portal screening queue.',
+      customer_id: data.id,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      agent_name: agent.full_name || agent.agent_name,
+      agent_code: agentCode,
+      severity: duplicateNationalId ? 'critical' : 'info',
+      source_portal: 'agent'
+    });
+
   return { customer: data };
 }
 
