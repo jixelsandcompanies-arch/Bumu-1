@@ -14,8 +14,8 @@ export class ErrorBoundary extends React.Component {
     return { hasError: true };
   }
 
-  componentDidCatch(error) {
-    console.error('Portal render failure:', error);
+  componentDidCatch() {
+    this.setState({ hasError: true });
   }
 
   render() {

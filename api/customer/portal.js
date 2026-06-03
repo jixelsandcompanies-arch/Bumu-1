@@ -1,6 +1,6 @@
 import { getCustomerPortal } from '../_lib/database.js';
 import { sendJson } from '../_lib/http.js';
-import { requireAuthenticatedUser } from '../_lib/supabase.js';
+import { requirePortalUser } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user = await requireAuthenticatedUser(req);
+    const user = await requirePortalUser(req, ['customer']);
     const portal = await getCustomerPortal(user);
     sendJson(res, 200, { portal });
   } catch (error) {

@@ -276,7 +276,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
           ) : mode === 'reset' ? (
             <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
           ) : (
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
           )}
           {notice ? <Text style={styles.greenText}>{notice}</Text> : null}
           {mode === 'login' ? (

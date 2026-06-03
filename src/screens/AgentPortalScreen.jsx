@@ -236,7 +236,7 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
             </>
           )}
           <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
-          <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+          <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
           {notice ? <Text style={styles.greenText}>{notice}</Text> : null}
           <Button icon={mode === 'login' ? LogIn : UserPlus} onPress={mode === 'login' ? login : register} disabled={submitting} style={styles.fullButton}>
             {submitting ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}

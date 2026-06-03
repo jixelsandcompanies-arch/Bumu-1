@@ -460,29 +460,27 @@ export async function getAgentPortal(user) {
 
   const agentCode = agent.agent_code || agent.agent_id;
   const agentName = agent.full_name || agent.agent_name;
-  const customerFilter = agentCode
-    ? `agent_id.eq.${agentCode},agent_name.eq.${agentName}`
-    : `agent_name.eq.${agentName}`;
+
+  const customerRequest = getSupabase()
+    .from('customers')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const commissionRequest = getSupabase()
+    .from('commissions')
+    .select('*')
+    .order('earned_at', { ascending: false })
+    .limit(100);
+  const notificationRequest = getSupabase()
+    .from('agent_notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100);
 
   const [customersResult, commissionsResult, notificationsResult, tasksResult] = await Promise.all([
-    getSupabase()
-      .from('customers')
-      .select('*')
-      .or(customerFilter)
-      .order('created_at', { ascending: false })
-      .limit(200),
-    getSupabase()
-      .from('commissions')
-      .select('*')
-      .or(`agent_code.eq.${agentCode},agent_name.eq.${agentName}`)
-      .order('earned_at', { ascending: false })
-      .limit(100),
-    getSupabase()
-      .from('agent_notifications')
-      .select('*')
-      .or(`agent_code.eq.${agentCode},agent_name.eq.${agentName}`)
-      .order('created_at', { ascending: false })
-      .limit(100),
+    agentCode ? customerRequest.eq('agent_id', agentCode) : customerRequest.eq('agent_name', agentName),
+    agentCode ? commissionRequest.eq('agent_code', agentCode) : commissionRequest.eq('agent_name', agentName),
+    agentCode ? notificationRequest.eq('agent_code', agentCode) : notificationRequest.eq('agent_name', agentName),
     getSupabase()
       .from('agent_tasks')
       .select('*')

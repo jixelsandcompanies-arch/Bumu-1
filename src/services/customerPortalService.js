@@ -40,6 +40,16 @@ async function request(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+function isStrongPassword(value) {
+  return (
+    String(value || '').length >= 10 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+}
+
 export const customerPortalService = {
   hasSession() {
     return Boolean(getCustomerToken());
@@ -55,6 +65,10 @@ export const customerPortalService = {
   },
 
   async register({ fullName, nationalId, phone, email, password }) {
+    if (!isStrongPassword(password)) {
+      throw new Error('Password must be at least 10 characters and include uppercase, lowercase, number, and special character.');
+    }
+
     return request('/api/customer/auth/register', {
       method: 'POST',
       body: { fullName, nationalId, phone, email, password }

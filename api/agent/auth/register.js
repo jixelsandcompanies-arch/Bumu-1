@@ -1,4 +1,5 @@
 import { readJson, sendJson } from '../../_lib/http.js';
+import { assertBodySize, assertRateLimit, validateStrongPassword } from '../../_lib/security.js';
 import { getSupabase } from '../../_lib/supabase.js';
 
 function agentCode(seed = '') {
@@ -16,6 +17,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    assertBodySize(req);
+    assertRateLimit(req, { scope: 'agent-register', limit: 5, windowMs: 60_000 });
     const body = await readJson(req);
     const fullName = String(body.fullName || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
@@ -24,8 +27,39 @@ export default async function handler(req, res) {
     const region = String(body.region || '').trim();
     const nationalId = String(body.nationalId || '').trim();
 
-    if (!fullName || !email.includes('@') || !phone || password.length < 8) {
-      sendJson(res, 400, { message: 'Enter name, email, phone, and a password with at least 8 characters.' });
+    if (!fullName || !email.includes('@') || !phone || !validateStrongPassword(password)) {
+      sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
+      return;
+    }
+
+    let existing = await getSupabase()
+      .from('agents')
+      .select('*')
+      .ilike('email', email)
+      .maybeSingle();
+
+    if (existing.error) {
+      sendJson(res, 400, { message: existing.error.message || 'Could not check agent profile.' });
+      return;
+    }
+
+    if (!existing.data) {
+      existing = await getSupabase()
+        .from('agents')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle();
+
+      if (existing.error) {
+        sendJson(res, 400, { message: existing.error.message || 'Could not check agent profile.' });
+        return;
+      }
+    }
+
+    let profile;
+
+    if (existing.data?.auth_user_id) {
+      sendJson(res, 409, { message: 'This agent profile is already linked to another login.' });
       return;
     }
 
@@ -49,25 +83,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const existing = await getSupabase()
-      .from('agents')
-      .select('*')
-      .or(`email.ilike.${email},phone.eq.${phone}`)
-      .maybeSingle();
-
-    if (existing.error) {
-      sendJson(res, 400, { message: existing.error.message || 'Could not check agent profile.' });
-      return;
-    }
-
-    let profile;
-
     if (existing.data) {
-      if (existing.data.auth_user_id && existing.data.auth_user_id !== auth.data.user.id) {
-        sendJson(res, 409, { message: 'This agent profile is already linked to another login.' });
-        return;
-      }
-
       const linked = await getSupabase()
         .from('agents')
         .update({

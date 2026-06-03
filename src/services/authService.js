@@ -4,6 +4,16 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
+function isStrongPassword(value) {
+  return (
+    String(value || '').length >= 10 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+}
+
 async function apiRequest(path, { method = 'GET', body } = {}) {
   const token = getAuthToken();
   const response = await fetch(path, {
@@ -44,8 +54,8 @@ export const authService = {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = phone.trim();
 
-    if (!fullName.trim() || !normalizedEmail || password.length < 8) {
-      throw new Error('Enter a name, email, and password with at least 8 characters.');
+    if (!fullName.trim() || !normalizedEmail || !isStrongPassword(password)) {
+      throw new Error('Password must be at least 10 characters and include uppercase, lowercase, number, and special character.');
     }
 
     return apiRequest('/api/auth/register', {

@@ -1,4 +1,5 @@
 import { readJson, sendJson } from '../_lib/http.js';
+import { assertBodySize, assertRateLimit, validateStrongPassword } from '../_lib/security.js';
 import { getSupabase } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
@@ -9,14 +10,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    assertBodySize(req);
+    assertRateLimit(req, { scope: 'finance-register', limit: 5, windowMs: 60_000 });
     const body = await readJson(req);
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
     const fullName = String(body.fullName || '').trim();
     const phone = String(body.phone || '').trim();
 
-    if (!fullName || !email || password.length < 8) {
-      sendJson(res, 400, { message: 'Enter a name, email, and password with at least 8 characters.' });
+    if (!fullName || !email || !validateStrongPassword(password)) {
+      sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
       return;
     }
 

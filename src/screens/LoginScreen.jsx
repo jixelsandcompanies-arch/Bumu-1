@@ -169,11 +169,11 @@ function RegisterPage() {
       <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Your full name" />
       <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
       <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
-      <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+      <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
       <Field label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry />
       {(password || confirmPassword) ? (
         <Text style={styles.passwordHint}>
-          Password must include uppercase, lowercase, number, special character, and match confirmation.
+          Password must be at least 10 characters and include uppercase, lowercase, number, special character, and match confirmation.
         </Text>
       ) : null}
       {error ? <Text style={styles.successText}>{error}</Text> : null}
@@ -351,7 +351,7 @@ function ForgotPasswordPage() {
               <View style={styles.formGroup}>
                 <Text style={styles.formGroupHelp}>OTP verified. Set your new password.</Text>
               </View>
-              <Field label="New password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secureTextEntry />
+              <Field label="New password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
               <Field label="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repeat password" secureTextEntry />
               <Button icon={KeyRound} onPress={resetPassword} style={styles.fullButton}>Change password</Button>
             </>
@@ -412,7 +412,7 @@ function AuthLink({ label, onPress }) {
 function usePasswordChecks(password, confirmPassword) {
   return useMemo(() => {
     const checks = {
-      length: password.length >= 8,
+      length: password.length >= 10,
       upper: /[A-Z]/.test(password),
       lower: /[a-z]/.test(password),
       number: /\d/.test(password),

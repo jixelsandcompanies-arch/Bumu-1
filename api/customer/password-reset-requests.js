@@ -1,5 +1,6 @@
 import { createCustomerPasswordResetRequest } from '../_lib/database.js';
 import { sendJson, readJson } from '../_lib/http.js';
+import { assertBodySize, assertRateLimit } from '../_lib/security.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,6 +10,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    assertBodySize(req);
+    assertRateLimit(req, { scope: 'customer-password-reset', limit: 5, windowMs: 60_000 });
     const body = await readJson(req);
     const result = await createCustomerPasswordResetRequest(body);
     sendJson(res, 201, result);

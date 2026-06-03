@@ -1,4 +1,5 @@
 import { sendJson, readJson } from '../_lib/http.js';
+import { assertBodySize, assertRateLimit, genericAuthMessage } from '../_lib/security.js';
 import { getSupabaseAuth } from '../_lib/supabase.js';
 
 export default async function handler(req, res) {
@@ -9,12 +10,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    assertBodySize(req);
+    assertRateLimit(req, { scope: 'finance-login', limit: 8, windowMs: 60_000 });
     const body = await readJson(req);
     const email = String(body.identifier || '').trim().toLowerCase();
     const password = String(body.password || '');
 
     if (!email.includes('@') || password.length < 8) {
-      sendJson(res, 400, { message: 'Enter the email and password used during registration.' });
+      sendJson(res, 400, { message: genericAuthMessage() });
       return;
     }
 
@@ -24,7 +27,7 @@ export default async function handler(req, res) {
     });
 
     if (error || !data?.session || !data?.user) {
-      sendJson(res, 401, { message: 'Invalid login credentials. Check the registered email and password.' });
+      sendJson(res, 401, { message: genericAuthMessage() });
       return;
     }
 

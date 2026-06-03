@@ -94,3 +94,16 @@ export async function requireAuthenticatedUser(req) {
 
   return data.user;
 }
+
+export async function requirePortalUser(req, allowedRoles = []) {
+  const user = await requireAuthenticatedUser(req);
+  const role = user.app_metadata?.role || user.user_metadata?.role;
+
+  if (!allowedRoles.includes(role) && role !== 'admin') {
+    const roleError = new Error('Portal access is required.');
+    roleError.statusCode = 403;
+    throw roleError;
+  }
+
+  return user;
+}

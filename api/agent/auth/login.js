@@ -1,5 +1,6 @@
 import { findAgentForAuthUser } from '../../_lib/database.js';
 import { sendJson, readJson } from '../../_lib/http.js';
+import { assertBodySize, assertRateLimit, genericAuthMessage } from '../../_lib/security.js';
 import { getSupabaseAuth } from '../../_lib/supabase.js';
 
 export default async function handler(req, res) {
@@ -10,18 +11,20 @@ export default async function handler(req, res) {
   }
 
   try {
+    assertBodySize(req);
+    assertRateLimit(req, { scope: 'agent-login', limit: 8, windowMs: 60_000 });
     const body = await readJson(req);
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
 
     if (!email.includes('@') || password.length < 8) {
-      sendJson(res, 400, { message: 'Enter your registered agent email and password.' });
+      sendJson(res, 400, { message: genericAuthMessage() });
       return;
     }
 
     const { data, error } = await getSupabaseAuth().auth.signInWithPassword({ email, password });
     if (error || !data?.session || !data?.user) {
-      sendJson(res, 401, { message: 'Invalid agent login credentials.' });
+      sendJson(res, 401, { message: genericAuthMessage() });
       return;
     }
 
