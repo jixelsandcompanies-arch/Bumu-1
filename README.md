@@ -22,6 +22,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
 ADMIN_MAX_ACCOUNTS=10
+PAYMENT_PROVIDER=africastalking
+COMMISSION_PAYOUT_PROVIDER=africastalking
 ```
 
 ## Supabase Setup
@@ -73,6 +75,13 @@ where email = 'name@bumupaygo.co.ke';
 ```
 
 If a separate backend is later deployed, set `BACKEND_API_URL` and the Vercel routes will proxy to that backend instead of using Supabase directly.
+
+For Africa's Talking payments, configure these callback URLs in the Africa's Talking dashboard:
+
+```text
+Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/callback
+Commission payout callback: https://your-vercel-domain.vercel.app/api/commissions/payout-callback
+```
 
 ## Customer Payments
 

@@ -1,6 +1,7 @@
 const LIVE_SMS_URL = 'https://api.africastalking.com/version1/messaging';
 const SANDBOX_SMS_URL = 'https://api.sandbox.africastalking.com/version1/messaging';
 const CHECKOUT_URL = 'https://payments.africastalking.com/mobile/checkout/request';
+const B2C_URL = 'https://payments.africastalking.com/mobile/b2c/request';
 
 function isSandbox() {
   return process.env.AFRICASTALKING_ENV !== 'production';
@@ -17,6 +18,10 @@ export function hasAfricaPaymentsConfig() {
     process.env.AFRICASTALKING_PAYMENT_PRODUCT_NAME &&
     process.env.AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL
   );
+}
+
+export function hasAfricaPayoutConfig() {
+  return hasAfricaPaymentsConfig();
 }
 
 export function normalizeKenyaPhone(phone) {
@@ -47,6 +52,28 @@ async function africaRequest(url, body) {
       apiKey: process.env.AFRICASTALKING_API_KEY
     },
     body
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.errorMessage || data.message || 'Africa\'s Talking request failed.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function africaJsonRequest(url, body) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      apiKey: process.env.AFRICASTALKING_API_KEY
+    },
+    body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
 
@@ -163,6 +190,46 @@ export async function initiateAfricaCheckout({ amount, phone, customerId, custom
   return {
     configured: true,
     status: 'processing',
+    transactionId,
+    providerResponse: data
+  };
+}
+
+function africaPayoutStatus(entry = {}) {
+  const value = String(entry.status || entry.statusCode || '').toLowerCase();
+  if (['success', 'successful', 'completed'].includes(value)) return 'paid';
+  if (['failed', 'failure', 'cancelled', 'canceled'].includes(value)) return 'failed';
+  return 'processing';
+}
+
+export async function initiateAfricaB2CPayout({ amount, phone, commissionId, approvalReference, agentName }) {
+  if (!hasAfricaPayoutConfig()) {
+    return { configured: false, status: 'queued', providerResponse: null };
+  }
+
+  const data = await africaJsonRequest(B2C_URL, {
+    username: process.env.AFRICASTALKING_USERNAME,
+    productName: process.env.AFRICASTALKING_PAYMENT_PRODUCT_NAME,
+    recipients: [
+      {
+        phoneNumber: normalizeKenyaPhone(phone),
+        currencyCode: 'KES',
+        amount: Math.trunc(Number(amount)),
+        metadata: {
+          commissionId,
+          approvalReference,
+          agentName: agentName || '',
+          narration: 'Bumu Paygo commission payout'
+        }
+      }
+    ]
+  });
+
+  const entry = Array.isArray(data.entries) ? data.entries[0] : data;
+  const transactionId = entry?.transactionId || entry?.providerRefId || entry?.id || data.transactionId || null;
+  return {
+    configured: true,
+    status: africaPayoutStatus(entry),
     transactionId,
     providerResponse: data
   };

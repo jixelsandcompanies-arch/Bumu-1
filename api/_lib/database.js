@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { initiateAfricaCheckout, sendOtpSms, sendScreeningSms } from './africastalking.js';
+import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendCommissionPaidSms, sendOtpSms, sendScreeningSms } from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -211,6 +211,12 @@ function isAlreadySubmitted(status) {
   return ['processing', 'paid'].includes(String(status || '').toLowerCase());
 }
 
+function shouldUseAfricaPayouts() {
+  const payoutProvider = String(process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || '').toLowerCase();
+  if (payoutProvider) return payoutProvider === 'africastalking';
+  return String(process.env.PAYMENT_PROVIDER || '').toLowerCase() === 'africastalking';
+}
+
 async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   if (!commission?.id) {
     const error = new Error('Commission not found.');
@@ -259,15 +265,28 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   let payoutError = null;
 
   try {
-    const daraja = await initiateB2CPayout({
-      amount: payoutRecord.amount,
-      phone: payoutRecord.agent_phone,
-      remarks: `Commission ${commission.id}`,
-      occasion: approvalReference
-    });
-    payoutStatus = daraja.status;
-    providerResponse = daraja.providerResponse || {};
-    backendReference = daraja.conversationId || daraja.originatorConversationId || null;
+    if (shouldUseAfricaPayouts()) {
+      const africa = await initiateAfricaB2CPayout({
+        amount: payoutRecord.amount,
+        phone: payoutRecord.agent_phone,
+        commissionId: commission.id,
+        approvalReference,
+        agentName: commission.agent_name
+      });
+      payoutStatus = africa.status;
+      providerResponse = africa.providerResponse || {};
+      backendReference = africa.transactionId || null;
+    } else {
+      const daraja = await initiateB2CPayout({
+        amount: payoutRecord.amount,
+        phone: payoutRecord.agent_phone,
+        remarks: `Commission ${commission.id}`,
+        occasion: approvalReference
+      });
+      payoutStatus = daraja.status;
+      providerResponse = daraja.providerResponse || {};
+      backendReference = daraja.conversationId || daraja.originatorConversationId || null;
+    }
   } catch (error) {
     payoutStatus = 'failed';
     providerResponse = error.providerResponse || {};
@@ -292,11 +311,13 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   const updated = await getSupabase()
     .from('commissions')
     .update({
-      status: payoutStatus === 'failed' ? 'failed' : 'processing',
+      status: payoutStatus === 'paid' ? 'paid' : payoutStatus === 'failed' ? 'failed' : 'processing',
+      paid_at: payoutStatus === 'paid' ? new Date().toISOString() : null,
       finance_approved_at: requestedAt,
       finance_approval_reference: approvalReference,
       payout_status: payoutStatus,
       payout_requested_at: requestedAt,
+      payout_completed_at: payoutStatus === 'paid' ? new Date().toISOString() : null,
       payout_reference: backendReference || payoutRequest.data?.id || null,
       provider_response: providerResponse,
       payout_error: payoutError
@@ -306,6 +327,9 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
     .single();
 
   if (updated.error) throw mapSupabaseError(updated.error);
+  if (payoutStatus === 'paid') {
+    await sendCommissionPaidSms({ commission: updated.data }).catch(() => null);
+  }
   return { commission: updated.data, payoutRequest: payoutUpdate.data };
 }
 

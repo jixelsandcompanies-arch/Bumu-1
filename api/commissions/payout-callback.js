@@ -1,0 +1,81 @@
+import { sendCommissionPaidSms } from '../_lib/africastalking.js';
+import { readJson, sendJson } from '../_lib/http.js';
+import { getSupabase } from '../_lib/supabase.js';
+
+function payoutStatus(value) {
+  const normalized = String(value || '').toLowerCase();
+  if (['success', 'successful', 'completed'].includes(normalized)) return 'paid';
+  if (['failed', 'failure', 'cancelled', 'canceled'].includes(normalized)) return 'failed';
+  return 'processing';
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    sendJson(res, 405, { message: 'Method not allowed.' });
+    return;
+  }
+
+  try {
+    const body = await readJson(req);
+    const transactionId = body.transactionId || body.providerRefId || body.provider_reference || body.id;
+    const status = payoutStatus(body.status || body.statusCode);
+    const completedAt = status === 'paid' || status === 'failed' ? new Date().toISOString() : null;
+
+    if (!transactionId) {
+      sendJson(res, 400, { message: 'Missing Africa\'s Talking payout transactionId.' });
+      return;
+    }
+
+    const payoutRequest = await getSupabase()
+      .from('agent_payout_requests')
+      .select('*')
+      .or(`backend_reference.eq.${transactionId},provider_reference.eq.${transactionId}`)
+      .maybeSingle();
+
+    if (payoutRequest.error) throw payoutRequest.error;
+    if (!payoutRequest.data) {
+      sendJson(res, 404, { message: 'Payout request not found.' });
+      return;
+    }
+
+    const updateRequest = await getSupabase()
+      .from('agent_payout_requests')
+      .update({
+        status,
+        provider_reference: transactionId,
+        provider_response: body,
+        processed_at: completedAt
+      })
+      .eq('id', payoutRequest.data.id)
+      .select()
+      .single();
+
+    if (updateRequest.error) throw updateRequest.error;
+
+    const updateCommission = await getSupabase()
+      .from('commissions')
+      .update({
+        status: status === 'paid' ? 'paid' : status === 'failed' ? 'failed' : 'processing',
+        payout_status: status,
+        paid_at: status === 'paid' ? completedAt : null,
+        payout_completed_at: status === 'paid' ? completedAt : null,
+        payout_reference: transactionId,
+        provider_response: body,
+        payout_error: status === 'failed' ? body.description || body.message || 'Africa\'s Talking payout failed.' : null
+      })
+      .eq('id', payoutRequest.data.commission_id)
+      .select()
+      .single();
+
+    if (updateCommission.error) throw updateCommission.error;
+
+    if (status === 'paid') {
+      await sendCommissionPaidSms({ commission: updateCommission.data }).catch(() => null);
+    }
+
+    sendJson(res, 200, { ok: true, status });
+  } catch (error) {
+    sendJson(res, 500, { message: error.message });
+  }
+}
