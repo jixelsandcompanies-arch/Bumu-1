@@ -10,13 +10,21 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJson(req);
+    const email = String(body.identifier || '').trim().toLowerCase();
+    const password = String(body.password || '');
+
+    if (!email.includes('@') || password.length < 8) {
+      sendJson(res, 400, { message: 'Enter the email and password used during registration.' });
+      return;
+    }
+
     const { data, error } = await getSupabaseAuth().auth.signInWithPassword({
-      email: body.identifier,
-      password: body.password
+      email,
+      password
     });
 
     if (error || !data?.session || !data?.user) {
-      sendJson(res, 401, { message: error?.message || 'Invalid finance credentials.' });
+      sendJson(res, 401, { message: 'Invalid login credentials. Check the registered email and password.' });
       return;
     }
 

@@ -1,5 +1,8 @@
-import { isValidPhoneOrEmail } from '../utils/validation.js';
 import { getAuthToken, setAuthToken } from './authSession.js';
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
 
 async function apiRequest(path, { method = 'GET', body } = {}) {
   const token = getAuthToken();
@@ -23,13 +26,15 @@ async function apiRequest(path, { method = 'GET', body } = {}) {
 
 export const authService = {
   async login(identifier, password) {
-    if (!isValidPhoneOrEmail(identifier) || password.length < 8) {
-      throw new Error('Enter valid login credentials.');
+    const email = identifier.trim().toLowerCase();
+
+    if (!isValidEmail(email) || password.length < 8) {
+      throw new Error('Enter the email and password used during registration.');
     }
 
     const data = await apiRequest('/api/auth/login', {
       method: 'POST',
-      body: { identifier: identifier.trim(), password }
+      body: { identifier: email, password }
     });
     setAuthToken(data.token);
     return data.user;

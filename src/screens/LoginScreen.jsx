@@ -115,7 +115,7 @@ function LoginPage({ onLogin }) {
   return (
     <View style={styles.form}>
       <Field
-        label="Personal email or phone"
+        label="Personal email"
         value={identifier}
         onChangeText={setIdentifier}
         placeholder="yourname@example.com"
