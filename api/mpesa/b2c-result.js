@@ -1,5 +1,6 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
+import { sendCommissionPaidSms } from '../_lib/africastalking.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -65,9 +66,15 @@ export default async function handler(req, res) {
         provider_response: body,
         payout_error: paid ? null : result.ResultDesc || 'B2C payout failed.'
       })
-      .eq('id', requestResult.data.commission_id);
+      .eq('id', requestResult.data.commission_id)
+      .select()
+      .single();
 
     if (updateCommission.error) throw updateCommission.error;
+
+    if (paid) {
+      await sendCommissionPaidSms({ commission: updateCommission.data }).catch(() => null);
+    }
 
     sendJson(res, 200, { ok: true });
   } catch (error) {

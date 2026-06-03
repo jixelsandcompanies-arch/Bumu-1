@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { initiateAfricaCheckout, sendOtpSms } from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -65,6 +66,20 @@ async function sendOtpEmail(email, otp) {
   const data = await response.json().catch(() => ({}));
 
   return { delivered: response.ok, provider: 'resend', response: data };
+}
+
+async function sendOtp(body, email, otp) {
+  const [emailDelivery, smsDelivery] = await Promise.all([
+    sendOtpEmail(email, otp),
+    body.phone ? sendOtpSms({ phone: body.phone, otp }).catch((error) => ({
+      configured: true,
+      delivered: false,
+      provider: 'africastalking',
+      error: error.message
+    })) : Promise.resolve({ configured: false, delivered: false, provider: 'africastalking' })
+  ]);
+
+  return { email: emailDelivery, sms: smsDelivery };
 }
 
 async function findAuthUserByEmail(email) {
@@ -474,19 +489,28 @@ export async function createCustomerPaymentRequest(user, body) {
   let request = data;
 
   try {
-    const daraja = await initiateStkPush({
-      amount,
-      phone,
-      accountReference: customer.id,
-      transactionDescription: `Bumu Paygo ${customer.customer_name}`
-    });
+    const useAfricaTalking = process.env.MPESA_PROVIDER === 'africastalking' || process.env.PAYMENT_PROVIDER === 'africastalking';
+    const provider = useAfricaTalking
+      ? await initiateAfricaCheckout({
+          amount,
+          phone,
+          customerId: customer.id,
+          customerBikeId: customer.serial_number || customer.chassis_number || customer.imei || customer.id,
+          narration: 'Bumu Paygo Installment'
+        })
+      : await initiateStkPush({
+          amount,
+          phone,
+          accountReference: customer.id,
+          transactionDescription: `Bumu Paygo ${customer.customer_name}`
+        });
     const updated = await getSupabase()
       .from('payment_requests')
       .update({
-        status: daraja.status,
-        provider_reference: daraja.checkoutRequestId || data.id,
-        backend_reference: daraja.merchantRequestId || null,
-        provider_response: daraja.providerResponse || {},
+        status: provider.status,
+        provider_reference: provider.checkoutRequestId || provider.transactionId || data.id,
+        backend_reference: provider.merchantRequestId || provider.transactionId || null,
+        provider_response: provider.providerResponse || {},
         failure_reason: null
       })
       .eq('id', data.id)
@@ -590,7 +614,8 @@ export async function requestPasswordResetOtp(body) {
 
   const otp = createOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  const delivery = await sendOtpEmail(identifier, otp);
+  const delivery = await sendOtp(body, identifier, otp);
+  const delivered = Boolean(delivery.email?.delivered || delivery.sms?.delivered);
 
   const { data, error } = await getSupabase()
     .from('password_reset_requests')
@@ -598,7 +623,7 @@ export async function requestPasswordResetOtp(body) {
       email: identifier,
       phone: body.phone || '',
       otp_hash: hashOtp(identifier, otp),
-      status: delivery.delivered ? 'otp_sent' : 'otp_required',
+      status: delivered ? 'otp_sent' : 'otp_required',
       source_portal: body.sourcePortal || body.source_portal || 'finance',
       otp_expires_at: expiresAt,
       provider_response: delivery
@@ -610,11 +635,11 @@ export async function requestPasswordResetOtp(body) {
 
   return {
     sent: true,
-    delivered: delivery.delivered,
+    delivered,
     request: data,
-    message: delivery.delivered
+    message: delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved. Configure RESEND_API_KEY and OTP_FROM_EMAIL to send email automatically.'
+      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL or AFRICASTALKING_* variables to send OTP automatically.'
   };
 }
 

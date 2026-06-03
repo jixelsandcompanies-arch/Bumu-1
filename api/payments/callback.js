@@ -1,23 +1,10 @@
+import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
-import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
 
-function metadataValue(items, name) {
-  return items.find((item) => item.Name === name)?.Value ?? null;
-}
-
-function parseMpesaDate(value) {
-  const raw = String(value || '');
-  if (/^\d{14}$/.test(raw)) {
-    const year = raw.slice(0, 4);
-    const month = raw.slice(4, 6);
-    const day = raw.slice(6, 8);
-    const hour = raw.slice(8, 10);
-    const minute = raw.slice(10, 12);
-    const second = raw.slice(12, 14);
-    return `${year}-${month}-${day}T${hour}:${minute}:${second}+03:00`;
-  }
-  return new Date().toISOString();
+function parseAmount(value) {
+  const match = String(value || '').replace(/,/g, '').match(/[\d.]+/);
+  return match ? Number(match[0]) : 0;
 }
 
 export default async function handler(req, res) {
@@ -29,21 +16,20 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJson(req);
-    const callback = body?.Body?.stkCallback || body?.stkCallback || {};
-    const checkoutRequestId = callback.CheckoutRequestID;
-    const resultCode = Number(callback.ResultCode);
-    const resultDescription = callback.ResultDesc || '';
-    const metadata = callback.CallbackMetadata?.Item || [];
+    const transactionId = body.transactionId || body.provider_reference || body.id;
+    const paid = String(body.status || '').toLowerCase() === 'success';
+    const amount = parseAmount(body.value || body.amount);
+    const phone = body.phoneNumber || body.phone;
 
-    if (!checkoutRequestId) {
-      sendJson(res, 400, { message: 'Missing CheckoutRequestID.' });
+    if (!transactionId) {
+      sendJson(res, 400, { message: 'Missing Africa\'s Talking transactionId.' });
       return;
     }
 
     const requestResult = await getSupabase()
       .from('payment_requests')
       .select('*, customers(*)')
-      .eq('provider_reference', checkoutRequestId)
+      .or(`provider_reference.eq.${transactionId},backend_reference.eq.${transactionId}`)
       .maybeSingle();
 
     if (requestResult.error) throw requestResult.error;
@@ -53,18 +39,12 @@ export default async function handler(req, res) {
     }
 
     const paymentRequest = requestResult.data;
-    const paid = resultCode === 0;
-    const amount = Number(metadataValue(metadata, 'Amount') || paymentRequest.amount || 0);
-    const receipt = metadataValue(metadata, 'MpesaReceiptNumber');
-    const phone = metadataValue(metadata, 'PhoneNumber') || paymentRequest.phone;
-    const paidAtRaw = metadataValue(metadata, 'TransactionDate');
-    const paidAt = parseMpesaDate(paidAtRaw);
-
+    const status = paid ? 'completed' : 'failed';
     const updateRequest = await getSupabase()
       .from('payment_requests')
       .update({
-        status: paid ? 'completed' : 'failed',
-        failure_reason: paid ? null : resultDescription,
+        status,
+        failure_reason: paid ? null : body.description || 'Payment failed.',
         provider_response: body,
         updated_at: new Date().toISOString()
       })
@@ -74,19 +54,23 @@ export default async function handler(req, res) {
 
     if (paid) {
       const customer = paymentRequest.customers || {};
-      if (receipt) {
-        const existingPayment = await getSupabase()
-          .from('payments')
-          .select('id')
-          .eq('receipt', receipt)
-          .maybeSingle();
+      const paidAmount = amount || Number(paymentRequest.amount || 0);
+      const existingPayment = await getSupabase()
+        .from('payments')
+        .select('id')
+        .eq('receipt', transactionId)
+        .maybeSingle();
 
-        if (existingPayment.error) throw existingPayment.error;
-        if (existingPayment.data) {
-          sendJson(res, 200, { ok: true, duplicate: true });
-          return;
-        }
+      if (existingPayment.error) throw existingPayment.error;
+      if (existingPayment.data) {
+        sendJson(res, 200, { ok: true, duplicate: true });
+        return;
       }
+
+      const nextPaidAmount = Number(customer.paid_amount || 0) + paidAmount;
+      const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - paidAmount, 0);
+      const totalPayable = Number(customer.total_payable || 0);
+      const repaymentPct = totalPayable > 0 ? Math.min(100, (nextPaidAmount / totalPayable) * 100) : 0;
 
       const insertPayment = await getSupabase()
         .from('payments')
@@ -102,19 +86,19 @@ export default async function handler(req, res) {
           serial_number: customer.serial_number || null,
           chassis_number: customer.chassis_number || null,
           imei: customer.imei || null,
-          total_payable: Number(customer.total_payable || 0),
-          paid_amount: amount,
-          balance: Math.max(Number(customer.balance || 0) - amount, 0),
+          total_payable: totalPayable,
+          paid_amount: paidAmount,
+          balance: nextBalance,
           deposit_credit: 0,
-          paygo_payment: amount,
+          paygo_payment: paidAmount,
           date: new Date().toISOString(),
-          receipt,
-          provider_reference: checkoutRequestId,
-          provider_transaction_id: receipt,
+          receipt: transactionId,
+          provider_reference: transactionId,
+          provider_transaction_id: transactionId,
           provider_account_reference: paymentRequest.customer_id,
           provider_payer_phone: String(phone || ''),
-          provider_paid_at: paidAt,
-          method: 'mpesa_daraja',
+          provider_paid_at: new Date().toISOString(),
+          method: 'mpesa_africastalking',
           status: 'paid',
           source_portal: 'customer'
         })
@@ -123,10 +107,6 @@ export default async function handler(req, res) {
 
       if (insertPayment.error) throw insertPayment.error;
 
-      const nextPaidAmount = Number(customer.paid_amount || 0) + amount;
-      const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - amount, 0);
-      const totalPayable = Number(customer.total_payable || 0);
-      const repaymentPct = totalPayable > 0 ? Math.min(100, (nextPaidAmount / totalPayable) * 100) : 0;
       await getSupabase()
         .from('customers')
         .update({
@@ -142,15 +122,15 @@ export default async function handler(req, res) {
         .insert({
           customer_id: paymentRequest.customer_id,
           title: 'Payment confirmed',
-          message: `Payment of KES ${amount.toLocaleString('en-KE')} was confirmed.`,
+          message: `Payment of KES ${paidAmount.toLocaleString('en-KE')} was confirmed.`,
           type: 'payment',
           status: 'unread'
         });
 
       await sendPaymentConfirmedSms({
         customer: { ...customer, customer_phone: customer.customer_phone || phone },
-        amount,
-        receipt,
+        amount: paidAmount,
+        receipt: transactionId,
         balance: nextBalance,
         repaymentPct
       }).catch(() => null);

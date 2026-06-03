@@ -1,6 +1,7 @@
 import { readJson, sendJson } from '../../../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
+import { sendScreeningSms } from '../../../_lib/africastalking.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -72,6 +73,22 @@ export default async function handler(req, res) {
       .single();
 
     if (updateCustomer.error) throw updateCustomer.error;
+
+    const agentResult = application.data.agent_id
+      ? await getSupabase().from('agents').select('*').eq('agent_code', application.data.agent_id).maybeSingle()
+      : { data: null };
+
+    const smsAction = action === 'request_info' ? 'info' : action;
+    const smsResult = await sendScreeningSms({
+      action: smsAction,
+      customer: updateCustomer.data,
+      agent: agentResult.data,
+      reason,
+      tempPassword: body.tempPassword
+    }).catch((smsError) => ({
+      error: smsError.message,
+      provider: 'africastalking'
+    }));
 
     await getSupabase().from('agent_notifications').insert({
       agent_name: application.data.agent_name,
