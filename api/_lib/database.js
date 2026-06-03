@@ -921,6 +921,10 @@ export async function createAgentCustomer(user, body) {
   const nextOfKinName = nonEmpty(body.nextOfKinName || body.next_of_kin_name);
   const nextOfKinPhone = nonEmpty(body.nextOfKinPhone || body.next_of_kin_phone);
   const nextOfKinRelationship = nonEmpty(body.nextOfKinRelationship || body.next_of_kin_relationship);
+  const nextOfKinNationalId = nonEmpty(body.nextOfKinNationalId || body.next_of_kin_national_id);
+  const nextOfKinGender = nonEmpty(body.nextOfKinGender || body.next_of_kin_gender);
+  const nextOfKinLocation = nonEmpty(body.nextOfKinLocation || body.next_of_kin_location);
+  const nextOfKinOccupation = nonEmpty(body.nextOfKinOccupation || body.next_of_kin_occupation);
   const nextOfKinPassportPhotoUrl = nonEmpty(body.nextOfKinPassportPhotoUrl || body.next_of_kin_passport_photo_url);
   const nextOfKinIdFrontUrl = nonEmpty(body.nextOfKinIdFrontUrl || body.next_of_kin_id_front_url);
   const nextOfKinIdBackUrl = nonEmpty(body.nextOfKinIdBackUrl || body.next_of_kin_id_back_url);
@@ -944,6 +948,10 @@ export async function createAgentCustomer(user, body) {
     ['next-of-kin name', nextOfKinName],
     ['next-of-kin phone', nextOfKinPhone],
     ['next-of-kin relationship', nextOfKinRelationship],
+    ['next-of-kin national ID', nextOfKinNationalId],
+    ['next-of-kin gender', nextOfKinGender],
+    ['next-of-kin location', nextOfKinLocation],
+    ['next-of-kin occupation', nextOfKinOccupation],
     ['next-of-kin passport photo', nextOfKinPassportPhotoUrl],
     ['next-of-kin ID front photo', nextOfKinIdFrontUrl],
     ['next-of-kin ID back photo', nextOfKinIdBackUrl],
@@ -1014,6 +1022,10 @@ export async function createAgentCustomer(user, body) {
       next_of_kin_name: nextOfKinName,
       next_of_kin_phone: nextOfKinPhone,
       next_of_kin_relationship: nextOfKinRelationship,
+      next_of_kin_national_id: nextOfKinNationalId,
+      next_of_kin_gender: nextOfKinGender,
+      next_of_kin_location: nextOfKinLocation,
+      next_of_kin_occupation: nextOfKinOccupation,
       next_of_kin_passport_photo_url: nextOfKinPassportPhotoUrl,
       next_of_kin_id_front_url: nextOfKinIdFrontUrl,
       next_of_kin_id_back_url: nextOfKinIdBackUrl,

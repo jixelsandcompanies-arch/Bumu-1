@@ -428,6 +428,10 @@ function RegisterTab({ onRefresh }) {
     nextOfKinName: '',
     nextOfKinPhone: '',
     nextOfKinRelationship: '',
+    nextOfKinNationalId: '',
+    nextOfKinGender: '',
+    nextOfKinLocation: '',
+    nextOfKinOccupation: '',
     nextOfKinPassportPhotoUrl: '',
     nextOfKinIdFrontUrl: '',
     nextOfKinIdBackUrl: '',
@@ -511,7 +515,7 @@ function RegisterTab({ onRefresh }) {
         <Bike size={22} color={colors.primary} />
         <View>
           <Text style={styles.panelTitle}>Register customer and product</Text>
-          <Text style={styles.panelText}>Capture KYC, document links, next-of-kin acceptance, and PAYGO product details.</Text>
+          <Text style={styles.panelText}>Capture KYC, customer documents, next-of-kin acceptance, and PAYGO product details.</Text>
         </View>
       </View>
       <View style={styles.stepRow}>
@@ -536,9 +540,9 @@ function RegisterTab({ onRefresh }) {
         )}
         {step === 1 && (
           <>
-            <MediaCapture field="passportPhotoUrl" label="Customer passport photo" value={form.passportPhotoUrl} onUploaded={(value) => update('passportPhotoUrl', value)} />
-            <MediaCapture field="idFrontUrl" label="Customer ID front photo" value={form.idFrontUrl} onUploaded={(value) => update('idFrontUrl', value)} />
-            <MediaCapture field="idBackUrl" label="Customer ID back photo" value={form.idBackUrl} onUploaded={(value) => update('idBackUrl', value)} />
+            <MediaCapture field="passportPhotoUrl" label="Open camera for customer passport photo" value={form.passportPhotoUrl} onUploaded={(value) => update('passportPhotoUrl', value)} />
+            <MediaCapture field="idFrontUrl" label="Scan customer ID/passport front" value={form.idFrontUrl} onUploaded={(value) => update('idFrontUrl', value)} />
+            <MediaCapture field="idBackUrl" label="Scan customer ID/passport back" value={form.idBackUrl} onUploaded={(value) => update('idBackUrl', value)} />
           </>
         )}
         {step === 2 && (
@@ -546,13 +550,17 @@ function RegisterTab({ onRefresh }) {
             <Field fieldStyle={styles.gridField} label="Next of kin name" value={form.nextOfKinName} onChangeText={(value) => update('nextOfKinName', value)} placeholder="Next of kin" />
             <Field fieldStyle={styles.gridField} label="Next of kin phone" value={form.nextOfKinPhone} onChangeText={(value) => update('nextOfKinPhone', value)} placeholder="Phone number" />
             <Field fieldStyle={styles.gridField} label="Next of kin relationship" value={form.nextOfKinRelationship} onChangeText={(value) => update('nextOfKinRelationship', value)} placeholder="Relationship" />
+            <Field fieldStyle={styles.gridField} label="Next of kin national ID" value={form.nextOfKinNationalId} onChangeText={(value) => update('nextOfKinNationalId', value)} placeholder="National ID or passport number" />
+            <Field fieldStyle={styles.gridField} label="Next of kin gender" value={form.nextOfKinGender} onChangeText={(value) => update('nextOfKinGender', value)} placeholder="Gender" />
+            <Field fieldStyle={styles.gridField} label="Next of kin location" value={form.nextOfKinLocation} onChangeText={(value) => update('nextOfKinLocation', value)} placeholder="Location" />
+            <Field fieldStyle={styles.gridField} label="Next of kin occupation" value={form.nextOfKinOccupation} onChangeText={(value) => update('nextOfKinOccupation', value)} placeholder="Occupation" />
           </>
         )}
         {step === 3 && (
           <>
-            <MediaCapture field="nextOfKinPassportPhotoUrl" label="Next-of-kin passport/copy photo" value={form.nextOfKinPassportPhotoUrl} onUploaded={(value) => update('nextOfKinPassportPhotoUrl', value)} />
-            <MediaCapture field="nextOfKinIdFrontUrl" label="Next-of-kin ID front photo" value={form.nextOfKinIdFrontUrl} onUploaded={(value) => update('nextOfKinIdFrontUrl', value)} />
-            <MediaCapture field="nextOfKinIdBackUrl" label="Next-of-kin ID back photo" value={form.nextOfKinIdBackUrl} onUploaded={(value) => update('nextOfKinIdBackUrl', value)} />
+            <MediaCapture field="nextOfKinPassportPhotoUrl" label="Open camera for next-of-kin passport/copy photo" value={form.nextOfKinPassportPhotoUrl} onUploaded={(value) => update('nextOfKinPassportPhotoUrl', value)} />
+            <MediaCapture field="nextOfKinIdFrontUrl" label="Scan next-of-kin ID/passport front" value={form.nextOfKinIdFrontUrl} onUploaded={(value) => update('nextOfKinIdFrontUrl', value)} />
+            <MediaCapture field="nextOfKinIdBackUrl" label="Scan next-of-kin ID/passport back" value={form.nextOfKinIdBackUrl} onUploaded={(value) => update('nextOfKinIdBackUrl', value)} />
           </>
         )}
         {step === 4 && (

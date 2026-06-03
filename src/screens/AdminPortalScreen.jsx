@@ -321,6 +321,7 @@ function ScreeningTab({ portal, onRefresh }) {
             <Text style={styles.rowTitle}>{item.customerName}</Text>
             <Text style={styles.rowText}>{item.phone} | ID {fallback(item.nationalId)} | {item.productType} {fallback(item.productModel)}</Text>
             <Text style={styles.rowText}>Agent {fallback(item.agentName)} | Next of kin {fallback(item.nextOfKin)} | {item.status}</Text>
+            <Text style={styles.rowText}>Kin ID {fallback(item.nextOfKinNationalId)} | {fallback(item.nextOfKinGender)} | {fallback(item.nextOfKinLocation)} | {fallback(item.nextOfKinOccupation)}</Text>
             {item.duplicateNationalId ? <Text style={styles.dangerText}>Duplicate national ID flagged.</Text> : null}
             {item.documents?.length ? (
               <View style={styles.documentList}>

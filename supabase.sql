@@ -93,6 +93,10 @@ create table if not exists public.customers (
   next_of_kin_name text,
   next_of_kin_phone text,
   next_of_kin_relationship text,
+  next_of_kin_national_id text,
+  next_of_kin_gender text,
+  next_of_kin_location text,
+  next_of_kin_occupation text,
   next_of_kin_passport_photo_url text,
   next_of_kin_id_front_url text,
   next_of_kin_id_back_url text,
@@ -350,6 +354,10 @@ alter table public.customers add column if not exists id_back_url text;
 alter table public.customers add column if not exists next_of_kin_name text;
 alter table public.customers add column if not exists next_of_kin_phone text;
 alter table public.customers add column if not exists next_of_kin_relationship text;
+alter table public.customers add column if not exists next_of_kin_national_id text;
+alter table public.customers add column if not exists next_of_kin_gender text;
+alter table public.customers add column if not exists next_of_kin_location text;
+alter table public.customers add column if not exists next_of_kin_occupation text;
 alter table public.customers add column if not exists next_of_kin_passport_photo_url text;
 alter table public.customers add column if not exists next_of_kin_id_front_url text;
 alter table public.customers add column if not exists next_of_kin_id_back_url text;
@@ -394,6 +402,10 @@ alter table public.customers add constraint customers_agent_required_kyc_check
       and nullif(trim(next_of_kin_name), '') is not null
       and nullif(trim(next_of_kin_phone), '') is not null
       and nullif(trim(next_of_kin_relationship), '') is not null
+      and nullif(trim(next_of_kin_national_id), '') is not null
+      and nullif(trim(next_of_kin_gender), '') is not null
+      and nullif(trim(next_of_kin_location), '') is not null
+      and nullif(trim(next_of_kin_occupation), '') is not null
       and nullif(trim(next_of_kin_passport_photo_url), '') is not null
       and nullif(trim(next_of_kin_id_front_url), '') is not null
       and nullif(trim(next_of_kin_id_back_url), '') is not null
