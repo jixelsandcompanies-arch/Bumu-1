@@ -22,19 +22,33 @@ function clearCustomerSession() {
 
 async function request(path, { method = 'GET', body } = {}) {
   const token = getCustomerToken();
-  const response = await fetch(buildUrl(path), {
-    method,
-    headers: {
-      Accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    ...(body ? { body: JSON.stringify(body) } : {})
-  });
-  const data = await response.json().catch(() => ({}));
+  let response;
+
+  try {
+    response = await fetch(buildUrl(path), {
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      ...(body ? { body: JSON.stringify(body) } : {})
+    });
+  } catch {
+    throw new Error('Backend API is not reachable. Leave VITE_API_BASE_URL blank on Vercel or check the backend domain/CORS/CSP settings.');
+  }
+
+  const text = await response.text();
+  const data = text ? (() => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  })() : {};
 
   if (!response.ok) {
-    throw new Error(data.message || 'Customer request failed.');
+    throw new Error(data.message || `Customer request failed with HTTP ${response.status}. Check that Vercel API routes are deployed.`);
   }
 
   return data;
