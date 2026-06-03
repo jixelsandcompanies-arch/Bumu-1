@@ -164,6 +164,33 @@ function buildSaleCommissionsFromPayments(payments) {
     });
 }
 
+export async function ensureSaleCommissionForPayment(payment) {
+  if (Number(payment?.deposit_credit || 0) <= 0) return null;
+
+  let agentPhone = payment.agent_phone || null;
+  if (!agentPhone && payment.agent_id) {
+    const agent = await getSupabase()
+      .from('agents')
+      .select('phone')
+      .eq('agent_code', payment.agent_id)
+      .maybeSingle();
+
+    if (!agent.error && agent.data?.phone) agentPhone = agent.data.phone;
+  }
+
+  const [commission] = buildSaleCommissionsFromPayments([{ ...payment, agent_phone: agentPhone }]);
+  if (!commission) return null;
+
+  const result = await getSupabase()
+    .from('commissions')
+    .upsert(commission, { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (result.error) throw mapSupabaseError(result.error);
+  return result.data;
+}
+
 function buildDashboard(payments, customers, commissions, reconciliation) {
   const trendByDate = payments.reduce((days, payment) => {
     const date = String(payment.date || payment.created_at || '').slice(0, 10);

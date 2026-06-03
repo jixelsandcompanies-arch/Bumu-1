@@ -1,4 +1,5 @@
 import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
+import { ensureSaleCommissionForPayment } from '../_lib/database.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
 
@@ -71,6 +72,7 @@ export default async function handler(req, res) {
       const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - paidAmount, 0);
       const totalPayable = Number(customer.total_payable || 0);
       const repaymentPct = totalPayable > 0 ? Math.min(100, (nextPaidAmount / totalPayable) * 100) : 0;
+      const isDeposit = paymentRequest.source_portal === 'agent';
 
       const insertPayment = await getSupabase()
         .from('payments')
@@ -88,8 +90,8 @@ export default async function handler(req, res) {
           total_payable: totalPayable,
           paid_amount: paidAmount,
           balance: nextBalance,
-          deposit_credit: 0,
-          paygo_payment: paidAmount,
+          deposit_credit: isDeposit ? paidAmount : 0,
+          paygo_payment: isDeposit ? 0 : paidAmount,
           date: new Date().toISOString(),
           receipt: transactionId,
           provider_reference: transactionId,
@@ -105,6 +107,7 @@ export default async function handler(req, res) {
         .single();
 
       if (insertPayment.error) throw insertPayment.error;
+      await ensureSaleCommissionForPayment(insertPayment.data);
 
       await getSupabase()
         .from('customers')

@@ -1,6 +1,7 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
 import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
+import { ensureSaleCommissionForPayment } from '../_lib/database.js';
 
 function metadataValue(items, name) {
   return items.find((item) => item.Name === name)?.Value ?? null;
@@ -88,6 +89,7 @@ export default async function handler(req, res) {
         }
       }
 
+      const isDeposit = paymentRequest.source_portal === 'agent';
       const insertPayment = await getSupabase()
         .from('payments')
         .insert({
@@ -104,8 +106,8 @@ export default async function handler(req, res) {
           total_payable: Number(customer.total_payable || 0),
           paid_amount: amount,
           balance: Math.max(Number(customer.balance || 0) - amount, 0),
-          deposit_credit: 0,
-          paygo_payment: amount,
+          deposit_credit: isDeposit ? amount : 0,
+          paygo_payment: isDeposit ? 0 : amount,
           date: new Date().toISOString(),
           receipt,
           provider_reference: checkoutRequestId,
@@ -121,6 +123,7 @@ export default async function handler(req, res) {
         .single();
 
       if (insertPayment.error) throw insertPayment.error;
+      await ensureSaleCommissionForPayment(insertPayment.data);
 
       const nextPaidAmount = Number(customer.paid_amount || 0) + amount;
       const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - amount, 0);
