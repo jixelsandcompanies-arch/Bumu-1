@@ -27,9 +27,15 @@ export default async function handler(req, res) {
     const password = String(body.password || '');
     const fullName = String(body.fullName || '').trim();
     const phone = String(body.phone || '').trim();
+    const setupCode = String(body.setupCode || '').trim();
 
     if (!fullName || !email.includes('@') || !validateStrongPassword(password)) {
       sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
+      return;
+    }
+
+    if (process.env.ADMIN_REGISTRATION_CODE && setupCode !== process.env.ADMIN_REGISTRATION_CODE) {
+      sendJson(res, 403, { message: 'Admin setup code is required.' });
       return;
     }
 

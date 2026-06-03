@@ -172,6 +172,7 @@ function AdminAuthScreen({ onAuthenticated, onBack, message }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [setupCode, setSetupCode] = useState('');
   const [notice, setNotice] = useState(message || '');
   const [submitting, setSubmitting] = useState(false);
 
@@ -202,10 +203,11 @@ function AdminAuthScreen({ onAuthenticated, onBack, message }) {
 
     setSubmitting(true);
     try {
-      await adminPortalService.register({ fullName, email, phone, password });
+      await adminPortalService.register({ fullName, email, phone, password, setupCode });
       setNotice('Admin account created. Sign in with the same email and password.');
       setMode('login');
       setPassword('');
+      setSetupCode('');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -240,6 +242,9 @@ function AdminAuthScreen({ onAuthenticated, onBack, message }) {
           )}
           <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
           <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
+          {mode === 'register' ? (
+            <Field label="Admin setup code" value={setupCode} onChangeText={setSetupCode} placeholder="Code from system owner" secureTextEntry />
+          ) : null}
           {mode === 'register' ? <Text style={styles.greenText}>Password must include uppercase, lowercase, number, and special character.</Text> : null}
           {notice ? <Text style={styles.greenText}>{notice}</Text> : null}
           <Button icon={mode === 'login' ? LogIn : ShieldCheck} onPress={mode === 'login' ? login : register} disabled={submitting} style={styles.fullButton}>

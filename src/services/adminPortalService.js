@@ -64,14 +64,14 @@ export const adminPortalService = {
     return data.user;
   },
 
-  async register({ fullName, email, phone, password }) {
+  async register({ fullName, email, phone, password, setupCode }) {
     if (!isStrongPassword(password)) {
       throw new Error('Password must be at least 10 characters and include uppercase, lowercase, number, and special character.');
     }
 
     return request('/api/admin/auth/register', {
       method: 'POST',
-      body: { fullName, email, phone, password }
+      body: { fullName, email, phone, password, setupCode }
     });
   },
 

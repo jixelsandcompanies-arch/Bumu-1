@@ -239,7 +239,7 @@ export function App() {
 
     authService.currentUser()
       .then((user) => {
-        setAuthenticated(user.role === 'finance');
+        setAuthenticated(user.role === 'finance' || user.role === 'admin');
       })
       .catch(() => {
         authService.logout();
