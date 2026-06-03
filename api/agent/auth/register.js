@@ -49,25 +49,69 @@ export default async function handler(req, res) {
       return;
     }
 
-    const code = agentCode(email);
-    const { data, error } = await getSupabase()
+    const existing = await getSupabase()
       .from('agents')
-      .insert({
-        auth_user_id: auth.data.user.id,
-        agent_code: code,
-        full_name: fullName,
-        national_id: nationalId || null,
-        phone,
-        email,
-        region,
-        status: 'active'
-      })
-      .select()
-      .single();
+      .select('*')
+      .or(`email.ilike.${email},phone.eq.${phone}`)
+      .maybeSingle();
 
-    if (error) {
-      sendJson(res, 400, { message: error.message || 'Could not create agent profile.' });
+    if (existing.error) {
+      sendJson(res, 400, { message: existing.error.message || 'Could not check agent profile.' });
       return;
+    }
+
+    let profile;
+
+    if (existing.data) {
+      if (existing.data.auth_user_id && existing.data.auth_user_id !== auth.data.user.id) {
+        sendJson(res, 409, { message: 'This agent profile is already linked to another login.' });
+        return;
+      }
+
+      const linked = await getSupabase()
+        .from('agents')
+        .update({
+          auth_user_id: auth.data.user.id,
+          full_name: existing.data.full_name || fullName,
+          national_id: existing.data.national_id || nationalId || null,
+          phone: existing.data.phone || phone,
+          email: existing.data.email || email,
+          region: existing.data.region || region,
+          status: existing.data.status || 'active'
+        })
+        .eq('id', existing.data.id)
+        .select()
+        .single();
+
+      if (linked.error) {
+        sendJson(res, 400, { message: linked.error.message || 'Could not link agent profile.' });
+        return;
+      }
+
+      profile = linked.data;
+    } else {
+      const code = agentCode(email);
+      const inserted = await getSupabase()
+        .from('agents')
+        .insert({
+          auth_user_id: auth.data.user.id,
+          agent_code: code,
+          full_name: fullName,
+          national_id: nationalId || null,
+          phone,
+          email,
+          region,
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (inserted.error) {
+        sendJson(res, 400, { message: inserted.error.message || 'Could not create agent profile.' });
+        return;
+      }
+
+      profile = inserted.data;
     }
 
     sendJson(res, 201, {
@@ -75,8 +119,8 @@ export default async function handler(req, res) {
         id: auth.data.user.id,
         email,
         role: 'agent',
-        agentId: data.id,
-        agentCode: data.agent_code,
+        agentId: profile.id,
+        agentCode: profile.agent_code,
         fullName
       }
     });

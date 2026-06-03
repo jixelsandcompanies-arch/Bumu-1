@@ -41,27 +41,69 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data, error } = await getSupabase()
+    const existing = await getSupabase()
       .from('customers')
-      .insert({
-        auth_user_id: auth.data.user.id,
-        customer_name: fullName,
-        customer_phone: phone,
-        national_id: nationalId || null,
-        email,
-        product_type: 'product',
-        total_payable: 0,
-        paid_amount: 0,
-        balance: 0,
-        status: 'active',
-        source_portal: 'customer'
-      })
-      .select()
-      .single();
+      .select('*')
+      .or(`email.ilike.${email},customer_phone.eq.${phone}`)
+      .maybeSingle();
 
-    if (error) {
-      sendJson(res, 400, { message: error.message || 'Could not create customer profile.' });
+    if (existing.error) {
+      sendJson(res, 400, { message: existing.error.message || 'Could not check customer profile.' });
       return;
+    }
+
+    let profile;
+
+    if (existing.data) {
+      if (existing.data.auth_user_id && existing.data.auth_user_id !== auth.data.user.id) {
+        sendJson(res, 409, { message: 'This customer profile is already linked to another login.' });
+        return;
+      }
+
+      const linked = await getSupabase()
+        .from('customers')
+        .update({
+          auth_user_id: auth.data.user.id,
+          customer_name: existing.data.customer_name || fullName,
+          customer_phone: existing.data.customer_phone || phone,
+          national_id: existing.data.national_id || nationalId || null,
+          email: existing.data.email || email
+        })
+        .eq('id', existing.data.id)
+        .select()
+        .single();
+
+      if (linked.error) {
+        sendJson(res, 400, { message: linked.error.message || 'Could not link customer profile.' });
+        return;
+      }
+
+      profile = linked.data;
+    } else {
+      const inserted = await getSupabase()
+        .from('customers')
+        .insert({
+          auth_user_id: auth.data.user.id,
+          customer_name: fullName,
+          customer_phone: phone,
+          national_id: nationalId || null,
+          email,
+          product_type: 'product',
+          total_payable: 0,
+          paid_amount: 0,
+          balance: 0,
+          status: 'active',
+          source_portal: 'customer'
+        })
+        .select()
+        .single();
+
+      if (inserted.error) {
+        sendJson(res, 400, { message: inserted.error.message || 'Could not create customer profile.' });
+        return;
+      }
+
+      profile = inserted.data;
     }
 
     sendJson(res, 201, {
@@ -69,7 +111,7 @@ export default async function handler(req, res) {
         id: auth.data.user.id,
         email,
         role: 'customer',
-        customerId: data.id,
+        customerId: profile.id,
         fullName
       }
     });
