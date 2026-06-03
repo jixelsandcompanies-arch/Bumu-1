@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Bell,
@@ -44,6 +44,11 @@ function formatKes(value) {
 
 function fallback(value, text = 'Not set') {
   return value || text;
+}
+
+function mediaName(reference) {
+  if (!reference) return '';
+  return String(reference).split('/').pop() || 'Captured';
 }
 
 export function AgentPortalScreen() {
@@ -531,9 +536,9 @@ function RegisterTab({ onRefresh }) {
         )}
         {step === 1 && (
           <>
-            <Field fieldStyle={styles.gridField} label="Customer passport photo URL" value={form.passportPhotoUrl} onChangeText={(value) => update('passportPhotoUrl', value)} placeholder="Supabase Storage URL" />
-            <Field fieldStyle={styles.gridField} label="Customer ID front URL" value={form.idFrontUrl} onChangeText={(value) => update('idFrontUrl', value)} placeholder="Front ID photo URL" />
-            <Field fieldStyle={styles.gridField} label="Customer ID back URL" value={form.idBackUrl} onChangeText={(value) => update('idBackUrl', value)} placeholder="Back ID photo URL" />
+            <MediaCapture field="passportPhotoUrl" label="Customer passport photo" value={form.passportPhotoUrl} onUploaded={(value) => update('passportPhotoUrl', value)} />
+            <MediaCapture field="idFrontUrl" label="Customer ID front photo" value={form.idFrontUrl} onUploaded={(value) => update('idFrontUrl', value)} />
+            <MediaCapture field="idBackUrl" label="Customer ID back photo" value={form.idBackUrl} onUploaded={(value) => update('idBackUrl', value)} />
           </>
         )}
         {step === 2 && (
@@ -545,9 +550,9 @@ function RegisterTab({ onRefresh }) {
         )}
         {step === 3 && (
           <>
-            <Field fieldStyle={styles.gridField} label="Next-of-kin passport photo URL" value={form.nextOfKinPassportPhotoUrl} onChangeText={(value) => update('nextOfKinPassportPhotoUrl', value)} placeholder="Passport photo URL" />
-            <Field fieldStyle={styles.gridField} label="Next-of-kin ID front URL" value={form.nextOfKinIdFrontUrl} onChangeText={(value) => update('nextOfKinIdFrontUrl', value)} placeholder="Front ID URL" />
-            <Field fieldStyle={styles.gridField} label="Next-of-kin ID back URL" value={form.nextOfKinIdBackUrl} onChangeText={(value) => update('nextOfKinIdBackUrl', value)} placeholder="Back ID URL" />
+            <MediaCapture field="nextOfKinPassportPhotoUrl" label="Next-of-kin passport/copy photo" value={form.nextOfKinPassportPhotoUrl} onUploaded={(value) => update('nextOfKinPassportPhotoUrl', value)} />
+            <MediaCapture field="nextOfKinIdFrontUrl" label="Next-of-kin ID front photo" value={form.nextOfKinIdFrontUrl} onUploaded={(value) => update('nextOfKinIdFrontUrl', value)} />
+            <MediaCapture field="nextOfKinIdBackUrl" label="Next-of-kin ID back photo" value={form.nextOfKinIdBackUrl} onUploaded={(value) => update('nextOfKinIdBackUrl', value)} />
           </>
         )}
         {step === 4 && (
@@ -574,6 +579,75 @@ function RegisterTab({ onRefresh }) {
           </Button>
         )}
       </View>
+    </View>
+  );
+}
+
+function MediaCapture({ field, label, value, onUploaded }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  async function uploadFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setMessage('');
+
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMessage('Capture a valid image.');
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setMessage('Use a clear image under 3 MB.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read captured image.'));
+        reader.readAsDataURL(file);
+      });
+      const result = await agentWorkspaceService.uploadCustomerMedia({
+        field,
+        fileName: file.name,
+        mimeType: file.type,
+        dataUrl
+      });
+      onUploaded(result.reference);
+      setMessage('Captured and uploaded.');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <View style={styles.mediaField}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.mediaBox}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={value ? styles.mediaName : styles.mediaPlaceholder}>
+            {value ? mediaName(value) : 'No image captured'}
+          </Text>
+          {message ? <Text style={styles.greenText}>{message}</Text> : null}
+        </View>
+        <Button variant="secondary" onPress={() => inputRef.current?.click()} disabled={uploading}>
+          {uploading ? 'Uploading...' : value ? 'Replace' : 'Capture'}
+        </Button>
+      </View>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={uploadFile}
+        style={{ display: 'none' }}
+      />
     </View>
   );
 }
@@ -821,6 +895,10 @@ const styles = StyleSheet.create({
   formGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   field: { gap: 6, width: '100%' },
   gridField: { flexGrow: 1, flexBasis: 230, width: 'auto' },
+  mediaField: { flexGrow: 1, flexBasis: 230, width: 'auto', gap: 6 },
+  mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
+  mediaName: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  mediaPlaceholder: { color: colors.muted, fontSize: 13 },
   label: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   input: { minHeight: 40, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, paddingHorizontal: 12, color: colors.text, backgroundColor: '#ffffff', outlineStyle: 'none' },
   fullButton: { width: '100%' },

@@ -322,6 +322,15 @@ function ScreeningTab({ portal, onRefresh }) {
             <Text style={styles.rowText}>{item.phone} | ID {fallback(item.nationalId)} | {item.productType} {fallback(item.productModel)}</Text>
             <Text style={styles.rowText}>Agent {fallback(item.agentName)} | Next of kin {fallback(item.nextOfKin)} | {item.status}</Text>
             {item.duplicateNationalId ? <Text style={styles.dangerText}>Duplicate national ID flagged.</Text> : null}
+            {item.documents?.length ? (
+              <View style={styles.documentList}>
+                {item.documents.map((document) => (
+                  <Pressable key={document.label} onPress={() => window.open(document.url, '_blank', 'noopener,noreferrer')} style={styles.documentLink}>
+                    <Text style={styles.documentText}>{document.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Field
               label="Review note"
               value={reasonById[item.id] || ''}
@@ -549,6 +558,9 @@ const styles = StyleSheet.create({
   dangerText: { color: colors.danger, fontWeight: '600', lineHeight: 20 },
   miniList: { gap: 9 },
   miniItem: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 10, gap: 7 },
+  documentList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  documentLink: { borderWidth: 1, borderColor: '#cfe0f2', borderRadius: 8, paddingHorizontal: 10, minHeight: 32, justifyContent: 'center', backgroundColor: '#f8fbff' },
+  documentText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
   rowTitle: { color: colors.text, fontWeight: '600' },
   rowText: { color: colors.muted, lineHeight: 20 },
   authRoot: { height: 'var(--app-vh)', width: '100%', backgroundColor: 'var(--app-bg)', overflowY: 'auto' },

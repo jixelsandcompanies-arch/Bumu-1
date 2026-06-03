@@ -4,6 +4,19 @@
 create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'customer-kyc',
+  'customer-kyc',
+  false,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 create table if not exists public.admin_profiles (
   id text primary key default ('ADM-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
   auth_user_id uuid unique references auth.users(id) on delete cascade,

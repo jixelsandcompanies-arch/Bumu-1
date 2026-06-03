@@ -10,6 +10,47 @@ function amount(payment) {
   return Number(payment.deposit_credit || 0) + Number(payment.paygo_payment || 0) || Number(payment.paid_amount || 0);
 }
 
+function parseStorageReference(reference) {
+  const value = String(reference || '');
+  if (!value.startsWith('storage://')) return null;
+  const withoutScheme = value.slice('storage://'.length);
+  const slashIndex = withoutScheme.indexOf('/');
+  if (slashIndex <= 0) return null;
+  return {
+    bucket: withoutScheme.slice(0, slashIndex),
+    path: withoutScheme.slice(slashIndex + 1)
+  };
+}
+
+async function signedDocumentUrl(reference) {
+  const parsed = parseStorageReference(reference);
+  if (!parsed) return reference || '';
+
+  const signed = await getSupabase()
+    .storage
+    .from(parsed.bucket)
+    .createSignedUrl(parsed.path, 60 * 10);
+
+  if (signed.error) return '';
+  return signed.data.signedUrl || '';
+}
+
+async function buildApplicationDocuments(customer = {}) {
+  const entries = [
+    ['Customer passport', customer.passport_photo_url],
+    ['Customer ID front', customer.id_front_url],
+    ['Customer ID back', customer.id_back_url],
+    ['Next-of-kin passport/copy', customer.next_of_kin_passport_photo_url],
+    ['Next-of-kin ID front', customer.next_of_kin_id_front_url],
+    ['Next-of-kin ID back', customer.next_of_kin_id_back_url]
+  ];
+
+  return Promise.all(entries.map(async ([label, reference]) => ({
+    label,
+    url: await signedDocumentUrl(reference)
+  }))).then((items) => items.filter((item) => item.url));
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -45,6 +86,24 @@ export default async function handler(req, res) {
     const customerRows = customers.data || [];
     const paymentRows = payments.data || [];
     const commissionRows = commissions.data || [];
+
+    const applicationRows = await Promise.all((applications.data || []).map(async (item) => ({
+      id: item.id,
+      customerId: item.customer_id,
+      customerName: item.customers?.customer_name || '',
+      phone: item.customers?.customer_phone || '',
+      nationalId: item.national_id || item.customers?.national_id || '',
+      agentName: item.agent_name || '',
+      agentId: item.agent_id || '',
+      productType: item.customers?.product_type || 'product',
+      productModel: item.customers?.product_model || item.customers?.bike_model || '',
+      nextOfKin: item.customers?.next_of_kin_name || '',
+      duplicateNationalId: Boolean(item.duplicate_national_id),
+      documents: await buildApplicationDocuments(item.customers),
+      status: item.status || 'pending_screening',
+      reason: item.review_reason || '',
+      createdAt: formatDate(item.created_at)
+    })));
 
     sendJson(res, 200, {
       portal: {
@@ -105,22 +164,7 @@ export default async function handler(req, res) {
           amount: Number(item.amount || 0),
           status: item.status || ''
         })),
-        applications: (applications.data || []).map((item) => ({
-          id: item.id,
-          customerId: item.customer_id,
-          customerName: item.customers?.customer_name || '',
-          phone: item.customers?.customer_phone || '',
-          nationalId: item.national_id || item.customers?.national_id || '',
-          agentName: item.agent_name || '',
-          agentId: item.agent_id || '',
-          productType: item.customers?.product_type || 'product',
-          productModel: item.customers?.product_model || item.customers?.bike_model || '',
-          nextOfKin: item.customers?.next_of_kin_name || '',
-          duplicateNationalId: Boolean(item.duplicate_national_id),
-          status: item.status || 'pending_screening',
-          reason: item.review_reason || '',
-          createdAt: formatDate(item.created_at)
-        })),
+        applications: applicationRows,
         audits: (audits.data || []).map((item) => ({
           id: item.id,
           actorEmail: item.actor_email || '',

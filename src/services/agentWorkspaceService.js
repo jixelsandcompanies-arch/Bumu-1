@@ -135,6 +135,13 @@ export const agentWorkspaceService = {
     });
   },
 
+  async uploadCustomerMedia(media) {
+    return request('/api/agent/customer-media', {
+      method: 'POST',
+      body: media
+    });
+  },
+
   async verifyNextOfKinOtp(customerId, otp) {
     return request(`/api/agent/customers/${encodeURIComponent(customerId)}/verify-next-of-kin`, {
       method: 'POST',
