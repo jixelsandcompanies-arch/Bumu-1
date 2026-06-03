@@ -75,6 +75,13 @@ export const agentWorkspaceService = {
     });
   },
 
+  async requestPasswordReset({ email, phone }) {
+    return request('/api/agent/password-reset-requests', {
+      method: 'POST',
+      body: { email, phone }
+    });
+  },
+
   logout() {
     clearSession();
   },

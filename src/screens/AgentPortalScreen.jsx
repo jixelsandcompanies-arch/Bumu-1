@@ -180,6 +180,11 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
 
   async function login() {
     setNotice('');
+    if (!email.trim() || !password) {
+      setNotice('Enter your agent email and password.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await agentWorkspaceService.login({ email: email.trim(), password });
@@ -193,12 +198,35 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
 
   async function register() {
     setNotice('');
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
+      setNotice('Enter your name, email, phone number, and password.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await agentWorkspaceService.register({ fullName, nationalId, phone, region, email, password });
       setNotice('Agent account created. Sign in with the same email and password.');
       setMode('login');
       setPassword('');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function requestReset() {
+    setNotice('');
+    if (!email.trim() || !phone.trim()) {
+      setNotice('Enter your email and phone number.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await agentWorkspaceService.requestPasswordReset({ email: email.trim(), phone: phone.trim() });
+      setNotice('Password reset request sent. Admin will continue the OTP process from the backend.');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -221,9 +249,15 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
           </View>
         </View>
         <View style={styles.authHeading}>
-          <Text style={styles.authTitle}>{mode === 'login' ? 'Agent sign in' : 'Create agent account'}</Text>
+          <Text style={styles.authTitle}>
+            {mode === 'login' ? 'Agent sign in' : mode === 'register' ? 'Create agent account' : 'Password help'}
+          </Text>
           <Text style={styles.authText}>
-            {mode === 'login' ? 'Use your approved agent email.' : 'Create an agent profile linked to Supabase Auth and the shared CRM.'}
+            {mode === 'login'
+              ? 'Use your approved agent email.'
+              : mode === 'register'
+                ? 'Create an agent profile linked to Supabase Auth and the shared CRM.'
+                : 'Submit your email and phone. The backend/admin flow handles OTP and password changes.'}
           </Text>
         </View>
         <View style={styles.form}>
@@ -236,14 +270,41 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
             </>
           )}
           <Field label="Personal email" value={email} onChangeText={setEmail} placeholder="Enter your email" />
-          <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
+          {mode === 'login' ? (
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
+          ) : mode === 'reset' ? (
+            <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
+          ) : (
+            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 10 characters" secureTextEntry />
+          )}
           {notice ? <Text style={styles.greenText}>{notice}</Text> : null}
-          <Button icon={mode === 'login' ? LogIn : UserPlus} onPress={mode === 'login' ? login : register} disabled={submitting} style={styles.fullButton}>
-            {submitting ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
-          </Button>
-          <Pressable onPress={() => setMode(mode === 'login' ? 'register' : 'login')} style={styles.inlineLink}>
-            <Text style={styles.linkText}>{mode === 'login' ? 'New agent? Register here' : 'Back to sign in'}</Text>
-          </Pressable>
+          {mode === 'login' ? (
+            <Button icon={LogIn} onPress={login} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Signing in...' : 'Sign in'}
+            </Button>
+          ) : mode === 'reset' ? (
+            <Button icon={Bell} onPress={requestReset} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Sending...' : 'Request reset'}
+            </Button>
+          ) : (
+            <Button icon={UserPlus} onPress={register} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Creating...' : 'Create account'}
+            </Button>
+          )}
+          {mode === 'login' ? (
+            <View style={styles.authLinksRow}>
+              <Pressable onPress={() => setMode('register')} style={styles.inlineLink}>
+                <Text style={styles.linkText}>Create account</Text>
+              </Pressable>
+              <Pressable onPress={() => setMode('reset')} style={styles.inlineLink}>
+                <Text style={styles.linkText}>Forgot password?</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={() => setMode('login')} style={styles.inlineLink}>
+              <Text style={styles.linkText}>Back to sign in</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -558,7 +619,7 @@ const styles = StyleSheet.create({
   rowStatus: { color: colors.success, fontSize: 12, fontWeight: '600', textAlign: 'right' },
   authRoot: { height: 'var(--app-vh)', width: '100%', backgroundColor: 'var(--app-bg)', overflowY: 'auto' },
   authContent: { minHeight: 'var(--app-vh)', alignItems: 'center', justifyContent: 'center', padding: 14, paddingTop: 34, paddingBottom: 32 },
-  authCard: { width: '100%', maxWidth: 500, borderWidth: 1, borderColor: 'var(--app-border)', borderRadius: 10, backgroundColor: 'var(--app-surface)', padding: 16, gap: 14 },
+  authCard: { width: '100%', maxWidth: 470, borderWidth: 1, borderColor: 'var(--app-border)', borderRadius: 10, backgroundColor: 'var(--app-surface)', padding: 16, gap: 14 },
   authLogo: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.primary },
   authBrand: { color: colors.text, fontSize: 20, fontWeight: '600' },
   authHeading: { gap: 6 },
@@ -566,6 +627,7 @@ const styles = StyleSheet.create({
   authText: { color: colors.muted, lineHeight: 21 },
   form: { gap: 11 },
   inlineLink: { alignSelf: 'center', minHeight: 32, justifyContent: 'center', cursor: 'pointer' },
+  authLinksRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   linkText: { color: colors.primary, fontWeight: '500' },
   systemFrame: { height: 'var(--app-vh)', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20, backgroundColor: '#f4f8fb' },
   stateTitle: { color: colors.text, fontSize: 22, fontWeight: '600', textAlign: 'center' },

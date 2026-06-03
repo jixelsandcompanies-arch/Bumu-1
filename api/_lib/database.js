@@ -413,6 +413,31 @@ export async function createCustomerPasswordResetRequest(body) {
   return { request: data };
 }
 
+export async function createAgentPasswordResetRequest(body) {
+  const email = normalizeEmail(body.email);
+  const phone = String(body.phone || '').trim();
+
+  if (!email || !phone) {
+    const error = new Error('Enter your email and phone number.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('password_reset_requests')
+    .insert({
+      email,
+      phone,
+      status: 'otp_required',
+      source_portal: 'agent'
+    })
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  return { request: data };
+}
+
 export async function findAgentForAuthUser(user) {
   const userEmail = normalizeEmail(user?.email);
   let { data, error } = await getSupabase()
