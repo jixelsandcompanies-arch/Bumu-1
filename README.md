@@ -83,9 +83,9 @@ Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/ca
 Commission payout callback: https://your-vercel-domain.vercel.app/api/commissions/payout-callback
 ```
 
-## Customer Payments
+## Payments
 
-Customers can pay through a common Paybill or through the customer portal, but that collection flow must be implemented in the backend. The finance portal is prepared to read the result after the backend records it.
+Bumu Paygo uses Africa's Talking Payments for customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts. Daraja routes are kept only as optional legacy fallback routes and are not used unless `PAYMENT_PROVIDER=daraja` or `COMMISSION_PAYOUT_PROVIDER=daraja` is explicitly set.
 
 Recommended backend flow:
 

@@ -214,7 +214,13 @@ function isAlreadySubmitted(status) {
 function shouldUseAfricaPayouts() {
   const payoutProvider = String(process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || '').toLowerCase();
   if (payoutProvider) return payoutProvider === 'africastalking';
-  return String(process.env.PAYMENT_PROVIDER || '').toLowerCase() === 'africastalking';
+  const paymentProvider = String(process.env.PAYMENT_PROVIDER || '').toLowerCase();
+  return paymentProvider ? paymentProvider === 'africastalking' : true;
+}
+
+function shouldUseAfricaCheckout() {
+  const provider = String(process.env.MPESA_PROVIDER || process.env.PAYMENT_PROVIDER || '').toLowerCase();
+  return provider ? provider === 'africastalking' : true;
 }
 
 async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
@@ -498,8 +504,7 @@ async function startCustomerCheckoutRequest(customer, { amount, phone, sourcePor
   let request = data;
 
   try {
-    const useAfricaTalking = process.env.MPESA_PROVIDER === 'africastalking' || process.env.PAYMENT_PROVIDER === 'africastalking';
-    const provider = useAfricaTalking
+    const provider = shouldUseAfricaCheckout()
       ? await initiateAfricaCheckout({
           amount,
           phone,
