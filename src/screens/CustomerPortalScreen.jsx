@@ -9,11 +9,11 @@ import {
   LogOut,
   RefreshCw,
   Smartphone,
-  Download,
   UserRound
 } from 'lucide-react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
+import { FloatingInstallButton } from '../components/ui/FloatingInstallButton.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { customerPortalService } from '../services/customerPortalService.js';
 import { colors } from '../theme/colors.js';
@@ -87,16 +87,17 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
 
   if (!authenticated) {
     return (
-      <CustomerAuthScreen
-        message={message}
-        onBack={goHome}
-        canInstall={canInstall}
-        onInstall={onInstall}
-        onAuthenticated={() => {
-          setAuthenticated(true);
-          loadPortal();
-        }}
-      />
+      <>
+        <CustomerAuthScreen
+          message={message}
+          onBack={goHome}
+          onAuthenticated={() => {
+            setAuthenticated(true);
+            loadPortal();
+          }}
+        />
+        <FloatingInstallButton visible={canInstall} onPress={onInstall} label="Install BUMU app" />
+      </>
     );
   }
 
@@ -152,10 +153,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
               <Text style={styles.pageTitle}>{fallback(portal.customer?.name, 'Customer account')}</Text>
               <Text style={styles.pageSubtitle}>Payments, balance, product details, and alerts from the centralized CRM.</Text>
             </View>
-            <View style={styles.headerActions}>
-              {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall}>Install app</Button>}
-              <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
-            </View>
+            <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
           </View>
 
           {activeTab === 'dashboard' && <DashboardTab {...props} />}
@@ -165,11 +163,12 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
           {activeTab === 'profile' && <ProfileTab {...props} />}
         </View>
       </View>
+      <FloatingInstallButton visible={canInstall} onPress={onInstall} label="Install BUMU app" />
     </ScrollView>
   );
 }
 
-function CustomerAuthScreen({ onAuthenticated, onBack, message, canInstall = false, onInstall }) {
+function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
   const [mode, setMode] = useState('login');
   const [fullName, setFullName] = useState('');
   const [nationalId, setNationalId] = useState('');
@@ -293,7 +292,6 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message, canInstall = fal
             <Text style={styles.brandSubtitle}>Customer account access</Text>
           </View>
         </View>
-        {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall} style={styles.fullButton}>Install customer app</Button>}
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>
             {mode === 'login' ? 'Customer sign in' : mode === 'register' ? 'Create customer account' : 'Password help'}
@@ -704,11 +702,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     flexWrap: 'wrap'
-  },
-  headerActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
   },
   kicker: {
     color: colors.primary,

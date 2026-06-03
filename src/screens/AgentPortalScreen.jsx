@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ClipboardList,
   CreditCard,
-  Download,
   Home,
   LogIn,
   LogOut,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
+import { FloatingInstallButton } from '../components/ui/FloatingInstallButton.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { agentWorkspaceService } from '../services/agentWorkspaceService.js';
 import { colors } from '../theme/colors.js';
@@ -94,16 +94,17 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
 
   if (!authenticated) {
     return (
-      <AgentAuthScreen
-        message={message}
-        onBack={goHome}
-        canInstall={canInstall}
-        onInstall={onInstall}
-        onAuthenticated={() => {
-          setAuthenticated(true);
-          loadPortal();
-        }}
-      />
+      <>
+        <AgentAuthScreen
+          message={message}
+          onBack={goHome}
+          onAuthenticated={() => {
+            setAuthenticated(true);
+            loadPortal();
+          }}
+        />
+        <FloatingInstallButton visible={canInstall} onPress={onInstall} label="Install BUMU app" />
+      </>
     );
   }
 
@@ -161,10 +162,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
               <Text style={styles.pageTitle}>Bumu Paygo</Text>
               <Text style={styles.pageSubtitle}>Register customers, track follow-up, and view commissions from the centralized CRM.</Text>
             </View>
-            <View style={styles.headerActions}>
-              {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall}>Install app</Button>}
-              <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
-            </View>
+            <Button icon={RefreshCw} variant="secondary" onPress={loadPortal}>Refresh</Button>
           </View>
 
           {activeTab === 'dashboard' && <DashboardTab {...props} />}
@@ -175,11 +173,12 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
           {activeTab === 'alerts' && <AlertsTab {...props} />}
         </View>
       </View>
+      <FloatingInstallButton visible={canInstall} onPress={onInstall} label="Install BUMU app" />
     </ScrollView>
   );
 }
 
-function AgentAuthScreen({ onAuthenticated, onBack, message, canInstall = false, onInstall }) {
+function AgentAuthScreen({ onAuthenticated, onBack, message }) {
   const [mode, setMode] = useState('login');
   const [fullName, setFullName] = useState('');
   const [nationalId, setNationalId] = useState('');
@@ -298,7 +297,6 @@ function AgentAuthScreen({ onAuthenticated, onBack, message, canInstall = false,
             <Text style={styles.brandSubtitle}>Agent account access</Text>
           </View>
         </View>
-        {canInstall && <Button icon={Download} variant="secondary" onPress={onInstall} style={styles.fullButton}>Install agent app</Button>}
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>
             {mode === 'login' ? 'Agent sign in' : mode === 'register' ? 'Create agent account' : 'Password help'}
@@ -939,7 +937,6 @@ const styles = StyleSheet.create({
   navText: { color: colors.slate, fontWeight: '500' },
   navTextActive: { color: colors.primary },
   pageHeader: { borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, backgroundColor: '#ffffff', padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
-  headerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kicker: { color: colors.primary, fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   pageTitle: { fontSize: 27, lineHeight: 34, fontWeight: '600', color: colors.text },
   pageSubtitle: { color: colors.slate, marginTop: 4, lineHeight: 21 },
