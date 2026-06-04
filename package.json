@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "node local-dev-server.js",
+    "dev:vite": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test:auth-routes": "node scripts/smoke-auth-routes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

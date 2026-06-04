@@ -15,6 +15,12 @@ async function audit(user, action, targetTable, targetId, details = {}) {
   });
 }
 
+async function auditSafe(user, action, targetTable, targetId, details = {}) {
+  return audit(user, action, targetTable, targetId, details).catch((error) => ({
+    error: error.message
+  }));
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -41,9 +47,14 @@ export default async function handler(req, res) {
       .from('customer_applications')
       .select('*, customers(*)')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (application.error) throw application.error;
+    if (!application.data) {
+      sendJson(res, 404, { message: 'Customer application not found.' });
+      return;
+    }
+
     const activationOtp = nextStatus === 'approved' ? createOtp() : '';
     const activationExpiresAt = activationOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
 
@@ -82,9 +93,13 @@ export default async function handler(req, res) {
       .update(customerUpdate)
       .eq('id', application.data.customer_id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateCustomer.error) throw updateCustomer.error;
+    if (!updateCustomer.data) {
+      sendJson(res, 404, { message: 'Linked customer record not found.' });
+      return;
+    }
 
     const agentResult = application.data.agent_id
       ? await getSupabase().from('agents').select('*').eq('agent_code', application.data.agent_id).maybeSingle()
@@ -102,17 +117,20 @@ export default async function handler(req, res) {
       provider: 'africastalking'
     }));
 
-    await getSupabase().from('agent_notifications').insert({
-      agent_name: application.data.agent_name,
-      agent_code: application.data.agent_id,
-      customer_name: application.data.customers?.customer_name || 'Customer',
+    const notificationResult = await getSupabase().from('agent_notifications').insert({
+      agent_name: application.data.agent_name || null,
+      agent_code: application.data.agent_id || null,
+      customer_id: application.data.customer_id,
+      customer_name: updateCustomer.data.customer_name || application.data.customers?.customer_name || 'Customer',
       message: `Application ${nextStatus.replace('_', ' ')}${reason ? `: ${reason}` : '.'}`,
       status: 'queued',
       source_portal: 'admin'
-    });
+    }).catch((notificationError) => ({
+      error: notificationError.message
+    }));
 
-    await audit(user, `application_${nextStatus}`, 'customer_applications', id, { reason });
-    sendJson(res, 200, { application: updateApplication.data, customer: updateCustomer.data });
+    await auditSafe(user, `application_${nextStatus}`, 'customer_applications', id, { reason, smsResult, notificationResult });
+    sendJson(res, 200, { application: updateApplication.data, customer: updateCustomer.data, smsResult });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
   }

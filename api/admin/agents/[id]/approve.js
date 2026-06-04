@@ -14,6 +14,30 @@ async function audit(user, action, targetTable, targetId, details = {}) {
   });
 }
 
+async function auditSafe(user, action, targetTable, targetId, details = {}) {
+  return audit(user, action, targetTable, targetId, details).catch((error) => ({
+    error: error.message
+  }));
+}
+
+async function findAuthUserByEmail(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  let page = 1;
+  while (page <= 10) {
+    const { data, error } = await getSupabase().auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw error;
+
+    const user = data.users.find((item) => String(item.email || '').toLowerCase() === normalizedEmail);
+    if (user) return user;
+    if (data.users.length < 100) return null;
+    page += 1;
+  }
+
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -26,19 +50,44 @@ export default async function handler(req, res) {
     const user = await requirePortalUser(req, ['admin']);
     const id = req.query?.id || req.url.split('/').slice(-2)[0];
 
+    const current = await getSupabase()
+      .from('agents')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (current.error) throw current.error;
+    if (!current.data) {
+      sendJson(res, 404, { message: 'Agent profile not found.' });
+      return;
+    }
+
+    let authUserId = current.data.auth_user_id || null;
+    if (!authUserId) {
+      const authUser = await findAuthUserByEmail(current.data.email);
+      if (authUser && (authUser.app_metadata?.role || authUser.user_metadata?.role || 'agent') !== 'agent') {
+        sendJson(res, 409, { message: 'This email is already used by another portal role.' });
+        return;
+      }
+      authUserId = authUser?.id || null;
+    }
+
     const updated = await getSupabase()
       .from('agents')
-      .update({ status: 'active' })
+      .update({
+        auth_user_id: authUserId,
+        status: 'active'
+      })
       .eq('id', id)
       .select()
       .single();
 
     if (updated.error) throw updated.error;
 
-    if (updated.data.auth_user_id) {
-      const currentUser = await getSupabase().auth.admin.getUserById(updated.data.auth_user_id);
+    if (authUserId) {
+      const currentUser = await getSupabase().auth.admin.getUserById(authUserId);
       if (!currentUser.error && currentUser.data?.user) {
-        await getSupabase().auth.admin.updateUserById(updated.data.auth_user_id, {
+        await getSupabase().auth.admin.updateUserById(authUserId, {
           app_metadata: {
             ...currentUser.data.user.app_metadata,
             role: 'agent',
@@ -59,7 +108,7 @@ export default async function handler(req, res) {
       portal: 'agent'
     }).catch((error) => ({ delivered: false, error: error.message, provider: 'africastalking' }));
 
-    await audit(user, 'agent_approved', 'agents', id, { email: updated.data.email, smsResult });
+    await auditSafe(user, 'agent_approved', 'agents', id, { email: updated.data.email, smsResult });
     sendJson(res, 200, { agent: updated.data, smsResult });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });

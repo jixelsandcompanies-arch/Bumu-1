@@ -9,3 +9,5 @@ yarn-error.log*
 pnpm-debug.log*
 vite-dev*.log
 vite-preview-check*.log
+local-dev*.log
+vercel-dev*.log

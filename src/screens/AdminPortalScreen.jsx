@@ -318,7 +318,7 @@ function ScreeningTab({ portal, onRefresh }) {
       {message ? <Text style={styles.greenText}>{message}</Text> : null}
       <View style={styles.miniList}>
         {portal.applications.map((item) => {
-          const canReview = ['pending_screening', 'info_required'].includes(item.status);
+          const canReview = ['next_of_kin_pending', 'pending_screening', 'info_required'].includes(item.status);
           return (
             <View key={item.id} style={styles.miniItem}>
               <Text style={styles.rowTitle}>{item.customerName}</Text>

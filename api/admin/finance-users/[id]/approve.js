@@ -14,6 +14,12 @@ async function audit(user, action, targetTable, targetId, details = {}) {
   });
 }
 
+async function auditSafe(user, action, targetTable, targetId, details = {}) {
+  return audit(user, action, targetTable, targetId, details).catch((error) => ({
+    error: error.message
+  }));
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -60,7 +66,7 @@ export default async function handler(req, res) {
       portal: 'finance'
     }).catch((error) => ({ delivered: false, error: error.message, provider: 'africastalking' }));
 
-    await audit(admin, 'finance_user_approved', 'auth.users', id, { email: financeUser.email, smsResult });
+    await auditSafe(admin, 'finance_user_approved', 'auth.users', id, { email: financeUser.email, smsResult });
     sendJson(res, 200, { user: updated.data.user, smsResult });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
