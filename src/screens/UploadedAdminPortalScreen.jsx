@@ -10,10 +10,12 @@ export function UploadedAdminPortalScreen() {
     : '/admin/overview';
 
   return (
-    <MemoryRouter initialEntries={[adminPath || '/admin/overview']}>
-      <UploadedAdminProviders>
-        <UploadedAdminApp />
-      </UploadedAdminProviders>
-    </MemoryRouter>
+    <div className="uploaded-admin-viewport">
+      <MemoryRouter initialEntries={[adminPath || '/admin/overview']}>
+        <UploadedAdminProviders>
+          <UploadedAdminApp />
+        </UploadedAdminProviders>
+      </MemoryRouter>
+    </div>
   );
 }

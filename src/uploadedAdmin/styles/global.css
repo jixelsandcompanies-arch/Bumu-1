@@ -75,11 +75,19 @@ b {
   font-weight: 500;
 }
 
+.uploaded-admin-viewport {
+  width: 100%;
+  height: var(--app-vh, 100vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #f5f7fb;
+}
+
 .admin-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100%;
   width: 100%;
   overflow: visible;
   transition: grid-template-columns 180ms ease;
@@ -94,21 +102,23 @@ b {
   top: 88px;
   grid-column: 1;
   grid-row: 2;
-  height: calc(100vh - 88px);
+  height: calc(var(--app-vh, 100vh) - 88px);
   padding: 24px;
   background: var(--brand-gradient);
   color: #eef5ff;
   overflow-x: hidden;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  overflow-y: hidden;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
 }
 
 .nav-list {
   display: grid;
   gap: 22px;
   min-height: 0;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-right: 2px;
 }
 
@@ -159,7 +169,7 @@ b {
   align-items: center;
   gap: 12px;
   min-height: 44px;
-  margin-top: auto;
+  width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.12);
@@ -295,7 +305,7 @@ b {
 }
 
 .content-area {
-  min-height: calc(100vh - 88px);
+  min-height: calc(var(--app-vh, 100vh) - 88px);
   padding: 34px 28px 28px;
   background: #f5f7fb;
   overflow: visible;
@@ -1751,6 +1761,7 @@ input[type="checkbox"] {
 
   .nav-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
   }
 
   .topbar,
