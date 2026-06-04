@@ -1,6 +1,7 @@
 import { sendJson } from './_lib/http.js';
 import { proxyBackend } from './_lib/backend.js';
 import { getSupabase, hasSupabaseAuthConfig, hasSupabaseConfig } from './_lib/supabase.js';
+import { hasTwilioSmsConfig } from './_lib/twilio.js';
 
 const REQUIRED_TABLES = [
   'admin_profiles',
@@ -63,9 +64,10 @@ export default async function handler(req, res) {
         cronSecretConfigured: Boolean(process.env.CRON_SECRET || process.env.FOLLOW_UP_CRON_SECRET),
         paymentCallbackSecretConfigured: Boolean(process.env.PAYMENT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
         payoutCallbackSecretConfigured: Boolean(process.env.PAYOUT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
-        smsConfigured: Boolean(process.env.AFRICASTALKING_USERNAME && process.env.AFRICASTALKING_API_KEY),
-        paymentProvider: process.env.PAYMENT_PROVIDER || 'africastalking',
-        commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'africastalking'
+        smsConfigured: hasTwilioSmsConfig(),
+        smsProvider: 'twilio',
+        paymentProvider: process.env.PAYMENT_PROVIDER || 'daraja',
+        commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'daraja'
       },
       error: serviceRoleCheck.error
         ? serviceRoleCheck.error.message

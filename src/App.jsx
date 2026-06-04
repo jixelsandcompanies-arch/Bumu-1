@@ -13,7 +13,7 @@ import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
 import { CustomerPortalScreen } from './screens/CustomerPortalScreen.jsx';
 import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
-import { AdminPortalScreen } from './screens/AdminPortalScreen.jsx';
+import { UploadedAdminPortalScreen } from './screens/UploadedAdminPortalScreen.jsx';
 import { NextOfKinAcceptScreen } from './screens/NextOfKinAcceptScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
@@ -49,7 +49,7 @@ function isAgentRoute() {
 }
 
 function isAdminRoute() {
-  return window.location.hash === '#/admin';
+  return window.location.hash.startsWith('#/admin');
 }
 
 function isNextOfKinRoute() {
@@ -340,7 +340,7 @@ export function App() {
   }
 
   if (adminRouteActive) {
-    return <AdminPortalScreen />;
+    return <UploadedAdminPortalScreen />;
   }
 
   if (!authenticated) {

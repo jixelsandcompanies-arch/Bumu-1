@@ -1,4 +1,4 @@
-import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
+import { sendPaymentConfirmedSms } from '../_lib/twilio.js';
 import { completePaymentRequest, failPaymentRequest } from '../_lib/database.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 import { readJson, sendJson } from '../_lib/http.js';
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     const phone = body.phoneNumber || body.phone;
 
     if (!transactionId) {
-      sendJson(res, 400, { message: 'Missing Africa\'s Talking transactionId.' });
+      sendJson(res, 400, { message: 'Missing payment transactionId.' });
       return;
     }
 
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         providerTransactionId: transactionId,
         providerResponse: body,
         paidAt: new Date().toISOString(),
-        method: 'mpesa_africastalking'
+        method: 'mpesa'
       });
 
       await sendPaymentConfirmedSms({

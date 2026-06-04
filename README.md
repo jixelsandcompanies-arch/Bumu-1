@@ -24,8 +24,12 @@ VITE_API_BASE_URL=
 PUBLIC_APP_URL=https://bumu-beta.vercel.app
 ADMIN_MAX_ACCOUNTS=10
 CRON_SECRET=generate-a-long-random-secret
-PAYMENT_PROVIDER=africastalking
-COMMISSION_PAYOUT_PROVIDER=africastalking
+PAYMENT_PROVIDER=daraja
+COMMISSION_PAYOUT_PROVIDER=daraja
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_MESSAGING_SERVICE_SID=
+TWILIO_FROM_NUMBER=
 ```
 
 ## Supabase Setup
@@ -78,7 +82,7 @@ where email = 'name@bumupaygo.co.ke';
 
 If a separate backend is later deployed, set `BACKEND_API_URL` and the Vercel routes will proxy to that backend instead of using Supabase directly.
 
-For Africa's Talking payments, configure these callback URLs in the Africa's Talking dashboard:
+For M-Pesa/Daraja payments and payouts, configure these callback URLs:
 
 ```text
 Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/callback
@@ -87,11 +91,11 @@ Commission payout callback: https://your-vercel-domain.vercel.app/api/commission
 
 ## Automated Follow-Ups
 
-Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The job updates customer overdue status, creates customer notifications, creates agent follow-up notifications, creates finance risk alerts, and sends Africa's Talking SMS reminders. Set `CRON_SECRET` in Vercel so Vercel cron signs the request and outsiders cannot trigger reminder SMS.
+Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The job updates customer overdue status, creates customer notifications, creates agent follow-up notifications, creates finance risk alerts, and sends Twilio SMS reminders. Set `CRON_SECRET` in Vercel so Vercel cron signs the request and outsiders cannot trigger reminder SMS.
 
 ## Payments
 
-Bumu Paygo uses Africa's Talking Payments for customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts. Daraja routes are kept only as optional legacy fallback routes and are not used unless `PAYMENT_PROVIDER=daraja` or `COMMISSION_PAYOUT_PROVIDER=daraja` is explicitly set.
+Bumu Paygo uses Twilio for SMS only: OTPs, approval messages, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
 
 Recommended backend flow:
 

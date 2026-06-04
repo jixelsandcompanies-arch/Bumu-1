@@ -1,0 +1,163 @@
+const TWILIO_MESSAGES_URL = 'https://api.twilio.com/2010-04-01/Accounts';
+
+export function hasTwilioSmsConfig() {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_FROM_NUMBER)
+  );
+}
+
+export function normalizePhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('254')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+254${digits.slice(1)}`;
+  if (digits.length === 9) return `+254${digits}`;
+  return String(phone || '').trim().startsWith('+') ? String(phone).trim() : `+${digits}`;
+}
+
+export async function sendSms({ to, message }) {
+  if (!hasTwilioSmsConfig()) {
+    return { configured: false, delivered: false, provider: 'twilio' };
+  }
+
+  const phone = normalizePhone(to);
+  if (!phone) {
+    return { configured: true, delivered: false, provider: 'twilio', reason: 'missing_phone' };
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const body = new URLSearchParams({
+    To: phone,
+    Body: String(message || '')
+  });
+
+  if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
+    body.set('MessagingServiceSid', process.env.TWILIO_MESSAGING_SERVICE_SID);
+  } else {
+    body.set('From', process.env.TWILIO_FROM_NUMBER);
+  }
+
+  const response = await fetch(`${TWILIO_MESSAGES_URL}/${encodeURIComponent(accountSid)}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json'
+    },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.message || 'Twilio SMS request failed.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
+  }
+
+  return {
+    configured: true,
+    delivered: !['failed', 'undelivered'].includes(String(data.status || '').toLowerCase()),
+    provider: 'twilio',
+    response: data,
+    sid: data.sid
+  };
+}
+
+export async function sendOtpSms({ phone, otp }) {
+  return sendSms({
+    to: phone,
+    message: `Your Bumu Paygo verification code is ${otp}. Valid for 10 minutes. Do not share this code.`
+  });
+}
+
+export async function sendNextOfKinAcceptanceSms({ phone, otp, customerName, acceptUrl }) {
+  const actionText = acceptUrl
+    ? `Accept here: ${acceptUrl}`
+    : `If you accept, give OTP ${otp} to the agent.`;
+  return sendSms({
+    to: phone,
+    message: `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} OTP ${otp}. Valid for 10 minutes.`
+  });
+}
+
+export async function sendScreeningSms({ action, customer, agent, reason, activationOtp }) {
+  const customerName = customer?.customer_name || 'Customer';
+  const customerId = customer?.id || '';
+  const customerPhone = customer?.customer_phone || '';
+  const agentPhone = agent?.phone || '';
+
+  if (action === 'approve') {
+    const customerMessage = activationOtp
+      ? `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal and enter OTP ${activationOtp} to activate your account. Valid for 10 minutes.`
+      : `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal or contact Bumu Paygo support for account activation.`;
+
+    const [customerResult, agentResult] = await Promise.all([
+      sendSms({ to: customerPhone, message: customerMessage }),
+      sendSms({
+        to: agentPhone,
+        message: `Good news! Your customer ${customerName} (Ref: ${customerId}) has been approved. They can now log in and start making payments.`
+      })
+    ]);
+
+    return { customer: customerResult, agent: agentResult };
+  }
+
+  if (action === 'reject') {
+    return {
+      agent: await sendSms({
+        to: agentPhone,
+        message: `Application for ${customerName} (Ref: ${customerId}) has been rejected. Reason: ${reason || 'Not specified'}. Contact admin for more details.`
+      })
+    };
+  }
+
+  return {
+    agent: await sendSms({
+      to: agentPhone,
+      message: `Action required for ${customerName} (Ref: ${customerId}). Admin needs: ${reason || 'more information'}. Please update the application and resubmit.`
+    })
+  };
+}
+
+export async function sendPaymentConfirmedSms({ customer, amount, receipt, balance, repaymentPct }) {
+  return sendSms({
+    to: customer?.customer_phone,
+    message: `Payment confirmed! KES ${Number(amount || 0).toLocaleString('en-KE')} received for your Bumu Paygo account. M-Pesa Ref: ${receipt || 'pending'}. New balance: KES ${Number(balance || 0).toLocaleString('en-KE')}. Progress: ${Math.round(Number(repaymentPct || 0))}% paid.`
+  });
+}
+
+export async function sendPaymentReminderSms({ customer, amount, dueDate, overdueDays }) {
+  const overdue = Number(overdueDays || 0);
+  const message = overdue > 0
+    ? `Bumu Paygo reminder: your payment is ${overdue} day${overdue === 1 ? '' : 's'} overdue. Pay KES ${Number(amount || 0).toLocaleString('en-KE')} through your customer portal to keep your account active.`
+    : `Bumu Paygo reminder: your payment of KES ${Number(amount || 0).toLocaleString('en-KE')} is due${dueDate ? ` on ${dueDate}` : ''}. Pay through your customer portal to keep your account active.`;
+
+  return sendSms({
+    to: customer?.customer_phone,
+    message
+  });
+}
+
+export async function sendAgentFollowUpSms({ agentPhone, customerName, customerPhone, overdueDays }) {
+  return sendSms({
+    to: agentPhone,
+    message: `Bumu Paygo follow-up: ${customerName || 'Customer'} (${customerPhone || 'no phone'}) needs payment follow-up${Number(overdueDays || 0) > 0 ? `, ${overdueDays} days overdue` : ''}. Check your agent portal.`
+  });
+}
+
+export async function sendAccountApprovedSms({ phone, name, portal }) {
+  return sendSms({
+    to: phone,
+    message: `Hello ${name || 'there'}, your Bumu Paygo ${portal || 'portal'} account has been approved. You can now sign in.`
+  });
+}
+
+export async function sendCommissionPaidSms({ commission }) {
+  return sendSms({
+    to: commission?.agent_phone,
+    message: `Your commission of KES ${Number(commission?.amount || 0).toLocaleString('en-KE')} for customer ${commission?.customer_name || 'customer'} has been processed. Ref: ${commission?.id || commission?.payout_reference || 'commission'}. Check your Bumu Paygo portal for details.`
+  });
+}

@@ -2,7 +2,7 @@ import { readJson, sendJson } from '../_lib/http.js';
 import { assertBodySize, assertPositiveNumber, assertRateLimit, assertRequiredTextFields } from '../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../_lib/supabase.js';
 import { createOtp, hashOtp } from '../_lib/database.js';
-import { sendScreeningSms } from '../_lib/africastalking.js';
+import { sendScreeningSms } from '../_lib/twilio.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
       customer: otpUpdate.data,
       agent: null,
       activationOtp
-    }).catch((smsError) => ({ delivered: false, error: smsError.message, provider: 'africastalking' }));
+    }).catch((smsError) => ({ delivered: false, error: smsError.message, provider: 'twilio' }));
 
     await audit(user, 'customer_created', 'customers', data.id, { customerName, productType });
     sendJson(res, 201, { customer: otpUpdate.data, smsResult });

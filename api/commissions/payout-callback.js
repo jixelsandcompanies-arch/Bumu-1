@@ -1,4 +1,4 @@
-import { sendCommissionPaidSms } from '../_lib/africastalking.js';
+import { sendCommissionPaidSms } from '../_lib/twilio.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     const completedAt = status === 'paid' || status === 'failed' ? new Date().toISOString() : null;
 
     if (!transactionId) {
-      sendJson(res, 400, { message: 'Missing Africa\'s Talking payout transactionId.' });
+      sendJson(res, 400, { message: 'Missing payout transactionId.' });
       return;
     }
 
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
         payout_completed_at: status === 'paid' ? completedAt : null,
         payout_reference: transactionId,
         provider_response: body,
-        payout_error: status === 'failed' ? body.description || body.message || 'Africa\'s Talking payout failed.' : null
+        payout_error: status === 'failed' ? body.description || body.message || 'Payout failed.' : null
       })
       .eq('id', payoutRequest.data.commission_id)
       .select()

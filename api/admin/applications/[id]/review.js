@@ -1,7 +1,7 @@
 import { readJson, sendJson } from '../../../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
-import { sendScreeningSms } from '../../../_lib/africastalking.js';
+import { sendScreeningSms } from '../../../_lib/twilio.js';
 import { createOtp, hashOtp } from '../../../_lib/database.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
       activationOtp
     }).catch((smsError) => ({
       error: smsError.message,
-      provider: 'africastalking'
+      provider: 'twilio'
     }));
 
     const notificationResult = await getSupabase().from('agent_notifications').insert({

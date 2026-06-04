@@ -17,6 +17,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-native-web": "^0.21.2",
+    "react-router-dom": "^6.30.4",
     "vite": "^7.2.6"
   }
 }

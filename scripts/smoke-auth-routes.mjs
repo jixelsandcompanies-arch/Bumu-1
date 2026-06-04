@@ -63,6 +63,13 @@ const cases = [
     options: { method: 'POST' },
     expectedStatus: 401,
     expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin agent status is protected',
+    path: '/api/admin/agents/test-agent/status',
+    options: { method: 'POST', body: { status: 'suspended' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
   }
 ];
 

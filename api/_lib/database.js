@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { initiateAfricaB2CPayout, initiateAfricaCheckout, sendAgentFollowUpSms, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendPaymentReminderSms, sendScreeningSms } from './africastalking.js';
+import { sendAgentFollowUpSms, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendPaymentReminderSms, sendScreeningSms } from './twilio.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -78,9 +78,9 @@ async function sendOtp(body, email, otp) {
     body.phone ? sendOtpSms({ phone: body.phone, otp }).catch((error) => ({
       configured: true,
       delivered: false,
-      provider: 'africastalking',
+      provider: 'twilio',
       error: error.message
-    })) : Promise.resolve({ configured: false, delivered: false, provider: 'africastalking' })
+    })) : Promise.resolve({ configured: false, delivered: false, provider: 'twilio' })
   ]);
 
   return { email: emailDelivery, sms: smsDelivery };
@@ -238,18 +238,6 @@ function isAlreadySubmitted(status) {
   return ['processing', 'paid'].includes(String(status || '').toLowerCase());
 }
 
-function shouldUseAfricaPayouts() {
-  const payoutProvider = String(process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || '').toLowerCase();
-  if (payoutProvider) return payoutProvider === 'africastalking';
-  const paymentProvider = String(process.env.PAYMENT_PROVIDER || '').toLowerCase();
-  return paymentProvider ? paymentProvider === 'africastalking' : true;
-}
-
-function shouldUseAfricaCheckout() {
-  const provider = String(process.env.MPESA_PROVIDER || process.env.PAYMENT_PROVIDER || '').toLowerCase();
-  return provider ? provider === 'africastalking' : true;
-}
-
 async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   if (!commission?.id) {
     const error = new Error('Commission not found.');
@@ -298,28 +286,15 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   let payoutError = null;
 
   try {
-    if (shouldUseAfricaPayouts()) {
-      const africa = await initiateAfricaB2CPayout({
-        amount: payoutRecord.amount,
-        phone: payoutRecord.agent_phone,
-        commissionId: commission.id,
-        approvalReference,
-        agentName: commission.agent_name
-      });
-      payoutStatus = africa.status;
-      providerResponse = africa.providerResponse || {};
-      backendReference = africa.transactionId || null;
-    } else {
-      const daraja = await initiateB2CPayout({
-        amount: payoutRecord.amount,
-        phone: payoutRecord.agent_phone,
-        remarks: `Commission ${commission.id}`,
-        occasion: approvalReference
-      });
-      payoutStatus = daraja.status;
-      providerResponse = daraja.providerResponse || {};
-      backendReference = daraja.conversationId || daraja.originatorConversationId || null;
-    }
+    const daraja = await initiateB2CPayout({
+      amount: payoutRecord.amount,
+      phone: payoutRecord.agent_phone,
+      remarks: `Commission ${commission.id}`,
+      occasion: approvalReference
+    });
+    payoutStatus = daraja.status;
+    providerResponse = daraja.providerResponse || {};
+    backendReference = daraja.conversationId || daraja.originatorConversationId || null;
   } catch (error) {
     payoutStatus = 'failed';
     providerResponse = error.providerResponse || {};
@@ -722,20 +697,12 @@ async function startCustomerCheckoutRequest(customer, { amount, phone, sourcePor
   let request = data;
 
   try {
-    const provider = shouldUseAfricaCheckout()
-      ? await initiateAfricaCheckout({
-          amount,
-          phone,
-          customerId: customer.id,
-          customerBikeId: customer.serial_number || customer.chassis_number || customer.id,
-          narration
-        })
-      : await initiateStkPush({
-          amount,
-          phone,
-          accountReference: customer.id,
-          transactionDescription: narration || `Bumu Paygo ${customer.customer_name}`
-        });
+    const provider = await initiateStkPush({
+      amount,
+      phone,
+      accountReference: customer.id,
+      transactionDescription: narration || `Bumu Paygo ${customer.customer_name}`
+    });
     const updated = await getSupabase()
       .from('payment_requests')
       .update({
@@ -899,7 +866,7 @@ export async function requestPasswordResetOtp(body) {
     request: data,
     message: delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL or AFRICASTALKING_* variables to send OTP automatically.'
+      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL or TWILIO_* variables to send OTP automatically.'
   };
 }
 
@@ -1234,7 +1201,7 @@ export async function createAgentCustomer(user, body) {
   const agentCode = agent.agent_code || agent.agent_id;
   const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
   const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
-  let nextOfKinOtpDelivery = { configured: false, delivered: false, provider: 'africastalking' };
+  let nextOfKinOtpDelivery = { configured: false, delivered: false, provider: 'twilio' };
   const duplicateCheck = nationalId
     ? await getSupabase()
         .from('customers')
@@ -1324,7 +1291,7 @@ export async function createAgentCustomer(user, body) {
     }).catch((deliveryError) => ({
       configured: true,
       delivered: false,
-      provider: 'africastalking',
+      provider: 'twilio',
       error: deliveryError.message
     }));
 
@@ -1344,7 +1311,7 @@ export async function createAgentCustomer(user, body) {
     data.next_of_kin_otp_status = updateOtpDelivery.data.next_of_kin_otp_status;
 
     if (!nextOfKinOtpDelivery.delivered) {
-      const deliveryError = new Error('Next-of-kin acceptance SMS could not be sent. Check Africa\'s Talking SMS settings before submitting this application.');
+      const deliveryError = new Error('Next-of-kin acceptance SMS could not be sent. Check Twilio SMS settings before submitting this application.');
       deliveryError.statusCode = 502;
       throw deliveryError;
     }
@@ -1472,11 +1439,11 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
     activationOtp
   }).catch((smsError) => ({
     error: smsError.message,
-    provider: 'africastalking'
+    provider: 'twilio'
   }));
 
   if (activationOtp && !activationSmsWasDelivered(smsResult)) {
-    const error = new Error('Customer activation OTP could not be sent. Check Africa\'s Talking SMS settings before approving this application.');
+    const error = new Error('Customer activation OTP could not be sent. Check Twilio SMS settings before approving this application.');
     error.statusCode = 502;
     throw error;
   }

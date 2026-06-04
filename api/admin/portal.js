@@ -69,7 +69,9 @@ export default async function handler(req, res) {
       commissions,
       applications,
       audits,
-      financeAuthUsers
+      financeAuthUsers,
+      financeNotifications,
+      agentNotifications
     ] = await Promise.all([
       getSupabase().from('agents').select('*').order('created_at', { ascending: false }).limit(200),
       getSupabase().from('customers').select('*').order('created_at', { ascending: false }).limit(200),
@@ -78,10 +80,12 @@ export default async function handler(req, res) {
       getSupabase().from('commissions').select('*').order('earned_at', { ascending: false }).limit(100),
       getSupabase().from('customer_applications').select('*, customers(*)').order('created_at', { ascending: false }).limit(100),
       getSupabase().from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
-      getSupabase().auth.admin.listUsers({ page: 1, perPage: 200 })
+      getSupabase().auth.admin.listUsers({ page: 1, perPage: 200 }),
+      getSupabase().from('finance_notifications').select('*').order('created_at', { ascending: false }).limit(100),
+      getSupabase().from('agent_notifications').select('*').order('created_at', { ascending: false }).limit(100)
     ]);
 
-    [agents, customers, products, payments, commissions, applications, audits].forEach(({ error }) => {
+    [agents, customers, products, payments, commissions, applications, audits, financeNotifications, agentNotifications].forEach(({ error }) => {
       if (error) throw error;
     });
     if (financeAuthUsers.error) throw financeAuthUsers.error;
@@ -98,18 +102,28 @@ export default async function handler(req, res) {
       nationalId: item.national_id || item.customers?.national_id || '',
       agentName: item.agent_name || '',
       agentId: item.agent_id || '',
+      bikeId: '',
       productType: item.customers?.product_type || 'product',
       productModel: item.customers?.product_model || item.customers?.bike_model || '',
+      depositAmount: Number(item.customers?.paid_amount || 0),
+      installmentPlan: item.customers?.daily_installment
+        ? `Daily KES ${Number(item.customers.daily_installment || 0).toLocaleString('en-KE')}`
+        : 'Daily repayment',
       nextOfKin: item.customers?.next_of_kin_name || '',
       nextOfKinPhone: item.customers?.next_of_kin_phone || '',
       nextOfKinNationalId: item.customers?.next_of_kin_national_id || '',
       nextOfKinGender: item.customers?.next_of_kin_gender || '',
       nextOfKinLocation: item.customers?.next_of_kin_location || '',
       nextOfKinOccupation: item.customers?.next_of_kin_occupation || '',
+      customerOtpVerified: item.customers?.customer_activation_otp_status === 'verified',
+      nextOfKinOtpVerified: item.customers?.next_of_kin_otp_status === 'verified',
       duplicateNationalId: Boolean(item.duplicate_national_id),
       documents: await buildApplicationDocuments(item.customers),
       status: item.status || 'pending_screening',
       reason: item.review_reason || '',
+      reviewedAt: item.reviewed_at || '',
+      reviewedBy: item.reviewed_by || '',
+      submittedAt: item.created_at || '',
       createdAt: formatDate(item.created_at)
     })));
 
@@ -132,21 +146,38 @@ export default async function handler(req, res) {
         },
         agents: (agents.data || []).map((item) => ({
           id: item.id,
+          agentCode: item.agent_code || '',
           name: item.full_name || item.agent_name || '',
+          nationalId: item.national_id || '',
           email: item.email || '',
           phone: item.phone || '',
           region: item.region || '',
-          status: item.status || 'active'
+          role: 'field_agent',
+          status: item.status || 'active',
+          totalCustomers: customerRows.filter((customer) => customer.agent_id === item.agent_code).length,
+          commissionBalance: commissionRows
+            .filter((commission) => commission.agent_code === item.agent_code && commission.status !== 'paid')
+            .reduce((total, commission) => total + Number(commission.amount || 0), 0)
         })),
         customers: customerRows.map((item) => ({
           id: item.id,
           name: item.customer_name || '',
+          nationalId: item.national_id || '',
           phone: item.customer_phone || '',
           email: item.email || '',
+          dateOfBirth: item.date_of_birth || '',
+          gender: item.gender || '',
+          location: item.location || '',
+          occupation: item.occupation || '',
+          agentId: item.agent_id || '',
+          agentName: item.agent_name || '',
           productType: item.product_type || 'product',
           productModel: item.product_model || item.bike_model || '',
           balance: Number(item.balance || 0),
-          status: item.status || 'active'
+          applicationStatus: item.application_status || item.status || 'active',
+          repaymentStatus: item.status || 'active',
+          status: item.status || 'active',
+          createdAt: item.created_at || ''
         })),
         products: (products.data || []).map((item) => ({
           id: item.id,
@@ -155,14 +186,21 @@ export default async function handler(req, res) {
           serialNumber: item.serial_number || '',
           chassisNumber: item.chassis_number || '',
           branch: item.branch || '',
-          status: item.status || 'available'
+          status: item.status || 'available',
+          assignedCustomerId: item.assigned_customer_id || null,
+          assignedAgentId: null,
+          createdAt: item.created_at || ''
         })),
         payments: paymentRows.map((item) => ({
           id: item.id,
+          customerId: item.customer_id || '',
+          agentId: item.agent_id || '',
           customerName: item.customer_name || '',
           amount: amount(item),
           receipt: item.receipt || '',
           status: item.status || '',
+          reconciliationStatus: item.reconciliation_status || 'matched',
+          paidAt: item.paid_at || item.date || '',
           date: formatDate(item.date)
         })),
         commissions: commissionRows.map((item) => ({
@@ -183,13 +221,34 @@ export default async function handler(req, res) {
             createdAt: formatDate(item.created_at)
           })),
         applications: applicationRows,
+        notifications: [
+          ...(financeNotifications.data || []).map((item) => ({
+            id: item.id,
+            title: item.title || item.type || 'Finance notification',
+            message: item.message || '',
+            channel: item.channel || 'in_app',
+            status: item.status === 'read' ? 'read' : 'unread',
+            createdAt: item.created_at || '',
+            priority: item.severity || 'normal'
+          })),
+          ...(agentNotifications.data || []).map((item) => ({
+            id: item.id,
+            title: item.customer_name ? `Agent follow-up: ${item.customer_name}` : 'Agent notification',
+            message: item.message || '',
+            channel: 'sms',
+            status: item.status === 'read' ? 'read' : 'unread',
+            createdAt: item.created_at || '',
+            priority: 'normal'
+          }))
+        ],
         audits: (audits.data || []).map((item) => ({
           id: item.id,
           actorEmail: item.actor_email || '',
           action: item.action || '',
           targetTable: item.target_table || '',
           targetId: item.target_id || '',
-          createdAt: formatDate(item.created_at)
+          createdAt: item.created_at || '',
+          ipAddress: item.details?.ipAddress || ''
         }))
       }
     });
