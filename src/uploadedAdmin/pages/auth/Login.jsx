@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getPortalPathForRole, useAuth } from "../../features/auth/AuthContext.jsx";
+import bumuLogo from "../../../../BumuLogo.jpeg";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function Login() {
     <main className="auth-screen">
       <section className="auth-panel">
         <div className="brand auth-brand">
-          <div className="brand-mark">B</div>
+          <img className="auth-logo" src={bumuLogo} alt="Bumu Paygo logo" />
           <div>
             <strong>Bumu PAYGO</strong>
             <span>Admin CRM</span>

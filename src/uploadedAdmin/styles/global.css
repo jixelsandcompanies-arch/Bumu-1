@@ -1617,6 +1617,14 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
+.auth-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
 .auth-brand strong,
 .auth-brand span {
   display: block;

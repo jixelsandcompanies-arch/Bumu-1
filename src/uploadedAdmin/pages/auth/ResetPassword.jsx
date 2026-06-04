@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext.jsx";
+import bumuLogo from "../../../../BumuLogo.jpeg";
 
 export default function ResetPassword() {
   const { requestPasswordReset } = useAuth();
@@ -19,6 +20,13 @@ export default function ResetPassword() {
   return (
     <main className="auth-screen">
       <section className="auth-panel">
+        <div className="brand auth-brand">
+          <img className="auth-logo" src={bumuLogo} alt="Bumu Paygo logo" />
+          <div>
+            <strong>Bumu PAYGO</strong>
+            <span>Admin CRM</span>
+          </div>
+        </div>
         <h1>Password reset</h1>
         <p>Send a secure password reset link to the registered admin email address.</p>
         <form className="form-grid" onSubmit={handleSubmit}>
