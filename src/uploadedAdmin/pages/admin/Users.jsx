@@ -48,7 +48,7 @@ export default function Users() {
     });
   }, [query, roleFilter, users]);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const email = form.email.trim().toLowerCase();
     const phone = form.phone.trim();
@@ -61,30 +61,38 @@ export default function Users() {
       return;
     }
 
-    addUser({ ...form, email, phone });
-    setForm(emptyUser);
-    setMessage(`${form.name} created as ${form.role.replaceAll("_", " ")}.`);
+    try {
+      const temporaryPassword = await addUser({ ...form, email, phone });
+      setForm(emptyUser);
+      setMessage(`${form.name} created as ${form.role.replaceAll("_", " ")}. Temporary password: ${temporaryPassword}`);
+    } catch (error) {
+      setMessage(error.message || "Could not create user.");
+    }
   }
 
-  function runConfirmedAction() {
+  async function runConfirmedAction() {
     if (!confirmAction) {
       return;
     }
 
     const { type, user, value } = confirmAction;
-    if (type === "status") {
-      updateUserStatus(user.id, value);
-      setMessage(`${user.name} marked ${value.replaceAll("_", " ")}.`);
-    }
+    try {
+      if (type === "status") {
+        await updateUserStatus(user.id, value);
+        setMessage(`${user.name} marked ${value.replaceAll("_", " ")}.`);
+      }
 
-    if (type === "role") {
-      updateUserRole(user.id, value);
-      setMessage(`${user.name} role changed to ${value.replaceAll("_", " ")}.`);
-    }
+      if (type === "role") {
+        await updateUserRole(user.id, value);
+        setMessage(`${user.name} role changed to ${value.replaceAll("_", " ")}.`);
+      }
 
-    if (type === "reset") {
-      const temporaryPassword = resetUserCredentials(user.id);
-      setMessage(`Temporary password for ${user.name}: ${temporaryPassword}`);
+      if (type === "reset") {
+        const temporaryPassword = await resetUserCredentials(user.id);
+        setMessage(`Temporary password for ${user.name}: ${temporaryPassword}`);
+      }
+    } catch (error) {
+      setMessage(error.message || "Could not update user.");
     }
 
     setConfirmAction(null);

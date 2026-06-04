@@ -11,6 +11,7 @@ import { notificationStyles as styles } from '../components/notifications/notifi
 import { Button } from '../components/ui/Button.jsx';
 import { Section } from '../components/ui/Section.jsx';
 import { Text } from '../components/ui/Text.jsx';
+import { notificationService } from '../services/notificationService.js';
 import { Header } from './PaymentsScreen.jsx';
 
 export function NotificationsScreen({ notifications, onNotificationsChange }) {
@@ -30,6 +31,7 @@ export function NotificationsScreen({ notifications, onNotificationsChange }) {
   useEffect(() => {
     if (!pendingDelete) return undefined;
     const timer = window.setTimeout(() => {
+      notificationService.dismissNotifications(pendingDelete.items.map((item) => item.id)).catch(() => null);
       setPendingDelete(null);
       setToast({ type: 'success', message: 'All messages deleted permanently.' });
     }, 5000);
@@ -37,9 +39,15 @@ export function NotificationsScreen({ notifications, onNotificationsChange }) {
     return () => window.clearTimeout(timer);
   }, [pendingDelete]);
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    const unreadIds = notifications.filter((item) => !item.isRead).map((item) => item.id);
     onNotificationsChange((items) => items.map((item) => ({ ...item, isRead: true })));
-    setToast({ type: 'success', message: 'All messages marked as read.' });
+    try {
+      await notificationService.markNotifications(unreadIds, 'read');
+      setToast({ type: 'success', message: 'All messages marked as read.' });
+    } catch (error) {
+      setToast({ type: 'success', message: error.message || 'Messages marked read locally.' });
+    }
   };
 
   const deleteAllMessages = () => {
@@ -62,22 +70,39 @@ export function NotificationsScreen({ notifications, onNotificationsChange }) {
     setToast({ type: 'success', message: 'Messages restored.' });
   };
 
-  const toggleNotification = (id) => {
+  const toggleNotification = async (id) => {
     setOpenId((current) => (current === id ? null : id));
     onNotificationsChange((items) =>
       items.map((item) => (item.id === id ? { ...item, isRead: true } : item))
     );
+    try {
+      await notificationService.markNotifications([id], 'read');
+    } catch {
+      // Keep the optimistic UI state; the next fetch will reconcile.
+    }
   };
 
-  const toggleRead = (id) => {
+  const toggleRead = async (id) => {
+    const current = notifications.find((item) => item.id === id);
+    const status = current?.isRead ? 'unread' : 'read';
     onNotificationsChange((items) =>
       items.map((item) => (item.id === id ? { ...item, isRead: !item.isRead } : item))
     );
+    try {
+      await notificationService.markNotifications([id], status);
+    } catch {
+      // Keep the optimistic UI state; the next fetch will reconcile.
+    }
   };
 
-  const dismissNotification = (id) => {
+  const dismissNotification = async (id) => {
     onNotificationsChange((items) => items.filter((item) => item.id !== id));
     setOpenId((current) => (current === id ? null : current));
+    try {
+      await notificationService.dismissNotifications([id]);
+    } catch {
+      // Keep the optimistic UI state; the next fetch will reconcile.
+    }
   };
 
   return (

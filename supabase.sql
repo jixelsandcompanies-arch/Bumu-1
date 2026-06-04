@@ -245,9 +245,11 @@ create table if not exists public.customer_applications (
   customer_id text not null references public.customers(id) on delete cascade,
   agent_id text,
   agent_name text,
+  product_id text,
   national_id text,
   status text not null default 'pending_screening' check (status in ('next_of_kin_pending', 'pending_screening', 'info_required', 'approved', 'rejected')),
   duplicate_national_id boolean not null default false,
+  verification jsonb not null default '{}'::jsonb,
   review_reason text,
   reviewed_by uuid references auth.users(id) on delete set null,
   reviewed_at timestamptz,
@@ -502,6 +504,8 @@ alter table public.customers add column if not exists screened_at timestamptz;
 alter table public.customers add column if not exists screened_by uuid references auth.users(id) on delete set null;
 alter table public.agent_notifications add column if not exists agent_id text;
 alter table public.agent_notifications add column if not exists customer_id text references public.customers(id) on delete cascade;
+alter table public.customer_applications add column if not exists product_id text;
+alter table public.customer_applications add column if not exists verification jsonb not null default '{}'::jsonb;
 alter table public.customers drop constraint if exists customers_status_check;
 alter table public.customers add constraint customers_status_check
   check (status in ('active', 'defaulted', 'paid', 'not_registered', 'next_of_kin_pending', 'pending_screening', 'rejected'));

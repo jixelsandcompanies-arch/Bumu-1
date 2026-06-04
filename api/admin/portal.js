@@ -94,38 +94,42 @@ export default async function handler(req, res) {
     const paymentRows = payments.data || [];
     const commissionRows = commissions.data || [];
 
-    const applicationRows = await Promise.all((applications.data || []).map(async (item) => ({
-      id: item.id,
-      customerId: item.customer_id,
-      customerName: item.customers?.customer_name || '',
-      phone: item.customers?.customer_phone || '',
-      nationalId: item.national_id || item.customers?.national_id || '',
-      agentName: item.agent_name || '',
-      agentId: item.agent_id || '',
-      bikeId: '',
-      productType: item.customers?.product_type || 'product',
-      productModel: item.customers?.product_model || item.customers?.bike_model || '',
-      depositAmount: Number(item.customers?.paid_amount || 0),
-      installmentPlan: item.customers?.daily_installment
-        ? `Daily KES ${Number(item.customers.daily_installment || 0).toLocaleString('en-KE')}`
-        : 'Daily repayment',
-      nextOfKin: item.customers?.next_of_kin_name || '',
-      nextOfKinPhone: item.customers?.next_of_kin_phone || '',
-      nextOfKinNationalId: item.customers?.next_of_kin_national_id || '',
-      nextOfKinGender: item.customers?.next_of_kin_gender || '',
-      nextOfKinLocation: item.customers?.next_of_kin_location || '',
-      nextOfKinOccupation: item.customers?.next_of_kin_occupation || '',
-      customerOtpVerified: item.customers?.customer_activation_otp_status === 'verified',
-      nextOfKinOtpVerified: item.customers?.next_of_kin_otp_status === 'verified',
-      duplicateNationalId: Boolean(item.duplicate_national_id),
-      documents: await buildApplicationDocuments(item.customers),
-      status: item.status || 'pending_screening',
-      reason: item.review_reason || '',
-      reviewedAt: item.reviewed_at || '',
-      reviewedBy: item.reviewed_by || '',
-      submittedAt: item.created_at || '',
-      createdAt: formatDate(item.created_at)
-    })));
+    const applicationRows = await Promise.all((applications.data || []).map(async (item) => {
+      const assignedProduct = (products.data || []).find((product) => product.assigned_customer_id === item.customer_id);
+      return {
+        id: item.id,
+        customerId: item.customer_id,
+        customerName: item.customers?.customer_name || '',
+        phone: item.customers?.customer_phone || '',
+        nationalId: item.national_id || item.customers?.national_id || '',
+        agentName: item.agent_name || '',
+        agentId: item.agent_id || '',
+        bikeId: item.product_id || assignedProduct?.id || '',
+        productType: item.customers?.product_type || 'product',
+        productModel: item.customers?.product_model || item.customers?.bike_model || '',
+        depositAmount: Number(item.customers?.paid_amount || 0),
+        installmentPlan: item.customers?.daily_installment
+          ? `Daily KES ${Number(item.customers.daily_installment || 0).toLocaleString('en-KE')}`
+          : 'Daily repayment',
+        nextOfKin: item.customers?.next_of_kin_name || '',
+        nextOfKinPhone: item.customers?.next_of_kin_phone || '',
+        nextOfKinNationalId: item.customers?.next_of_kin_national_id || '',
+        nextOfKinGender: item.customers?.next_of_kin_gender || '',
+        nextOfKinLocation: item.customers?.next_of_kin_location || '',
+        nextOfKinOccupation: item.customers?.next_of_kin_occupation || '',
+        customerOtpVerified: item.customers?.customer_activation_otp_status === 'verified',
+        nextOfKinOtpVerified: item.customers?.next_of_kin_otp_status === 'verified',
+        duplicateNationalId: Boolean(item.duplicate_national_id),
+        documents: await buildApplicationDocuments(item.customers),
+        verification: item.verification || {},
+        status: item.status || 'pending_screening',
+        reason: item.review_reason || '',
+        reviewedAt: item.reviewed_at || '',
+        reviewedBy: item.reviewed_by || '',
+        submittedAt: item.created_at || '',
+        createdAt: formatDate(item.created_at)
+      };
+    }));
 
     sendJson(res, 200, {
       portal: {
@@ -211,12 +215,13 @@ export default async function handler(req, res) {
           status: item.status || ''
         })),
         financeUsers: (financeAuthUsers.data?.users || [])
-          .filter((item) => (item.app_metadata?.role || item.user_metadata?.role) === 'finance')
+          .filter((item) => ['admin', 'finance', 'agent', 'customer'].includes(item.app_metadata?.role || item.user_metadata?.role))
           .map((item) => ({
             id: item.id,
             email: item.email || '',
             name: item.user_metadata?.full_name || item.email || '',
             phone: item.user_metadata?.phone || '',
+            role: item.app_metadata?.display_role || item.user_metadata?.display_role || item.app_metadata?.role || item.user_metadata?.role || 'finance_officer',
             status: item.app_metadata?.status || item.user_metadata?.status || 'pending',
             createdAt: formatDate(item.created_at)
           })),

@@ -150,7 +150,7 @@ function mapPortal(portal = {}) {
     name: user.name || user.email,
     email: user.email || "",
     phone: user.phone || "",
-    role: "finance_officer",
+    role: user.role || "finance_officer",
     status: user.status || "pending",
     createdAt: user.createdAt || ""
   }));
@@ -234,31 +234,21 @@ export function AdminDataProvider({ children }) {
     await loadPortal();
   }, [loadPortal]);
 
-  const updateApplicationVerification = useCallback((applicationId, verification) => {
-    setState((current) => ({
-      ...current,
-      applications: current.applications.map((application) =>
-        application.id === applicationId ? { ...application, verification } : application
-      ),
-      auditLogs: [
-        makeAudit("Updated screening verification checklist", "customer_application", applicationId, currentActor, currentRole),
-        ...current.auditLogs
-      ]
-    }));
-  }, [currentActor, currentRole]);
+  const updateApplicationVerification = useCallback(async (applicationId, verification) => {
+    await apiRequest(`/api/admin/applications/${encodeURIComponent(applicationId)}/details`, {
+      method: "POST",
+      body: { verification }
+    });
+    await loadPortal();
+  }, [loadPortal]);
 
-  const updateApplicationBikeAssignment = useCallback((applicationId, bikeId) => {
-    setState((current) => ({
-      ...current,
-      applications: current.applications.map((application) =>
-        application.id === applicationId ? { ...application, bikeId: bikeId || "" } : application
-      ),
-      auditLogs: [
-        makeAudit("Updated local bike assignment view", "customer_application", applicationId, currentActor, currentRole),
-        ...current.auditLogs
-      ]
-    }));
-  }, [currentActor, currentRole]);
+  const updateApplicationBikeAssignment = useCallback(async (applicationId, bikeId) => {
+    await apiRequest(`/api/admin/applications/${encodeURIComponent(applicationId)}/details`, {
+      method: "POST",
+      body: { bikeId: bikeId || "" }
+    });
+    await loadPortal();
+  }, [loadPortal]);
 
   const addAgent = useCallback(async (agent) => {
     await apiRequest("/api/admin/agents", {
@@ -288,54 +278,36 @@ export function AdminDataProvider({ children }) {
     await loadPortal();
   }, [loadPortal]);
 
-  const addUser = useCallback((userRecord) => {
-    setState((current) => ({
-      ...current,
-      users: [
-        {
-          id: `usr-${Date.now()}`,
-          name: userRecord.name,
-          email: userRecord.email,
-          phone: userRecord.phone,
-          role: userRecord.role,
-          status: "pending"
-        },
-        ...current.users
-      ],
-      auditLogs: [makeAudit("Prepared user account record", "user", userRecord.email, currentActor, currentRole), ...current.auditLogs]
-    }));
-  }, [currentActor, currentRole]);
+  const addUser = useCallback(async (userRecord) => {
+    const result = await apiRequest("/api/admin/finance-users", {
+      method: "POST",
+      body: userRecord
+    });
+    await loadPortal();
+    return result.temporaryPassword;
+  }, [loadPortal]);
 
   const updateUserStatus = useCallback(async (userId, status) => {
-    if (status === "active") {
-      await apiRequest(`/api/admin/finance-users/${encodeURIComponent(userId)}/approve`, { method: "POST" });
-      await loadPortal();
-      return;
-    }
+    await apiRequest(`/api/admin/finance-users/${encodeURIComponent(userId)}/status`, {
+      method: "POST",
+      body: { status }
+    });
+    await loadPortal();
+  }, [loadPortal]);
 
-    setState((current) => ({
-      ...current,
-      users: current.users.map((item) => item.id === userId ? { ...item, status } : item),
-      auditLogs: [makeAudit(`Set user status to ${status}`, "user", userId, currentActor, currentRole), ...current.auditLogs]
-    }));
-  }, [currentActor, currentRole, loadPortal]);
+  const updateUserRole = useCallback(async (userId, role) => {
+    await apiRequest(`/api/admin/finance-users/${encodeURIComponent(userId)}/role`, {
+      method: "POST",
+      body: { role }
+    });
+    await loadPortal();
+  }, [loadPortal]);
 
-  const updateUserRole = useCallback((userId, role) => {
-    setState((current) => ({
-      ...current,
-      users: current.users.map((item) => item.id === userId ? { ...item, role } : item),
-      auditLogs: [makeAudit(`Set local user role to ${role}`, "user", userId, currentActor, currentRole), ...current.auditLogs]
-    }));
-  }, [currentActor, currentRole]);
-
-  const resetUserCredentials = useCallback((userId) => {
-    const temporaryPassword = `Bumu-${Math.floor(100000 + Math.random() * 900000)}`;
-    setState((current) => ({
-      ...current,
-      auditLogs: [makeAudit("Issued temporary credential reset token", "user", userId, currentActor, currentRole), ...current.auditLogs]
-    }));
-    return temporaryPassword;
-  }, [currentActor, currentRole]);
+  const resetUserCredentials = useCallback(async (userId) => {
+    const result = await apiRequest(`/api/admin/finance-users/${encodeURIComponent(userId)}/reset`, { method: "POST" });
+    await loadPortal();
+    return result.temporaryPassword;
+  }, [loadPortal]);
 
   const archiveAuditLogs = useCallback((logIds) => {
     setState((current) => {
@@ -349,15 +321,13 @@ export function AdminDataProvider({ children }) {
     });
   }, []);
 
-  const updateNotificationStatus = useCallback((notificationIds, status) => {
-    const ids = new Set(notificationIds);
-    setState((current) => ({
-      ...current,
-      notifications: current.notifications.map((notification) =>
-        ids.has(notification.id) ? { ...notification, status } : notification
-      )
-    }));
-  }, []);
+  const updateNotificationStatus = useCallback(async (notificationIds, status) => {
+    await apiRequest("/api/admin/notifications/status", {
+      method: "POST",
+      body: { ids: notificationIds, status }
+    });
+    await loadPortal();
+  }, [loadPortal]);
 
   const value = useMemo(
     () => ({

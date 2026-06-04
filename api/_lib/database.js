@@ -1862,6 +1862,24 @@ export async function listFinanceNotifications(query = {}) {
   return { notifications: data || [] };
 }
 
+export async function updateFinanceNotificationsStatus({ ids = [], status }) {
+  const cleanIds = Array.isArray(ids) ? ids.map(String).filter(Boolean) : [];
+  if (cleanIds.length === 0 || !['unread', 'read', 'dismissed'].includes(status)) {
+    const error = new Error('Choose notifications and a valid status.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data, error } = await getSupabase()
+    .from('finance_notifications')
+    .update({ status })
+    .in('id', cleanIds)
+    .select('id,status');
+
+  if (error) throw mapSupabaseError(error);
+  return { updated: data || [] };
+}
+
 function daysBetween(dateValue, now = new Date()) {
   if (!dateValue) return 0;
   const today = new Date(`${now.toISOString().slice(0, 10)}T12:00:00.000Z`);

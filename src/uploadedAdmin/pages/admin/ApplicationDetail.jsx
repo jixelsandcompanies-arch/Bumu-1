@@ -112,14 +112,18 @@ export default function ApplicationDetail() {
     setPendingDecision(null);
   }
 
-  function saveBikeAssignment() {
-    updateApplicationBikeAssignment(application.id, selectedBikeId);
+  async function saveBikeAssignment() {
     const selectedBike = findBike(bikes, selectedBikeId);
-    setMessage(
-      selectedBike
-        ? `${selectedBike.serialNumber} saved for this application.`
-        : "Bike assignment removed from this application."
-    );
+    try {
+      await updateApplicationBikeAssignment(application.id, selectedBikeId);
+      setMessage(
+        selectedBike
+          ? `${selectedBike.serialNumber} saved for this application.`
+          : "Bike assignment removed from this application."
+      );
+    } catch (error) {
+      setMessage(error.message || "Could not save bike assignment.");
+    }
   }
 
   function buildLocalVerification(currentVerification) {
@@ -142,18 +146,26 @@ export default function ApplicationDetail() {
     };
   }
 
-  function runLocalVerification() {
+  async function runLocalVerification() {
     const nextVerification = buildLocalVerification(verification);
     setVerification(nextVerification);
-    updateApplicationVerification(application.id, nextVerification);
-    setMessage("Local screening checks completed.");
-    setVerificationMessage("Local checks completed and saved to this application.");
+    try {
+      await updateApplicationVerification(application.id, nextVerification);
+      setMessage("Local screening checks completed.");
+      setVerificationMessage("Local checks completed and saved to this application.");
+    } catch (error) {
+      setMessage(error.message || "Could not save verification checks.");
+    }
   }
 
-  function saveVerification() {
-    updateApplicationVerification(application.id, verification);
-    setMessage("Verification checklist saved.");
-    setVerificationMessage("Verification checklist saved.");
+  async function saveVerification() {
+    try {
+      await updateApplicationVerification(application.id, verification);
+      setMessage("Verification checklist saved.");
+      setVerificationMessage("Verification checklist saved.");
+    } catch (error) {
+      setMessage(error.message || "Could not save verification checklist.");
+    }
   }
 
   return (

@@ -25,5 +25,6 @@ export const backendClient = {
   isConfigured: true,
   get: (path, params) => request(path, { params }),
   post: (path, body) => request(path, { method: 'POST', body }),
-  patch: (path, body) => request(path, { method: 'PATCH', body })
+  patch: (path, body) => request(path, { method: 'PATCH', body }),
+  delete: (path, body) => request(path, { method: 'DELETE', body })
 };

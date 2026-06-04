@@ -70,6 +70,62 @@ const cases = [
     options: { method: 'POST', body: { status: 'suspended' } },
     expectedStatus: 401,
     expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin user creation is protected',
+    path: '/api/admin/finance-users',
+    options: { method: 'POST', body: { name: 'Smoke User', email: 'smoke@example.com', phone: '0700000000' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin user status is protected',
+    path: '/api/admin/finance-users/test-user/status',
+    options: { method: 'POST', body: { status: 'active' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin user role is protected',
+    path: '/api/admin/finance-users/test-user/role',
+    options: { method: 'POST', body: { role: 'finance_officer' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin user reset is protected',
+    path: '/api/admin/finance-users/test-user/reset',
+    options: { method: 'POST' },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin notification status is protected',
+    path: '/api/admin/notifications/status',
+    options: { method: 'POST', body: { ids: ['FNT-test'], status: 'read' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'admin application details are protected',
+    path: '/api/admin/applications/test-application/details',
+    options: { method: 'POST', body: { verification: {} } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'finance notification read update is protected',
+    path: '/api/notifications',
+    options: { method: 'PATCH', body: { ids: ['FNT-test'], status: 'read' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
+    name: 'finance notification delete is protected',
+    path: '/api/notifications',
+    options: { method: 'DELETE', body: { ids: ['FNT-test'] } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
   }
 ];
 

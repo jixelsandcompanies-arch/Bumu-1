@@ -1,5 +1,5 @@
 import { sendJson } from './http.js';
-import { hasSupabaseConfig, requireFinanceUser } from './supabase.js';
+import { requireFinanceUser } from './supabase.js';
 import {
   createAgentNotification,
   createManualPayment,
@@ -11,7 +11,8 @@ import {
   listPayments,
   listReconciliation,
   markAgentCommissionsPaid,
-  payCommission
+  payCommission,
+  updateFinanceNotificationsStatus
 } from './database.js';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || '';
@@ -23,13 +24,6 @@ function backendUrl(path, query = '') {
 
 export async function proxyBackend(req, res, path, { method = req.method, body } = {}) {
   if (!BACKEND_API_URL) {
-    if (!hasSupabaseConfig()) {
-      sendJson(res, 501, {
-        message: 'Database API is not configured. Set Supabase environment variables in Vercel.'
-      });
-      return;
-    }
-
     try {
       sendJson(res, 200, await runSupabaseHandler(req, path, { method, body }));
     } catch (error) {
@@ -92,6 +86,12 @@ async function runSupabaseHandler(req, path, { method, body }) {
   if (method === 'GET' && path === '/customers/payment-records') return listCustomerPaymentRecords(query);
   if (method === 'GET' && path === '/payments') return listPayments(query);
   if (method === 'GET' && path === '/notifications') return listFinanceNotifications(query);
+  if ((method === 'PATCH' || method === 'DELETE') && path === '/notifications') {
+    return updateFinanceNotificationsStatus({
+      ids: body?.ids || [],
+      status: method === 'DELETE' ? 'dismissed' : body?.status
+    });
+  }
   if (method === 'POST' && path === '/payments/manual') return createManualPayment(body);
   if (method === 'GET' && path === '/commissions') return listCommissions(query);
   if (method === 'POST' && /^\/commissions\/[^/]+\/pay$/.test(path)) {

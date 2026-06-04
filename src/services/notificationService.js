@@ -37,5 +37,15 @@ export const notificationService = {
     const records = data.notifications ?? data.records ?? data;
 
     return Array.isArray(records) ? records.map(normalizeNotification) : [];
+  },
+
+  async markNotifications(ids, status) {
+    if (!ids.length) return { updated: [] };
+    return backendClient.patch('/api/notifications', { ids, status });
+  },
+
+  async dismissNotifications(ids) {
+    if (!ids.length) return { updated: [] };
+    return backendClient.delete('/api/notifications', { ids });
   }
 };

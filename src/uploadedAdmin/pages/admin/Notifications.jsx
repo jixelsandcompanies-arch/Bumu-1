@@ -70,7 +70,7 @@ export default function Notifications() {
     [notifications]
   );
 
-  function markVisibleAsRead() {
+  async function markVisibleAsRead() {
     const unreadIds = visibleNotifications
       .filter((notification) => notification.status === "unread")
       .map((notification) => notification.id);
@@ -80,11 +80,15 @@ export default function Notifications() {
       return;
     }
 
-    updateNotificationStatus(unreadIds, "read");
-    setMessage(`${unreadIds.length} notifications marked as read.`);
+    try {
+      await updateNotificationStatus(unreadIds, "read");
+      setMessage(`${unreadIds.length} notifications marked as read.`);
+    } catch (error) {
+      setMessage(error.message || "Could not update notifications.");
+    }
   }
 
-  function markVisibleAsUnread() {
+  async function markVisibleAsUnread() {
     const readIds = visibleNotifications
       .filter((notification) => notification.status === "read")
       .map((notification) => notification.id);
@@ -94,14 +98,22 @@ export default function Notifications() {
       return;
     }
 
-    updateNotificationStatus(readIds, "unread");
-    setMessage(`${readIds.length} notifications marked as unread.`);
+    try {
+      await updateNotificationStatus(readIds, "unread");
+      setMessage(`${readIds.length} notifications marked as unread.`);
+    } catch (error) {
+      setMessage(error.message || "Could not update notifications.");
+    }
   }
 
-  function toggleNotificationStatus(notification) {
+  async function toggleNotificationStatus(notification) {
     const nextStatus = notification.status === "unread" ? "read" : "unread";
-    updateNotificationStatus([notification.id], nextStatus);
-    setMessage(`${notification.title} marked as ${nextStatus}.`);
+    try {
+      await updateNotificationStatus([notification.id], nextStatus);
+      setMessage(`${notification.title} marked as ${nextStatus}.`);
+    } catch (error) {
+      setMessage(error.message || "Could not update notification.");
+    }
   }
 
   function resetFilters() {
