@@ -1,8 +1,10 @@
 -- Bumu Paygo shared CRM Supabase schema
 -- Run once in the Supabase SQL Editor before deploying the portals.
 
+create schema if not exists extensions;
 create extension if not exists pgcrypto;
-create extension if not exists pg_trgm;
+create extension if not exists pg_trgm with schema extensions;
+alter extension pg_trgm set schema extensions;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -651,6 +653,7 @@ alter table public.inventory_products drop column if exists imei;
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -830,6 +833,7 @@ create or replace function public.finance_dashboard_summary(days_back integer de
 returns jsonb
 language sql
 stable
+set search_path = public
 as $$
   with payment_summary as (
     select

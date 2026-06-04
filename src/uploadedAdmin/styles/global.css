@@ -80,6 +80,8 @@ b {
   grid-template-columns: 280px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 100vh;
+  width: 100%;
+  overflow: visible;
   transition: grid-template-columns 180ms ease;
 }
 
@@ -96,7 +98,8 @@ b {
   padding: 24px;
   background: var(--brand-gradient);
   color: #eef5ff;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -169,6 +172,8 @@ b {
   grid-column: 2;
   grid-row: 2;
   min-width: 0;
+  min-height: 0;
+  overflow: visible;
 }
 
 .topbar {
@@ -290,8 +295,10 @@ b {
 }
 
 .content-area {
+  min-height: calc(100vh - 88px);
   padding: 34px 28px 28px;
   background: #f5f7fb;
+  overflow: visible;
 }
 
 .page-stack {
