@@ -97,6 +97,14 @@ Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The 
 
 Bumu Paygo uses Twilio for SMS only: OTPs, approval messages, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
 
+For next-of-kin SMS acceptance, set your Twilio phone number or Messaging Service inbound webhook to:
+
+```text
+https://your-vercel-domain.vercel.app/api/twilio/inbound
+```
+
+Use `POST`. When the next-of-kin replies `1`, `YES`, or `ACCEPT`, the webhook confirms acceptance, moves the application through automatic screening, and sends the customer activation OTP if the application is approved. The SMS link flow also remains available.
+
 Recommended backend flow:
 
 ```text

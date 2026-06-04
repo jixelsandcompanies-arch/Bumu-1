@@ -75,8 +75,8 @@ export async function sendOtpSms({ phone, otp }) {
 
 export async function sendNextOfKinAcceptanceSms({ phone, otp, customerName, acceptUrl }) {
   const actionText = acceptUrl
-    ? `Accept here: ${acceptUrl}`
-    : `If you accept, give OTP ${otp} to the agent.`;
+    ? `Accept here: ${acceptUrl} or reply 1/YES to accept.`
+    : `Reply 1/YES to accept, or give OTP ${otp} to the agent.`;
   return sendSms({
     to: phone,
     message: `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} OTP ${otp}. Valid for 10 minutes.`

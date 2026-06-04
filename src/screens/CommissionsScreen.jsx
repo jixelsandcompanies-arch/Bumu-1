@@ -71,7 +71,16 @@ export function CommissionsScreen() {
   }, new Map());
 
   useEffect(() => {
-    commissionService.listCommissions().then(setCommissions).catch(() => setCommissions([]));
+    let mounted = true;
+    function loadCommissions() {
+      commissionService.listCommissions().then((records) => mounted && setCommissions(records)).catch(() => mounted && setCommissions([]));
+    }
+    loadCommissions();
+    const timer = window.setInterval(loadCommissions, 30000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   async function payAgent(commissionId) {

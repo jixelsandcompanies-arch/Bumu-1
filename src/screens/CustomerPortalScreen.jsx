@@ -70,9 +70,11 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const compactLayout = useIsCompactLayout();
 
-  async function loadPortal() {
-    setLoading(true);
-    setMessage('');
+  async function loadPortal({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setMessage('');
+    }
     try {
       const data = await customerPortalService.loadPortal();
       setPortal({ ...emptyPortal, ...data });
@@ -82,7 +84,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
       customerPortalService.logout();
       setAuthenticated(false);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -91,6 +93,14 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
       loadPortal();
     }
   }, []);
+
+  useEffect(() => {
+    if (!authenticated) return undefined;
+    const timer = window.setInterval(() => {
+      loadPortal({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [authenticated]);
 
   function goHome() {
     window.history.pushState(null, '', '#/');
@@ -147,7 +157,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
         {compactLayout && menuOpen ? <Pressable style={styles.drawerScrim} onPress={() => setMenuOpen(false)} /> : null}
         <View style={[styles.sidebar, compactLayout && styles.sidebarDrawer, compactLayout && menuOpen && styles.sidebarDrawerOpen]}>
           <Pressable onPress={goHome} style={styles.backButton}>
-            <ArrowLeft size={16} color={colors.primary} />
+            <ArrowLeft size={16} color="#dbeafe" />
             <Text style={styles.backText}>Website</Text>
           </Pressable>
           <View style={styles.customerBrand}>
@@ -164,7 +174,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
                 onPress={() => navigateTab(key)}
                 style={[styles.navItem, activeTab === key && styles.navItemActive]}
               >
-                <Icon size={17} color={activeTab === key ? colors.primary : colors.muted} />
+                <Icon size={17} color={activeTab === key ? '#ffffff' : '#dbeafe'} />
                 <Text style={[styles.navText, activeTab === key && styles.navTextActive]}>{label}</Text>
               </Pressable>
             ))}
@@ -176,7 +186,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
           {compactLayout ? (
             <View style={styles.mobileTopBar}>
               <Pressable onPress={() => setMenuOpen((current) => !current)} style={styles.menuButton}>
-                {menuOpen ? <X size={22} color={colors.primary} /> : <Menu size={22} color={colors.primary} />}
+                {menuOpen ? <X size={22} color="#ffffff" /> : <Menu size={22} color="#ffffff" />}
               </Pressable>
               <View style={{ minWidth: 0, flex: 1 }}>
                 <Text style={styles.mobileTitle}>Customer portal</Text>
@@ -675,9 +685,9 @@ const styles = StyleSheet.create({
   sidebar: {
     width: 250,
     borderWidth: 1,
-    borderColor: '#dbe5ef',
+    borderColor: colors.primary,
     borderRadius: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.primary,
     padding: 14,
     gap: 14,
     alignSelf: 'flex-start'
@@ -719,9 +729,9 @@ const styles = StyleSheet.create({
   mobileTopBar: {
     minHeight: 54,
     borderWidth: 1,
-    borderColor: '#dbe5ef',
+    borderColor: colors.primary,
     borderRadius: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.primary,
     padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -731,20 +741,20 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderWidth: 1,
-    borderColor: '#dbe5ef',
+    borderColor: 'rgba(255,255,255,0.32)',
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     cursor: 'pointer'
   },
   mobileTitle: {
-    color: colors.text,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600'
   },
   mobileSubtitle: {
-    color: colors.muted,
+    color: '#dbeafe',
     fontSize: 12
   },
   customerBrand: {
@@ -757,14 +767,15 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.primary
+    borderColor: '#dbeafe'
   },
   brandTitle: {
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600'
   },
   brandSubtitle: {
-    color: colors.muted,
+    color: '#dbeafe',
     fontSize: 13
   },
   backButton: {
@@ -776,7 +787,7 @@ const styles = StyleSheet.create({
     cursor: 'pointer'
   },
   backText: {
-    color: colors.primary,
+    color: '#dbeafe',
     fontWeight: '500'
   },
   navList: {
@@ -792,14 +803,14 @@ const styles = StyleSheet.create({
     cursor: 'pointer'
   },
   navItemActive: {
-    backgroundColor: colors.primarySoft
+    backgroundColor: 'rgba(255,255,255,0.18)'
   },
   navText: {
-    color: colors.slate,
+    color: '#eaf2ff',
     fontWeight: '500'
   },
   navTextActive: {
-    color: colors.primary
+    color: '#ffffff'
   },
   logoutButton: {
     marginTop: 6

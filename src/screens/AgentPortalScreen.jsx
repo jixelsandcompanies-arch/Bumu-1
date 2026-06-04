@@ -79,9 +79,11 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const compactLayout = useIsCompactLayout();
 
-  async function loadPortal() {
-    setLoading(true);
-    setMessage('');
+  async function loadPortal({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setMessage('');
+    }
     try {
       const data = await agentWorkspaceService.loadPortal();
       setPortal({ ...emptyPortal, ...data });
@@ -91,13 +93,21 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
       agentWorkspaceService.logout();
       setAuthenticated(false);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     if (authenticated) loadPortal();
   }, []);
+
+  useEffect(() => {
+    if (!authenticated) return undefined;
+    const timer = window.setInterval(() => {
+      loadPortal({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [authenticated]);
 
   function goHome() {
     window.history.pushState(null, '', '#/');
@@ -151,7 +161,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
         {compactLayout && menuOpen ? <Pressable style={styles.drawerScrim} onPress={() => setMenuOpen(false)} /> : null}
         <View style={[styles.sidebar, compactLayout && styles.sidebarDrawer, compactLayout && menuOpen && styles.sidebarDrawerOpen]}>
           <Pressable onPress={goHome} style={styles.backButton}>
-            <ArrowLeft size={16} color={colors.primary} />
+            <ArrowLeft size={16} color="#dbeafe" />
             <Text style={styles.backText}>Website</Text>
           </Pressable>
           <View style={styles.brandRow}>
@@ -176,7 +186,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
                 onPress={() => navigateTab(key)}
                 style={[styles.navItem, activeTab === key && styles.navItemActive]}
               >
-                <Icon size={17} color={activeTab === key ? colors.primary : colors.muted} />
+                <Icon size={17} color={activeTab === key ? '#ffffff' : '#dbeafe'} />
                 <Text style={[styles.navText, activeTab === key && styles.navTextActive]}>{label}</Text>
               </Pressable>
             ))}
@@ -188,7 +198,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
           {compactLayout ? (
             <View style={styles.mobileTopBar}>
               <Pressable onPress={() => setMenuOpen((current) => !current)} style={styles.menuButton}>
-                {menuOpen ? <X size={22} color={colors.primary} /> : <Menu size={22} color={colors.primary} />}
+                {menuOpen ? <X size={22} color="#ffffff" /> : <Menu size={22} color="#ffffff" />}
               </Pressable>
               <View style={{ minWidth: 0, flex: 1 }}>
                 <Text style={styles.mobileTitle}>Agent portal</Text>
@@ -1002,7 +1012,7 @@ const styles = StyleSheet.create({
   rootContentCompact: { padding: 10, paddingBottom: 28 },
   workspace: { width: '100%', maxWidth: 1180, marginHorizontal: 'auto', flexDirection: 'row', gap: 16, alignItems: 'stretch' },
   workspaceCompact: { maxWidth: '100%', flexDirection: 'column', gap: 10 },
-  sidebar: { width: 255, borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, backgroundColor: '#ffffff', padding: 14, gap: 14, alignSelf: 'flex-start' },
+  sidebar: { width: 255, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, backgroundColor: colors.primary, padding: 14, gap: 14, alignSelf: 'flex-start' },
   sidebarDrawer: {
     position: 'fixed',
     top: 0,
@@ -1034,9 +1044,9 @@ const styles = StyleSheet.create({
   mobileTopBar: {
     minHeight: 54,
     borderWidth: 1,
-    borderColor: '#dbe5ef',
+    borderColor: colors.primary,
     borderRadius: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.primary,
     padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1046,29 +1056,29 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderWidth: 1,
-    borderColor: '#dbe5ef',
+    borderColor: 'rgba(255,255,255,0.32)',
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     cursor: 'pointer'
   },
-  mobileTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  mobileSubtitle: { color: colors.muted, fontSize: 12 },
+  mobileTitle: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  mobileSubtitle: { color: '#dbeafe', fontSize: 12 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandLogo: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.primary },
-  brandTitle: { fontSize: 18, fontWeight: '600' },
-  brandSubtitle: { color: colors.muted, fontSize: 13 },
+  brandLogo: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#dbeafe' },
+  brandTitle: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
+  brandSubtitle: { color: '#dbeafe', fontSize: 13 },
   backButton: { alignSelf: 'flex-start', minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 6, cursor: 'pointer' },
-  backText: { color: colors.primary, fontWeight: '500' },
-  agentCard: { borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, padding: 11, backgroundColor: '#f8fbff', gap: 3 },
-  agentName: { color: colors.text, fontWeight: '600' },
-  agentMeta: { color: colors.muted, fontSize: 12 },
+  backText: { color: '#dbeafe', fontWeight: '500' },
+  agentCard: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', borderRadius: 8, padding: 11, backgroundColor: 'rgba(255,255,255,0.12)', gap: 3 },
+  agentName: { color: '#ffffff', fontWeight: '600' },
+  agentMeta: { color: '#dbeafe', fontSize: 12 },
   navList: { gap: 6 },
   navItem: { minHeight: 38, borderRadius: 8, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9, cursor: 'pointer' },
-  navItemActive: { backgroundColor: colors.primarySoft },
-  navText: { color: colors.slate, fontWeight: '500' },
-  navTextActive: { color: colors.primary },
+  navItemActive: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  navText: { color: '#eaf2ff', fontWeight: '500' },
+  navTextActive: { color: '#ffffff' },
   pageHeader: { borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, backgroundColor: '#ffffff', padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   kicker: { color: colors.primary, fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   pageTitle: { fontSize: 27, lineHeight: 34, fontWeight: '600', color: colors.text },

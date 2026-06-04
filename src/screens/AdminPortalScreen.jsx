@@ -59,9 +59,11 @@ export function AdminPortalScreen() {
   const [portal, setPortal] = useState(emptyPortal);
   const [message, setMessage] = useState('');
 
-  async function loadPortal() {
-    setLoading(true);
-    setMessage('');
+  async function loadPortal({ silent = false } = {}) {
+    if (!silent) {
+      setLoading(true);
+      setMessage('');
+    }
     try {
       const data = await adminPortalService.loadPortal();
       setPortal({ ...emptyPortal, ...data });
@@ -71,13 +73,21 @@ export function AdminPortalScreen() {
       adminPortalService.logout();
       setAuthenticated(false);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     if (authenticated) loadPortal();
   }, []);
+
+  useEffect(() => {
+    if (!authenticated) return undefined;
+    const timer = window.setInterval(() => {
+      loadPortal({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [authenticated]);
 
   function goHome() {
     window.history.pushState(null, '', '#/');

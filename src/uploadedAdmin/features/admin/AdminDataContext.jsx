@@ -187,7 +187,7 @@ export function AdminDataProvider({ children }) {
   const [dataStatus, setDataStatus] = useState("idle");
   const [dataError, setDataError] = useState("");
 
-  const loadPortal = useCallback(async () => {
+  const loadPortal = useCallback(async ({ silent = false } = {}) => {
     if (!isAuthenticated) {
       setState(defaultState);
       setDataStatus("idle");
@@ -195,7 +195,7 @@ export function AdminDataProvider({ children }) {
     }
 
     try {
-      setDataStatus("loading");
+      if (!silent) setDataStatus("loading");
       const data = await apiRequest("/api/admin/portal");
       setState({ ...defaultState, ...mapPortal(data.portal) });
       setDataStatus("live");
@@ -209,6 +209,14 @@ export function AdminDataProvider({ children }) {
   useEffect(() => {
     loadPortal();
   }, [loadPortal]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const timer = window.setInterval(() => {
+      loadPortal({ silent: true });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [isAuthenticated, loadPortal]);
 
   const currentActor = user?.name || user?.email || "System user";
   const currentRole = user?.role || "system";

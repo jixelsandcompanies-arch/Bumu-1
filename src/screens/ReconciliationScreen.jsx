@@ -26,6 +26,13 @@ export function ReconciliationScreen() {
 
   useEffect(() => {
     runCheck();
+    const timer = window.setInterval(() => {
+      financeService
+        .getReconciliation()
+        .then(setReconciliation)
+        .catch(() => null);
+    }, 30000);
+    return () => window.clearInterval(timer);
   }, []);
 
   return (

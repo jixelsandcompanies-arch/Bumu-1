@@ -8,6 +8,12 @@ const REQUIRED_TABLES = [
   'admin_audit_logs',
   'agents',
   'customers',
+  'customer_applications',
+  'inventory_products',
+  'payments',
+  'commissions',
+  'finance_notifications',
+  'agent_notifications',
   'api_rate_limits'
 ];
 

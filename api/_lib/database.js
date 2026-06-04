@@ -1359,7 +1359,7 @@ function activationSmsWasDelivered(result) {
   return Boolean(result?.customer?.delivered);
 }
 
-async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
+async function completeNextOfKinAcceptance({ customerId, otp, agent, trustedPhoneAcceptance = false }) {
   const customerQuery = getSupabase()
     .from('customers')
     .select('*')
@@ -1383,7 +1383,7 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
       full_name: customerResult.data.agent_name,
       agent_name: customerResult.data.agent_name
     };
-    return completeNextOfKinAcceptance({ customerId, otp, agent });
+    return completeNextOfKinAcceptance({ customerId, otp, agent, trustedPhoneAcceptance });
   }
 
   if (agent.agent_code || agent.agent_id) {
@@ -1406,9 +1406,12 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent }) {
   }
 
   if (
-    !customer.next_of_kin_otp_hash ||
-    customer.next_of_kin_otp_hash !== hashOtp(phone, otp) ||
-    new Date(customer.next_of_kin_otp_expires_at).getTime() < Date.now()
+    !trustedPhoneAcceptance &&
+    (
+      !customer.next_of_kin_otp_hash ||
+      customer.next_of_kin_otp_hash !== hashOtp(phone, otp) ||
+      new Date(customer.next_of_kin_otp_expires_at).getTime() < Date.now()
+    )
   ) {
     const invalid = new Error('Invalid or expired next-of-kin OTP.');
     invalid.statusCode = 400;
@@ -1501,6 +1504,43 @@ export async function acceptNextOfKinOtp(customerId, body) {
   }
 
   return completeNextOfKinAcceptance({ customerId, otp, agent: null });
+}
+
+export async function acceptNextOfKinByPhone(phone) {
+  const normalized = String(phone || '').replace(/\D/g, '');
+  if (!normalized) {
+    const error = new Error('Next-of-kin phone is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const candidates = await getSupabase()
+    .from('customers')
+    .select('*')
+    .eq('next_of_kin_otp_status', 'sent')
+    .gt('next_of_kin_otp_expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (candidates.error) throw mapSupabaseError(candidates.error);
+
+  const customer = (candidates.data || []).find((item) => {
+    const candidate = String(item.next_of_kin_phone || '').replace(/\D/g, '');
+    return candidate && (
+      normalized.endsWith(candidate) ||
+      candidate.endsWith(normalized) ||
+      normalized.endsWith(candidate.slice(-9)) ||
+      candidate.endsWith(normalized.slice(-9))
+    );
+  });
+
+  if (!customer) {
+    const error = new Error('No pending next-of-kin request was found for this phone.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return completeNextOfKinAcceptance({ customerId: customer.id, otp: '', agent: null, trustedPhoneAcceptance: true });
 }
 
 export async function verifyNextOfKinOtp(user, customerId, body) {

@@ -147,6 +147,21 @@ export function CustomersScreen() {
     setQuery('');
   }
 
+  useEffect(() => {
+    if (!hasSearched || !searchedAgentName || !searchedAgentId) return undefined;
+    let mounted = true;
+    const timer = window.setInterval(() => {
+      customerService
+        .listPaymentRecordsByAgent({ agentName: searchedAgentName, agentId: searchedAgentId })
+        .then((records) => mounted && setAgentPayments(records))
+        .catch(() => null);
+    }, 30000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, [hasSearched, searchedAgentName, searchedAgentId]);
+
   function closeRecords() {
     setAgentPayments([]);
     setHasSearched(false);

@@ -59,7 +59,16 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
   });
 
   useEffect(() => {
-    paymentService.listPayments().then(setPaymentRecords).catch(() => setPaymentRecords([]));
+    let mounted = true;
+    function loadPayments() {
+      paymentService.listPayments().then((records) => mounted && setPaymentRecords(records)).catch(() => mounted && setPaymentRecords([]));
+    }
+    loadPayments();
+    const timer = window.setInterval(loadPayments, 30000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
