@@ -110,6 +110,12 @@ export const adminPortalService = {
     });
   },
 
+  async approveAgent(id) {
+    return request(`/api/admin/agents/${encodeURIComponent(id)}/approve`, {
+      method: 'POST'
+    });
+  },
+
   async createCustomer(customer) {
     return request('/api/admin/customers', {
       method: 'POST',
@@ -128,6 +134,12 @@ export const adminPortalService = {
     return request(`/api/admin/applications/${encodeURIComponent(id)}/review`, {
       method: 'POST',
       body: { action, reason }
+    });
+  },
+
+  async approveFinanceUser(id) {
+    return request(`/api/admin/finance-users/${encodeURIComponent(id)}/approve`, {
+      method: 'POST'
     });
   }
 };

@@ -79,6 +79,31 @@ export function validateStrongPassword(password) {
   );
 }
 
+export function requiredTextFields(fields) {
+  return Object.entries(fields)
+    .filter(([, value]) => String(value ?? '').trim().length === 0)
+    .map(([label]) => label);
+}
+
+export function assertRequiredTextFields(fields) {
+  const missing = requiredTextFields(fields);
+  if (missing.length > 0) {
+    const error = new Error(`Complete required fields: ${missing.join(', ')}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+export function assertPositiveNumber(value, label) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    const error = new Error(`Enter a valid ${label}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return number;
+}
+
 export function genericAuthMessage() {
   return 'Invalid login credentials.';
 }

@@ -29,6 +29,7 @@ const emptyPortal = {
   products: [],
   payments: [],
   commissions: [],
+  financeUsers: [],
   applications: [],
   audits: []
 };
@@ -363,6 +364,7 @@ function AgentsTab({ portal, onRefresh }) {
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', nationalId: '', region: '' });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [approvingId, setApprovingId] = useState('');
 
   async function submit() {
     setMessage('');
@@ -379,6 +381,20 @@ function AgentsTab({ portal, onRefresh }) {
     }
   }
 
+  async function approve(id) {
+    setMessage('');
+    setApprovingId(id);
+    try {
+      await adminPortalService.approveAgent(id);
+      setMessage('Agent approved and SMS notification queued.');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setApprovingId('');
+    }
+  }
+
   return (
     <View style={styles.twoColumn}>
       <View style={styles.panel}>
@@ -391,13 +407,44 @@ function AgentsTab({ portal, onRefresh }) {
         {message ? <Text style={styles.greenText}>{message}</Text> : null}
         <Button icon={UserPlus} onPress={submit} disabled={submitting} style={styles.fullButton}>{submitting ? 'Saving...' : 'Create agent'}</Button>
       </View>
-      <PanelList title="Agents" items={portal.agents.map((item) => ({ id: item.id, title: item.name, text: `${fallback(item.email)} | ${fallback(item.phone)} | ${item.status}` }))} emptyText="No agents yet." />
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Agents</Text>
+        <View style={styles.miniList}>
+          {portal.agents.map((item) => (
+            <View key={item.id} style={styles.miniItem}>
+              <Text style={styles.rowTitle}>{item.name}</Text>
+              <Text style={styles.rowText}>{fallback(item.email)} | {fallback(item.phone)} | {item.status}</Text>
+              {item.status !== 'active' ? (
+                <Button icon={ShieldCheck} onPress={() => approve(item.id)} disabled={Boolean(approvingId)} style={styles.fullButton}>
+                  {approvingId === item.id ? 'Approving...' : 'Approve agent'}
+                </Button>
+              ) : null}
+            </View>
+          ))}
+          {!portal.agents.length && <Text style={styles.panelText}>No agents yet.</Text>}
+        </View>
+      </View>
     </View>
   );
 }
 
 function CustomersTab({ portal, onRefresh }) {
-  const [form, setForm] = useState({ customerName: '', customerPhone: '', email: '', productType: 'bike', productModel: '', totalPayable: '', paidAmount: '' });
+  const [form, setForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    email: '',
+    nationalId: '',
+    nextOfKinName: '',
+    nextOfKinPhone: '',
+    nextOfKinRelationship: '',
+    productType: 'bike',
+    productModel: '',
+    serialNumber: '',
+    chassisNumber: '',
+    totalPayable: '',
+    paidAmount: '',
+    dailyInstallment: ''
+  });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -406,7 +453,22 @@ function CustomersTab({ portal, onRefresh }) {
     setSubmitting(true);
     try {
       await adminPortalService.createCustomer(form);
-      setForm({ customerName: '', customerPhone: '', email: '', productType: 'bike', productModel: '', totalPayable: '', paidAmount: '' });
+      setForm({
+        customerName: '',
+        customerPhone: '',
+        email: '',
+        nationalId: '',
+        nextOfKinName: '',
+        nextOfKinPhone: '',
+        nextOfKinRelationship: '',
+        productType: 'bike',
+        productModel: '',
+        serialNumber: '',
+        chassisNumber: '',
+        totalPayable: '',
+        paidAmount: '',
+        dailyInstallment: ''
+      });
       setMessage('Customer added to the shared CRM.');
       await onRefresh();
     } catch (error) {
@@ -423,10 +485,17 @@ function CustomersTab({ portal, onRefresh }) {
         <Field label="Customer name" value={form.customerName} onChangeText={(value) => setForm((current) => ({ ...current, customerName: value }))} placeholder="Full name" />
         <Field label="Phone" value={form.customerPhone} onChangeText={(value) => setForm((current) => ({ ...current, customerPhone: value }))} placeholder="Customer phone" />
         <Field label="Email" value={form.email} onChangeText={(value) => setForm((current) => ({ ...current, email: value }))} placeholder="Customer email" />
+        <Field label="National ID" value={form.nationalId} onChangeText={(value) => setForm((current) => ({ ...current, nationalId: value }))} placeholder="National ID" />
+        <Field label="Next-of-kin name" value={form.nextOfKinName} onChangeText={(value) => setForm((current) => ({ ...current, nextOfKinName: value }))} placeholder="Next-of-kin full name" />
+        <Field label="Next-of-kin phone" value={form.nextOfKinPhone} onChangeText={(value) => setForm((current) => ({ ...current, nextOfKinPhone: value }))} placeholder="Next-of-kin phone" />
+        <Field label="Next-of-kin relationship" value={form.nextOfKinRelationship} onChangeText={(value) => setForm((current) => ({ ...current, nextOfKinRelationship: value }))} placeholder="Relationship" />
         <Field label="Product type" value={form.productType} onChangeText={(value) => setForm((current) => ({ ...current, productType: value }))} placeholder="bike or phone" />
         <Field label="Product model" value={form.productModel} onChangeText={(value) => setForm((current) => ({ ...current, productModel: value }))} placeholder="Model" />
+        <Field label="Serial number" value={form.serialNumber} onChangeText={(value) => setForm((current) => ({ ...current, serialNumber: value }))} placeholder="Serial number" />
+        <Field label="Chassis number" value={form.chassisNumber} onChangeText={(value) => setForm((current) => ({ ...current, chassisNumber: value }))} placeholder="Bike chassis or asset reference" />
         <Field label="Total payable" value={form.totalPayable} onChangeText={(value) => setForm((current) => ({ ...current, totalPayable: value }))} placeholder="Amount" />
         <Field label="Paid amount" value={form.paidAmount} onChangeText={(value) => setForm((current) => ({ ...current, paidAmount: value }))} placeholder="Deposit" />
+        <Field label="Daily installment" value={form.dailyInstallment} onChangeText={(value) => setForm((current) => ({ ...current, dailyInstallment: value }))} placeholder="Daily amount" />
         {message ? <Text style={styles.greenText}>{message}</Text> : null}
         <Button icon={UserPlus} onPress={submit} disabled={submitting} style={styles.fullButton}>{submitting ? 'Saving...' : 'Create customer'}</Button>
       </View>
@@ -472,11 +541,48 @@ function ProductsTab({ portal, onRefresh }) {
   );
 }
 
-function FinanceTab({ portal }) {
+function FinanceTab({ portal, onRefresh }) {
+  const [message, setMessage] = useState('');
+  const [approvingId, setApprovingId] = useState('');
+
+  async function approveFinanceUser(id) {
+    setMessage('');
+    setApprovingId(id);
+    try {
+      await adminPortalService.approveFinanceUser(id);
+      setMessage('Finance account approved and SMS notification queued.');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setApprovingId('');
+    }
+  }
+
   return (
-    <View style={styles.twoColumn}>
+    <View style={styles.stack}>
+      {message ? <Text style={styles.greenText}>{message}</Text> : null}
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Finance account approvals</Text>
+        <View style={styles.miniList}>
+          {portal.financeUsers.map((item) => (
+            <View key={item.id} style={styles.miniItem}>
+              <Text style={styles.rowTitle}>{item.name}</Text>
+              <Text style={styles.rowText}>{fallback(item.email)} | {fallback(item.phone)} | {item.status}</Text>
+              {item.status !== 'active' ? (
+                <Button icon={ShieldCheck} onPress={() => approveFinanceUser(item.id)} disabled={Boolean(approvingId)} style={styles.fullButton}>
+                  {approvingId === item.id ? 'Approving...' : 'Approve finance account'}
+                </Button>
+              ) : null}
+            </View>
+          ))}
+          {!portal.financeUsers.length && <Text style={styles.panelText}>No finance users yet.</Text>}
+        </View>
+      </View>
+      <View style={styles.twoColumn}>
       <PanelList title="Latest payments" items={portal.payments.map((item) => ({ id: item.id, title: `${formatKes(item.amount)} - ${item.customerName}`, text: `${item.status} | ${fallback(item.receipt)} | ${item.date}` }))} emptyText="No payment records yet." />
       <PanelList title="Commissions" items={portal.commissions.map((item) => ({ id: item.id, title: `${formatKes(item.amount)} - ${item.agentName}`, text: `${item.status} | ${item.customerName}` }))} emptyText="No commission records yet." />
+      </View>
     </View>
   );
 }

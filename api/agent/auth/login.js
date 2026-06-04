@@ -45,6 +45,11 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (agent.status !== 'active') {
+      sendJson(res, 403, { message: 'Your agent account is waiting for admin approval. You will receive an SMS after approval.' });
+      return;
+    }
+
     sendJson(res, 200, {
       token: data.session.access_token,
       user: {

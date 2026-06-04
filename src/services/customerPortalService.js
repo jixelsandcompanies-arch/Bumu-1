@@ -59,6 +59,16 @@ async function request(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+function isStrongPassword(value) {
+  return (
+    String(value || '').length >= 10 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+}
+
 export const customerPortalService = {
   hasSession() {
     return Boolean(getCustomerToken());

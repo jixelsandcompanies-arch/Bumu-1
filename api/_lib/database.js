@@ -377,6 +377,191 @@ export async function listPayments(query = {}) {
   return { payments: data || [] };
 }
 
+export async function failPaymentRequest(paymentRequestId, { reason, providerResponse = {} } = {}) {
+  const result = await getSupabase()
+    .from('payment_requests')
+    .update({
+      status: 'failed',
+      failure_reason: reason || 'Payment failed.',
+      provider_response: providerResponse,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', paymentRequestId)
+    .select()
+    .single();
+
+  if (result.error) throw mapSupabaseError(result.error);
+  return result.data;
+}
+
+export async function completePaymentRequest(paymentRequest, {
+  amount,
+  phone,
+  receipt,
+  providerReference,
+  providerTransactionId,
+  providerResponse = {},
+  paidAt,
+  method = 'mpesa'
+} = {}) {
+  const customer = paymentRequest.customers || {};
+  const transactionId = providerTransactionId || receipt || providerReference;
+  const paymentReceipt = receipt || transactionId || paymentRequest.provider_reference || paymentRequest.id;
+  const paidAmount = Number(amount || paymentRequest.amount || 0);
+
+  if (!paidAmount || paidAmount <= 0) {
+    const error = new Error('Payment callback amount is missing or invalid.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingPayment = await getSupabase()
+    .from('payments')
+    .select('id')
+    .or(`receipt.eq.${paymentReceipt},provider_transaction_id.eq.${transactionId || paymentReceipt},provider_reference.eq.${providerReference || paymentReceipt}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPayment.error) throw mapSupabaseError(existingPayment.error);
+  if (existingPayment.data) {
+    await getSupabase()
+      .from('payment_requests')
+      .update({
+        status: 'completed',
+        failure_reason: null,
+        provider_response: providerResponse,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', paymentRequest.id);
+    return { duplicate: true, payment: existingPayment.data };
+  }
+
+  const nextPaidAmount = Number(customer.paid_amount || 0) + paidAmount;
+  const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - paidAmount, 0);
+  const totalPayable = Number(customer.total_payable || 0);
+  const repaymentPct = totalPayable > 0 ? Math.min(100, (nextPaidAmount / totalPayable) * 100) : 0;
+  const isDeposit = paymentRequest.source_portal === 'agent';
+  const completedAt = paidAt || new Date().toISOString();
+
+  const updateRequest = await getSupabase()
+    .from('payment_requests')
+    .update({
+      status: 'completed',
+      failure_reason: null,
+      provider_response: providerResponse,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', paymentRequest.id);
+
+  if (updateRequest.error) throw mapSupabaseError(updateRequest.error);
+
+  const insertPayment = await getSupabase()
+    .from('payments')
+    .insert({
+      customer_id: paymentRequest.customer_id,
+      customer_name: customer.customer_name || 'Customer',
+      customer_phone: customer.customer_phone || phone,
+      product_type: customer.product_type || 'product',
+      product_model: customer.product_model || customer.bike_model || null,
+      agent_name: customer.agent_name || null,
+      agent_id: customer.agent_id || null,
+      bike_model: customer.bike_model || null,
+      serial_number: customer.serial_number || null,
+      chassis_number: customer.chassis_number || null,
+      total_payable: totalPayable,
+      paid_amount: paidAmount,
+      balance: nextBalance,
+      deposit_credit: isDeposit ? paidAmount : 0,
+      paygo_payment: isDeposit ? 0 : paidAmount,
+      date: completedAt,
+      receipt: paymentReceipt,
+      provider_reference: providerReference || paymentRequest.provider_reference || paymentRequest.backend_reference || null,
+      provider_transaction_id: transactionId || null,
+      provider_account_reference: paymentRequest.customer_id,
+      provider_payer_phone: String(phone || ''),
+      provider_paid_at: completedAt,
+      method,
+      status: 'paid',
+      source_portal: paymentRequest.source_portal || 'customer'
+    })
+    .select()
+    .single();
+
+  if (insertPayment.error) throw mapSupabaseError(insertPayment.error);
+  await ensureSaleCommissionForPayment(insertPayment.data);
+
+  const updateCustomer = await getSupabase()
+    .from('customers')
+    .update({
+      paid_amount: nextPaidAmount,
+      balance: nextBalance,
+      last_payment_date: completedAt.slice(0, 10),
+      status: nextBalance <= 0 ? 'paid' : 'active',
+      overdue_days: nextBalance <= 0 ? 0 : Number(customer.overdue_days || 0)
+    })
+    .eq('id', paymentRequest.customer_id);
+
+  if (updateCustomer.error) throw mapSupabaseError(updateCustomer.error);
+
+  const sideEffects = await Promise.all([
+    getSupabase()
+      .from('customer_notifications')
+      .insert({
+        customer_id: paymentRequest.customer_id,
+        title: 'Payment confirmed',
+        message: `Payment of KES ${paidAmount.toLocaleString('en-KE')} was confirmed.`,
+        type: 'payment',
+        status: 'unread'
+      }),
+    getSupabase()
+      .from('finance_notifications')
+      .insert({
+        type: 'payment_confirmed',
+        title: 'Payment confirmed',
+        message: `${customer.customer_name || 'Customer'} paid KES ${paidAmount.toLocaleString('en-KE')}.`,
+        issue: 'Provider callback was received and matched to a payment request.',
+        follow_up: 'Review reconciliation only if the amount or account looks unusual.',
+        customer_id: paymentRequest.customer_id,
+        customer_name: customer.customer_name || '',
+        customer_phone: customer.customer_phone || phone || '',
+        agent_name: customer.agent_name || null,
+        agent_code: customer.agent_id || null,
+        amount: paidAmount,
+        balance: nextBalance,
+        overdue_days: Number(customer.overdue_days || 0),
+        source_portal: paymentRequest.source_portal || 'backend',
+        severity: 'success',
+        status: 'unread'
+      }),
+    getSupabase()
+      .from('reconciliation')
+      .insert({
+        payment_id: insertPayment.data.id,
+        receipt: paymentReceipt,
+        customer_name: customer.customer_name || 'Customer',
+        national_id: customer.national_id || null,
+        provider_amount: paidAmount,
+        system_amount: paidAmount,
+        date: completedAt.slice(0, 10),
+        status: 'matched',
+        source_portal: 'backend'
+      })
+  ]);
+
+  sideEffects.forEach((result) => {
+    if (result.error) throw mapSupabaseError(result.error);
+  });
+
+  return {
+    duplicate: false,
+    payment: insertPayment.data,
+    customer,
+    paidAmount,
+    nextBalance,
+    repaymentPct
+  };
+}
+
 export async function findCustomerForAuthUser(user) {
   const supabase = getSupabase();
   const userEmail = normalizeEmail(user?.email);
@@ -422,6 +607,12 @@ export async function getCustomerPortal(user) {
 
   if (!customer) {
     const error = new Error('Customer profile is not connected yet. Ask admin to link this email to a customer record.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (customer.customer_activation_otp_status !== 'verified') {
+    const error = new Error('Activate your customer account with the OTP sent after approval before opening the portal.');
     error.statusCode = 403;
     throw error;
   }
@@ -548,7 +739,7 @@ async function startCustomerCheckoutRequest(customer, { amount, phone, sourcePor
     const updated = await getSupabase()
       .from('payment_requests')
       .update({
-        status: provider.status,
+        status: provider.status === 'queued' ? 'pending' : provider.status,
         provider_reference: provider.checkoutRequestId || provider.transactionId || data.id,
         backend_reference: provider.merchantRequestId || provider.transactionId || null,
         provider_response: provider.providerResponse || {},
@@ -846,6 +1037,12 @@ export async function getAgentPortal(user) {
 
   if (!agent) {
     const error = new Error('Agent profile is not connected yet. Ask admin to approve or link this email.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (agent.status !== 'active') {
+    const error = new Error('Your agent account is waiting for admin approval.');
     error.statusCode = 403;
     throw error;
   }
@@ -1427,13 +1624,21 @@ export async function createAgentTask(user, body) {
     throw error;
   }
 
+  const title = nonEmpty(body.title);
+  const note = nonEmpty(body.note);
+  if (!title || !note) {
+    const error = new Error('Complete required fields: task title, task note.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const { data, error } = await getSupabase()
     .from('agent_tasks')
     .insert({
       agent_id: agent.id,
       customer_id: body.customerId || null,
-      title: body.title || 'Follow up customer',
-      note: body.note || '',
+      title,
+      note,
       due_label: body.dueLabel || 'Today',
       status: 'open'
     })
@@ -1467,15 +1672,41 @@ export async function completeAgentTask(user, taskId) {
 export async function createManualPayment(body) {
   const amount = Number(body.depositCredit || body.deposit_credit || 0) + Number(body.paygoPayment || body.paygo_payment || 0);
   const totalPayable = Number(body.totalPayable || body.total_payable || 0);
+  const customerName = nonEmpty(body.customerName || body.customer_name);
+  const customerPhone = nonEmpty(body.customerPhone || body.customer_phone);
+  const productType = nonEmpty(body.productType || body.product_type || body.assetType || body.asset_type);
+  const productModel = nonEmpty(body.productModel || body.product_model || body.bikeModel || body.bike_model || body.itemName || body.item_name);
+  const agentName = nonEmpty(body.agentName || body.agent_name);
+  const agentId = nonEmpty(body.agentId || body.agent_id);
+  const serialNumber = nonEmpty(body.serialNumber || body.serial_number || body.chassisNumber || body.chassis_number);
+
+  const missing = [
+    ['customer name', customerName],
+    ['customer phone', customerPhone],
+    ['product type', productType],
+    ['product model', productModel],
+    ['serial number or chassis number', serialNumber],
+    ['agent name', agentName],
+    ['agent ID', agentId]
+  ].filter(([, value]) => !value).map(([label]) => label);
+
+  if (missing.length > 0 || !Number.isFinite(totalPayable) || totalPayable <= 0 || !Number.isFinite(amount) || amount <= 0) {
+    const error = new Error(missing.length > 0
+      ? `Complete required fields: ${missing.join(', ')}.`
+      : 'Enter valid total payable and payment amount.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const record = {
-    customer_name: body.customerName || body.customer_name,
-    customer_phone: body.customerPhone || body.customer_phone,
-    product_type: body.productType || body.product_type || body.assetType || body.asset_type || 'product',
-    product_model: body.productModel || body.product_model || body.bikeModel || body.bike_model || body.itemName || body.item_name || null,
-    agent_name: body.agentName || body.agent_name,
-    agent_id: body.agentId || body.agent_id,
-    bike_model: body.bikeModel || body.bike_model || body.productModel || body.product_model || null,
-    serial_number: body.serialNumber || body.serial_number || body.chassisNumber || body.chassis_number,
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    product_type: productType,
+    product_model: productModel,
+    agent_name: agentName,
+    agent_id: agentId,
+    bike_model: nonEmpty(body.bikeModel || body.bike_model || body.productModel || body.product_model) || null,
+    serial_number: serialNumber,
     chassis_number: body.chassisNumber || body.chassis_number || null,
     total_payable: totalPayable,
     paid_amount: Number(body.paidAmount || body.paid_amount || amount),
@@ -1778,6 +2009,8 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const since = `${today}T00:00:00.000Z`;
+  const stalePaymentCutoff = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+  const staleOtpCutoff = now.toISOString();
   const customers = await getSupabase()
     .from('customers')
     .select('*')
@@ -1794,8 +2027,46 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
     smsSent: 0,
     smsFailed: 0,
     statusUpdates: 0,
+    expiredCustomerOtps: 0,
+    expiredNextOfKinOtps: 0,
+    stalePaymentRequests: 0,
     dryRun
   };
+
+  if (!dryRun) {
+    const [expiredCustomerOtps, expiredNextOfKinOtps, stalePaymentRequests] = await Promise.all([
+      getSupabase()
+        .from('customers')
+        .update({ customer_activation_otp_status: 'expired' })
+        .eq('customer_activation_otp_status', 'sent')
+        .lt('customer_activation_otp_expires_at', staleOtpCutoff)
+        .select('id'),
+      getSupabase()
+        .from('customers')
+        .update({ next_of_kin_otp_status: 'expired' })
+        .eq('next_of_kin_otp_status', 'sent')
+        .lt('next_of_kin_otp_expires_at', staleOtpCutoff)
+        .select('id'),
+      getSupabase()
+        .from('payment_requests')
+        .update({
+          status: 'failed',
+          failure_reason: 'Payment request expired before provider confirmation.',
+          updated_at: now.toISOString()
+        })
+        .in('status', ['pending', 'processing'])
+        .lt('created_at', stalePaymentCutoff)
+        .select('id')
+    ]);
+
+    [expiredCustomerOtps, expiredNextOfKinOtps, stalePaymentRequests].forEach(({ error }) => {
+      if (error) throw mapSupabaseError(error);
+    });
+
+    summary.expiredCustomerOtps = expiredCustomerOtps.data?.length || 0;
+    summary.expiredNextOfKinOtps = expiredNextOfKinOtps.data?.length || 0;
+    summary.stalePaymentRequests = stalePaymentRequests.data?.length || 0;
+  }
 
   for (const customer of customers.data || []) {
     const overdueDays = Math.max(0, daysBetween(customer.due_date, now));

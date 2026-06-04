@@ -1,5 +1,6 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
+import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,6 +10,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!isCallbackAuthorized(req, ['PAYOUT_CALLBACK_SECRET', 'WEBHOOK_SECRET'])) {
+      sendJson(res, 401, { message: 'B2C timeout callback is not authorized.' });
+      return;
+    }
+
     const body = await readJson(req);
     const conversationId = body.ConversationID || body.OriginatorConversationID || body.Result?.ConversationID;
 

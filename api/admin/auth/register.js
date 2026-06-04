@@ -39,8 +39,8 @@ export default async function handler(req, res) {
     const phone = String(body.phone || '').trim();
     const setupCode = String(body.setupCode || '').trim();
 
-    if (!fullName || !email.includes('@') || !validateStrongPassword(password)) {
-      sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
+    if (!fullName || !email.includes('@') || !phone || !validateStrongPassword(password)) {
+      sendJson(res, 400, { message: 'Enter full name, email, phone number, and a strong password.' });
       return;
     }
 

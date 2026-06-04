@@ -7,8 +7,10 @@ import {
   Home,
   LogIn,
   LogOut,
+  Menu,
   RefreshCw,
   Smartphone,
+  X,
   UserRound
 } from 'lucide-react';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -44,12 +46,29 @@ function fallback(value, text = 'Not set') {
   return value || text;
 }
 
+function useIsCompactLayout() {
+  const [compact, setCompact] = useState(() => window.innerWidth <= 760);
+
+  useEffect(() => {
+    function update() {
+      setCompact(window.innerWidth <= 760);
+    }
+
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return compact;
+}
+
 export function CustomerPortalScreen({ canInstall = false, onInstall }) {
   const [authenticated, setAuthenticated] = useState(() => customerPortalService.hasSession());
   const [loading, setLoading] = useState(customerPortalService.hasSession());
   const [activeTab, setActiveTab] = useState('dashboard');
   const [portal, setPortal] = useState(emptyPortal);
   const [message, setMessage] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const compactLayout = useIsCompactLayout();
 
   async function loadPortal() {
     setLoading(true);
@@ -83,6 +102,12 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
     setAuthenticated(false);
     setPortal(emptyPortal);
     setActiveTab('dashboard');
+    setMenuOpen(false);
+  }
+
+  function navigateTab(tab) {
+    setActiveTab(tab);
+    setMenuOpen(false);
   }
 
   if (!authenticated) {
@@ -117,9 +142,10 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.rootContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
-      <View style={styles.workspace}>
-        <View style={styles.sidebar}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.rootContent, compactLayout && styles.rootContentCompact]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+      <View style={[styles.workspace, compactLayout && styles.workspaceCompact]}>
+        {compactLayout && menuOpen ? <Pressable style={styles.drawerScrim} onPress={() => setMenuOpen(false)} /> : null}
+        <View style={[styles.sidebar, compactLayout && styles.sidebarDrawer, compactLayout && menuOpen && styles.sidebarDrawerOpen]}>
           <Pressable onPress={goHome} style={styles.backButton}>
             <ArrowLeft size={16} color={colors.primary} />
             <Text style={styles.backText}>Website</Text>
@@ -135,7 +161,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
             {tabs.map(([key, label, Icon]) => (
               <Pressable
                 key={key}
-                onPress={() => setActiveTab(key)}
+                onPress={() => navigateTab(key)}
                 style={[styles.navItem, activeTab === key && styles.navItemActive]}
               >
                 <Icon size={17} color={activeTab === key ? colors.primary : colors.muted} />
@@ -147,6 +173,17 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
         </View>
 
         <View style={styles.main}>
+          {compactLayout ? (
+            <View style={styles.mobileTopBar}>
+              <Pressable onPress={() => setMenuOpen((current) => !current)} style={styles.menuButton}>
+                {menuOpen ? <X size={22} color={colors.primary} /> : <Menu size={22} color={colors.primary} />}
+              </Pressable>
+              <View style={{ minWidth: 0, flex: 1 }}>
+                <Text style={styles.mobileTitle}>Customer portal</Text>
+                <Text style={styles.mobileSubtitle}>{tabs.find(([key]) => key === activeTab)?.[1]}</Text>
+              </View>
+            </View>
+          ) : null}
           <View style={styles.pageHeader}>
             <View style={{ minWidth: 0 }}>
               <Text style={styles.kicker}>Customer workspace</Text>
@@ -618,6 +655,10 @@ const styles = StyleSheet.create({
     minHeight: 'var(--app-vh)',
     padding: 18
   },
+  rootContentCompact: {
+    padding: 10,
+    paddingBottom: 28
+  },
   workspace: {
     width: '100%',
     maxWidth: 1180,
@@ -625,6 +666,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
     alignItems: 'stretch'
+  },
+  workspaceCompact: {
+    maxWidth: '100%',
+    flexDirection: 'column',
+    gap: 10
   },
   sidebar: {
     width: 250,
@@ -636,10 +682,70 @@ const styles = StyleSheet.create({
     gap: 14,
     alignSelf: 'flex-start'
   },
+  sidebarDrawer: {
+    position: 'fixed',
+    top: 0,
+    bottom: 0,
+    left: -280,
+    zIndex: 30,
+    width: 270,
+    maxWidth: '86vw',
+    height: '100dvh',
+    borderRadius: 0,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    overflowY: 'auto',
+    transitionProperty: 'left',
+    transitionDuration: '180ms'
+  },
+  sidebarDrawerOpen: {
+    left: 0
+  },
+  drawerScrim: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)'
+  },
   main: {
     flex: 1,
     minWidth: 0,
     gap: 14
+  },
+  mobileTopBar: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: '#dbe5ef',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#dbe5ef',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+    cursor: 'pointer'
+  },
+  mobileTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  mobileSubtitle: {
+    color: colors.muted,
+    fontSize: 12
   },
   customerBrand: {
     flexDirection: 'row',
@@ -841,6 +947,7 @@ const styles = StyleSheet.create({
   },
   rowRight: {
     alignItems: 'flex-end',
+    flexGrow: 1,
     gap: 4
   },
   tableList: {
@@ -853,6 +960,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 11,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12

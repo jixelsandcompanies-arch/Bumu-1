@@ -158,7 +158,9 @@ function RegisterPage() {
       setError('');
       await authService.register({ fullName, email, phone, password });
       authService.logout();
-      goToPage('login');
+      setError('Finance account submitted. Admin must approve it before sign-in. You will receive an SMS after approval.');
+      setPassword('');
+      setConfirmPassword('');
     } catch (err) {
       setError(err.message);
     }

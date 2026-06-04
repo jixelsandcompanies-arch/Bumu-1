@@ -1,4 +1,5 @@
 import { sendCommissionPaidSms } from '../_lib/africastalking.js';
+import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
 
@@ -17,6 +18,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!isCallbackAuthorized(req, ['PAYOUT_CALLBACK_SECRET', 'WEBHOOK_SECRET'])) {
+      sendJson(res, 401, { message: 'Payout callback is not authorized.' });
+      return;
+    }
+
     const body = await readJson(req);
     const transactionId = body.transactionId || body.providerRefId || body.provider_reference || body.id;
     const status = payoutStatus(body.status || body.statusCode);

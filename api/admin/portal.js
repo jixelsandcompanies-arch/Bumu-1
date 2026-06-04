@@ -68,7 +68,8 @@ export default async function handler(req, res) {
       payments,
       commissions,
       applications,
-      audits
+      audits,
+      financeAuthUsers
     ] = await Promise.all([
       getSupabase().from('agents').select('*').order('created_at', { ascending: false }).limit(200),
       getSupabase().from('customers').select('*').order('created_at', { ascending: false }).limit(200),
@@ -76,12 +77,14 @@ export default async function handler(req, res) {
       getSupabase().from('payments').select('*').order('date', { ascending: false }).limit(100),
       getSupabase().from('commissions').select('*').order('earned_at', { ascending: false }).limit(100),
       getSupabase().from('customer_applications').select('*, customers(*)').order('created_at', { ascending: false }).limit(100),
-      getSupabase().from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
+      getSupabase().from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+      getSupabase().auth.admin.listUsers({ page: 1, perPage: 200 })
     ]);
 
     [agents, customers, products, payments, commissions, applications, audits].forEach(({ error }) => {
       if (error) throw error;
     });
+    if (financeAuthUsers.error) throw financeAuthUsers.error;
 
     const customerRows = customers.data || [];
     const paymentRows = payments.data || [];
@@ -169,6 +172,16 @@ export default async function handler(req, res) {
           amount: Number(item.amount || 0),
           status: item.status || ''
         })),
+        financeUsers: (financeAuthUsers.data?.users || [])
+          .filter((item) => (item.app_metadata?.role || item.user_metadata?.role) === 'finance')
+          .map((item) => ({
+            id: item.id,
+            email: item.email || '',
+            name: item.user_metadata?.full_name || item.email || '',
+            phone: item.user_metadata?.phone || '',
+            status: item.app_metadata?.status || item.user_metadata?.status || 'pending',
+            createdAt: formatDate(item.created_at)
+          })),
         applications: applicationRows,
         audits: (audits.data || []).map((item) => ({
           id: item.id,

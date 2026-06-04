@@ -1,5 +1,5 @@
 import { readJson, sendJson } from '../_lib/http.js';
-import { assertBodySize, assertRateLimit } from '../_lib/security.js';
+import { assertBodySize, assertRateLimit, assertRequiredTextFields } from '../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../_lib/supabase.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
@@ -28,10 +28,20 @@ export default async function handler(req, res) {
     const fullName = String(body.fullName || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const phone = String(body.phone || '').trim();
+    const nationalId = String(body.nationalId || '').trim();
+    const region = String(body.region || '').trim();
     const agentCode = String(body.agentCode || `AG-${Date.now().toString(36).toUpperCase()}`).trim();
 
-    if (!fullName || !email.includes('@') || !phone) {
-      sendJson(res, 400, { message: 'Enter agent name, email, and phone.' });
+    assertRequiredTextFields({
+      'agent full name': fullName,
+      'agent email': email,
+      'agent phone': phone,
+      'national ID': nationalId,
+      region
+    });
+
+    if (!email.includes('@')) {
+      sendJson(res, 400, { message: 'Enter a valid agent email.' });
       return;
     }
 
@@ -43,8 +53,8 @@ export default async function handler(req, res) {
         agent_code: agentCode,
         email,
         phone,
-        national_id: body.nationalId || null,
-        region: body.region || null,
+        national_id: nationalId,
+        region,
         status: 'active',
         source_portal: 'admin'
       })

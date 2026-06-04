@@ -23,8 +23,8 @@ export default async function handler(req, res) {
     const fullName = String(body.fullName || '').trim();
     const phone = String(body.phone || '').trim();
 
-    if (!fullName || !email || !validateStrongPassword(password)) {
-      sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
+    if (!fullName || !email.includes('@') || !phone || !validateStrongPassword(password)) {
+      sendJson(res, 400, { message: 'Enter full name, email, phone number, and a strong password.' });
       return;
     }
 
@@ -35,10 +35,12 @@ export default async function handler(req, res) {
       user_metadata: {
         full_name: fullName,
         phone,
-        role: 'finance'
+        role: 'finance',
+        status: 'pending'
       },
       app_metadata: {
-        role: 'finance'
+        role: 'finance',
+        status: 'pending'
       }
     });
 
@@ -52,7 +54,8 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         fullName,
-        role: 'finance'
+        role: 'finance',
+        status: 'pending'
       }
     });
   } catch (error) {

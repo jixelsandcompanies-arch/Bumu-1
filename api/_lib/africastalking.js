@@ -189,6 +189,13 @@ export async function sendAgentFollowUpSms({ agentPhone, customerName, customerP
   });
 }
 
+export async function sendAccountApprovedSms({ phone, name, portal }) {
+  return sendSms({
+    to: phone,
+    message: `Hello ${name || 'there'}, your Bumu Paygo ${portal || 'portal'} account has been approved. You can now sign in.`
+  });
+}
+
 export async function sendCommissionPaidSms({ commission }) {
   return sendSms({
     to: commission?.agent_phone,

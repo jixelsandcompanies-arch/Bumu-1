@@ -1,6 +1,23 @@
 import { sendJson } from './_lib/http.js';
 import { proxyBackend } from './_lib/backend.js';
-import { getSupabase, hasSupabaseConfig } from './_lib/supabase.js';
+import { getSupabase, hasSupabaseAuthConfig, hasSupabaseConfig } from './_lib/supabase.js';
+
+const REQUIRED_TABLES = [
+  'admin_profiles',
+  'admin_audit_logs',
+  'agents',
+  'customers',
+  'api_rate_limits'
+];
+
+async function checkTable(supabase, table) {
+  const { error } = await supabase.from(table).select('*').limit(1);
+  return {
+    table,
+    ok: !error,
+    error: error ? error.message : null
+  };
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -16,6 +33,9 @@ export default async function handler(req, res) {
         ok: true,
         mode: 'api-ready',
         databaseConfigured: false,
+        supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL),
+        supabaseAnonKeyConfigured: Boolean(process.env.SUPABASE_ANON_KEY),
+        supabaseAuthConfigured: hasSupabaseAuthConfig(),
         supabaseServiceRoleValid: false,
         stateless: true,
         region: process.env.VERCEL_REGION || process.env.AWS_REGION || 'local',
@@ -26,13 +46,32 @@ export default async function handler(req, res) {
     }
 
     const serviceRoleCheck = await getSupabase().auth.admin.listUsers({ page: 1, perPage: 1 });
+    const tableChecks = serviceRoleCheck.error
+      ? []
+      : await Promise.all(REQUIRED_TABLES.map((table) => checkTable(getSupabase(), table)));
 
     sendJson(res, 200, {
-      ok: !serviceRoleCheck.error,
+      ok: !serviceRoleCheck.error && hasSupabaseAuthConfig() && tableChecks.every((check) => check.ok),
       mode: 'supabase',
       databaseConfigured: true,
+      supabaseUrlConfigured: Boolean(process.env.SUPABASE_URL),
+      supabaseAnonKeyConfigured: Boolean(process.env.SUPABASE_ANON_KEY),
+      supabaseAuthConfigured: hasSupabaseAuthConfig(),
       supabaseServiceRoleValid: !serviceRoleCheck.error,
-      error: serviceRoleCheck.error ? serviceRoleCheck.error.message : null,
+      tableChecks,
+      automation: {
+        cronSecretConfigured: Boolean(process.env.CRON_SECRET || process.env.FOLLOW_UP_CRON_SECRET),
+        paymentCallbackSecretConfigured: Boolean(process.env.PAYMENT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
+        payoutCallbackSecretConfigured: Boolean(process.env.PAYOUT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
+        smsConfigured: Boolean(process.env.AFRICASTALKING_USERNAME && process.env.AFRICASTALKING_API_KEY),
+        paymentProvider: process.env.PAYMENT_PROVIDER || 'africastalking',
+        commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'africastalking'
+      },
+      error: serviceRoleCheck.error
+        ? serviceRoleCheck.error.message
+        : !hasSupabaseAuthConfig()
+          ? 'SUPABASE_ANON_KEY is missing. Login routes cannot sign users in.'
+          : tableChecks.find((check) => !check.ok)?.error || null,
       stateless: true,
       region: process.env.VERCEL_REGION || process.env.AWS_REGION || 'local',
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID || null,

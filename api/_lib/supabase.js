@@ -7,6 +7,10 @@ export function hasSupabaseConfig() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+export function hasSupabaseAuthConfig() {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+}
+
 export function getSupabase() {
   if (!hasSupabaseConfig()) {
     throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.');
@@ -25,7 +29,7 @@ export function getSupabase() {
 }
 
 export function getSupabaseAuth() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  if (!hasSupabaseAuthConfig()) {
     throw new Error('Supabase Auth is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel.');
   }
 
@@ -69,6 +73,13 @@ export async function requireFinanceUser(req) {
     const roleError = new Error('Finance access is required.');
     roleError.statusCode = 403;
     throw roleError;
+  }
+
+  const accountStatus = data.user.app_metadata?.status || data.user.user_metadata?.status;
+  if (role === 'finance' && accountStatus !== 'active') {
+    const approvalError = new Error('Your finance account is waiting for admin approval.');
+    approvalError.statusCode = 403;
+    throw approvalError;
   }
 
   return data.user;

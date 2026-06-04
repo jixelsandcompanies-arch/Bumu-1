@@ -46,6 +46,11 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (customer.customer_activation_otp_status !== 'verified') {
+      sendJson(res, 403, { message: 'Activate your customer account with the OTP sent after approval before signing in.' });
+      return;
+    }
+
     sendJson(res, 200, {
       token: data.session.access_token,
       user: {

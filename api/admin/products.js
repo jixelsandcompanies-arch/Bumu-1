@@ -1,5 +1,5 @@
 import { readJson, sendJson } from '../_lib/http.js';
-import { assertBodySize, assertRateLimit } from '../_lib/security.js';
+import { assertBodySize, assertRateLimit, assertRequiredTextFields } from '../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../_lib/supabase.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
@@ -27,20 +27,25 @@ export default async function handler(req, res) {
     const body = await readJson(req);
     const productType = String(body.productType || 'product').trim().toLowerCase();
     const productModel = String(body.productModel || '').trim();
+    const serialNumber = String(body.serialNumber || '').trim();
+    const chassisNumber = String(body.chassisNumber || '').trim();
+    const branch = String(body.branch || '').trim();
 
-    if (!productType || !productModel) {
-      sendJson(res, 400, { message: 'Enter product type and model.' });
-      return;
-    }
+    assertRequiredTextFields({
+      'product type': productType,
+      'product model': productModel,
+      'serial number': serialNumber,
+      branch
+    });
 
     const { data, error } = await getSupabase()
       .from('inventory_products')
       .insert({
         product_type: productType,
         product_model: productModel,
-        serial_number: body.serialNumber || null,
-        chassis_number: body.chassisNumber || null,
-        branch: body.branch || null,
+        serial_number: serialNumber,
+        chassis_number: chassisNumber || null,
+        branch,
         status: body.status || 'available',
         source_portal: 'admin'
       })

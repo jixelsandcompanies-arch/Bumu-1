@@ -10,7 +10,9 @@ import {
   Home,
   LogIn,
   LogOut,
+  Menu,
   RefreshCw,
+  X,
   UserPlus,
   UsersRound
 } from 'lucide-react';
@@ -53,12 +55,29 @@ function mediaName(reference) {
   return String(reference).split('/').pop() || 'Captured';
 }
 
+function useIsCompactLayout() {
+  const [compact, setCompact] = useState(() => window.innerWidth <= 760);
+
+  useEffect(() => {
+    function update() {
+      setCompact(window.innerWidth <= 760);
+    }
+
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return compact;
+}
+
 export function AgentPortalScreen({ canInstall = false, onInstall }) {
   const [authenticated, setAuthenticated] = useState(() => agentWorkspaceService.hasSession());
   const [loading, setLoading] = useState(agentWorkspaceService.hasSession());
   const [activeTab, setActiveTab] = useState('dashboard');
   const [portal, setPortal] = useState(emptyPortal);
   const [message, setMessage] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const compactLayout = useIsCompactLayout();
 
   async function loadPortal() {
     setLoading(true);
@@ -90,6 +109,12 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
     setAuthenticated(false);
     setPortal(emptyPortal);
     setActiveTab('dashboard');
+    setMenuOpen(false);
+  }
+
+  function navigateTab(tab) {
+    setActiveTab(tab);
+    setMenuOpen(false);
   }
 
   if (!authenticated) {
@@ -118,12 +143,13 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
     );
   }
 
-  const props = { portal, onRefresh: loadPortal, onNavigate: setActiveTab };
+  const props = { portal, onRefresh: loadPortal, onNavigate: navigateTab };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.rootContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
-      <View style={styles.workspace}>
-        <View style={styles.sidebar}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.rootContent, compactLayout && styles.rootContentCompact]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+      <View style={[styles.workspace, compactLayout && styles.workspaceCompact]}>
+        {compactLayout && menuOpen ? <Pressable style={styles.drawerScrim} onPress={() => setMenuOpen(false)} /> : null}
+        <View style={[styles.sidebar, compactLayout && styles.sidebarDrawer, compactLayout && menuOpen && styles.sidebarDrawerOpen]}>
           <Pressable onPress={goHome} style={styles.backButton}>
             <ArrowLeft size={16} color={colors.primary} />
             <Text style={styles.backText}>Website</Text>
@@ -147,7 +173,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
             {tabs.map(([key, label, Icon]) => (
               <Pressable
                 key={key}
-                onPress={() => setActiveTab(key)}
+                onPress={() => navigateTab(key)}
                 style={[styles.navItem, activeTab === key && styles.navItemActive]}
               >
                 <Icon size={17} color={activeTab === key ? colors.primary : colors.muted} />
@@ -159,6 +185,17 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
         </View>
 
         <View style={styles.main}>
+          {compactLayout ? (
+            <View style={styles.mobileTopBar}>
+              <Pressable onPress={() => setMenuOpen((current) => !current)} style={styles.menuButton}>
+                {menuOpen ? <X size={22} color={colors.primary} /> : <Menu size={22} color={colors.primary} />}
+              </Pressable>
+              <View style={{ minWidth: 0, flex: 1 }}>
+                <Text style={styles.mobileTitle}>Agent portal</Text>
+                <Text style={styles.mobileSubtitle}>{tabs.find(([key]) => key === activeTab)?.[1]}</Text>
+              </View>
+            </View>
+          ) : null}
           <View style={styles.pageHeader}>
             <View style={{ minWidth: 0 }}>
               <Text style={styles.kicker}>Agent workspace</Text>
@@ -224,7 +261,7 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
     setSubmitting(true);
     try {
       await agentWorkspaceService.register({ fullName, nationalId, phone, region, email, password });
-      setNotice('Agent account created. Sign in with the same email and password.');
+      setNotice('Agent account submitted. Admin must approve it before you can sign in. You will receive an SMS after approval.');
       setMode('login');
       setPassword('');
     } catch (error) {
@@ -962,9 +999,62 @@ function MiniList({ items, emptyText }) {
 const styles = StyleSheet.create({
   root: { height: 'var(--app-vh)', width: '100%', backgroundColor: '#f4f8fb', overflowY: 'auto' },
   rootContent: { minHeight: 'var(--app-vh)', padding: 18 },
+  rootContentCompact: { padding: 10, paddingBottom: 28 },
   workspace: { width: '100%', maxWidth: 1180, marginHorizontal: 'auto', flexDirection: 'row', gap: 16, alignItems: 'stretch' },
+  workspaceCompact: { maxWidth: '100%', flexDirection: 'column', gap: 10 },
   sidebar: { width: 255, borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, backgroundColor: '#ffffff', padding: 14, gap: 14, alignSelf: 'flex-start' },
+  sidebarDrawer: {
+    position: 'fixed',
+    top: 0,
+    bottom: 0,
+    left: -285,
+    zIndex: 30,
+    width: 275,
+    maxWidth: '86vw',
+    height: '100dvh',
+    borderRadius: 0,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    overflowY: 'auto',
+    transitionProperty: 'left',
+    transitionDuration: '180ms'
+  },
+  sidebarDrawerOpen: { left: 0 },
+  drawerScrim: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)'
+  },
   main: { flex: 1, minWidth: 0, gap: 14 },
+  mobileTopBar: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: '#dbe5ef',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#dbe5ef',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+    cursor: 'pointer'
+  },
+  mobileTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  mobileSubtitle: { color: colors.muted, fontSize: 12 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandLogo: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.primary },
   brandTitle: { fontSize: 18, fontWeight: '600' },
@@ -1002,7 +1092,7 @@ const styles = StyleSheet.create({
   field: { gap: 6, width: '100%' },
   gridField: { flexGrow: 1, flexBasis: 230, width: 'auto' },
   mediaField: { flexGrow: 1, flexBasis: 230, width: 'auto', gap: 6 },
-  mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
+  mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
   cameraPanel: { borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, gap: 8, backgroundColor: '#f8fbff' },
   cameraPreviewWrap: { position: 'relative', width: '100%', minHeight: 220, aspectRatio: '4 / 3', maxHeight: 360, borderRadius: 8, overflow: 'hidden', backgroundColor: '#0f172a' },
   cameraPreview: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#0f172a', display: 'block' },
@@ -1019,13 +1109,13 @@ const styles = StyleSheet.create({
   miniItem: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 10, gap: 7 },
   tableList: { gap: 8 },
   customerCard: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, backgroundColor: '#ffffff', overflow: 'hidden' },
-  tableRow: { minHeight: 70, padding: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  tableRow: { minHeight: 70, padding: 11, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   depositBox: { borderTopWidth: 1, borderTopColor: '#e5edf6', padding: 11, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 10, backgroundColor: '#f8fbff' },
   depositButton: { flexGrow: 1, flexBasis: 210 },
   emptyState: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 12, backgroundColor: '#ffffff' },
   rowTitle: { color: colors.text, fontWeight: '600' },
   rowText: { color: colors.muted, lineHeight: 20 },
-  rowRight: { alignItems: 'flex-end', gap: 4 },
+  rowRight: { alignItems: 'flex-end', gap: 4, flexGrow: 1 },
   rowAmount: { color: colors.text, fontWeight: '600', textAlign: 'right' },
   rowStatus: { color: colors.success, fontSize: 12, fontWeight: '600', textAlign: 'right' },
   authRoot: { height: 'var(--app-vh)', width: '100%', backgroundColor: 'var(--app-bg)', overflowY: 'auto' },

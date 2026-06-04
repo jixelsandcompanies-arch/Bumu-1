@@ -32,8 +32,8 @@ export default async function handler(req, res) {
     const region = String(body.region || '').trim();
     const nationalId = String(body.nationalId || '').trim();
 
-    if (!fullName || !email.includes('@') || !phone || !validateStrongPassword(password)) {
-      sendJson(res, 400, { message: 'Password must be at least 10 characters and include uppercase, lowercase, number, and special character.' });
+    if (!fullName || !email.includes('@') || !phone || !nationalId || !region || !validateStrongPassword(password)) {
+      sendJson(res, 400, { message: 'Enter full name, email, phone, national ID, region, and a strong password.' });
       return;
     }
 
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
           phone: existing.data.phone || phone,
           email: existing.data.email || email,
           region: existing.data.region || region,
-          status: existing.data.status || 'active'
+          status: existing.data.status === 'active' ? 'active' : 'pending'
         })
         .eq('id', existing.data.id)
         .select()
@@ -130,7 +130,7 @@ export default async function handler(req, res) {
           phone,
           email,
           region,
-          status: 'active'
+          status: 'pending'
         })
         .select()
         .single();
@@ -151,7 +151,8 @@ export default async function handler(req, res) {
         role: 'agent',
         agentId: profile.id,
         agentCode: profile.agent_code,
-        fullName
+        fullName,
+        status: profile.status
       }
     });
   } catch (error) {

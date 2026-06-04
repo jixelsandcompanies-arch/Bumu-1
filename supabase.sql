@@ -436,6 +436,50 @@ alter table public.customers add constraint customers_agent_required_kyc_check
       and due_date is not null
     )
   );
+alter table public.admin_profiles drop constraint if exists admin_profiles_required_fields;
+alter table public.admin_profiles add constraint admin_profiles_required_fields
+  check (
+    nullif(trim(full_name), '') is not null
+    and nullif(trim(email), '') is not null
+  ) not valid;
+alter table public.agents drop constraint if exists agents_required_fields;
+alter table public.agents add constraint agents_required_fields
+  check (
+    nullif(trim(agent_code), '') is not null
+    and nullif(trim(full_name), '') is not null
+    and nullif(trim(phone), '') is not null
+    and nullif(trim(email), '') is not null
+    and nullif(trim(national_id), '') is not null
+    and nullif(trim(region), '') is not null
+  ) not valid;
+alter table public.inventory_products add column if not exists product_type text not null default 'product';
+alter table public.inventory_products add column if not exists product_model text;
+alter table public.inventory_products add column if not exists serial_number text;
+alter table public.inventory_products add column if not exists chassis_number text;
+alter table public.inventory_products add column if not exists branch text;
+alter table public.inventory_products drop constraint if exists inventory_products_required_fields;
+alter table public.inventory_products add constraint inventory_products_required_fields
+  check (
+    nullif(trim(product_type), '') is not null
+    and nullif(trim(product_model), '') is not null
+    and nullif(trim(serial_number), '') is not null
+    and nullif(trim(branch), '') is not null
+  ) not valid;
+alter table public.customers drop constraint if exists customers_required_fields;
+alter table public.customers add constraint customers_required_fields
+  check (
+    nullif(trim(customer_name), '') is not null
+    and nullif(trim(customer_phone), '') is not null
+    and nullif(trim(national_id), '') is not null
+    and nullif(trim(product_type), '') is not null
+    and nullif(trim(product_model), '') is not null
+    and nullif(trim(serial_number), '') is not null
+    and nullif(trim(next_of_kin_name), '') is not null
+    and nullif(trim(next_of_kin_phone), '') is not null
+    and nullif(trim(next_of_kin_relationship), '') is not null
+    and total_payable > 0
+    and daily_installment > 0
+  ) not valid;
 alter table public.payments add column if not exists product_type text not null default 'bike';
 alter table public.payments add column if not exists product_model text;
 alter table public.payments add column if not exists chassis_number text;
@@ -444,6 +488,18 @@ alter table public.payments add column if not exists provider_transaction_id tex
 alter table public.payments add column if not exists provider_account_reference text;
 alter table public.payments add column if not exists provider_payer_phone text;
 alter table public.payments add column if not exists provider_paid_at timestamptz;
+alter table public.payments drop constraint if exists payments_required_fields;
+alter table public.payments add constraint payments_required_fields
+  check (
+    nullif(trim(customer_name), '') is not null
+    and nullif(trim(customer_phone), '') is not null
+    and nullif(trim(product_type), '') is not null
+    and nullif(trim(product_model), '') is not null
+    and nullif(trim(serial_number), '') is not null
+    and nullif(trim(agent_name), '') is not null
+    and nullif(trim(agent_id), '') is not null
+    and total_payable > 0
+  ) not valid;
 alter table public.commissions add column if not exists product_type text not null default 'product';
 alter table public.commissions add column if not exists product_model text;
 alter table public.commissions add column if not exists serial_number text;
