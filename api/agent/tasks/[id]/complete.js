@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    assertRateLimit(req, { scope: 'agent-task-complete', limit: 60, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'agent-task-complete', limit: 60, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['agent']);
     const id = req.query?.id || req.url.split('/').slice(-2)[0];
     const result = await completeAgentTask(user, decodeURIComponent(id));

@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'admin-products', limit: 20, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'admin-products', limit: 20, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['admin']);
     const body = await readJson(req);
     const productType = String(body.productType || 'product').trim().toLowerCase();

@@ -53,7 +53,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'customer-activate', limit: 8, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'customer-activate', limit: 8, windowMs: 60_000 });
     const body = await readJson(req);
     const otp = String(body.otp || '').trim();
     const email = String(body.email || '').trim().toLowerCase();

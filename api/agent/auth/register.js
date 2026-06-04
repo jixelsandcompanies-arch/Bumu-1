@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'agent-register', limit: 5, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'agent-register', limit: 5, windowMs: 60_000 });
     const body = await readJson(req);
     const fullName = String(body.fullName || '').trim();
     const email = String(body.email || '').trim().toLowerCase();

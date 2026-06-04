@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'finance-login', limit: 8, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'finance-login', limit: 8, windowMs: 60_000 });
     const body = await readJson(req);
     const email = String(body.identifier || '').trim().toLowerCase();
     const password = String(body.password || '');

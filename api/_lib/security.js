@@ -1,4 +1,6 @@
-const buckets = new Map();
+import { getSupabase, hasSupabaseConfig } from './supabase.js';
+
+const fallbackBuckets = new Map();
 const MAX_BODY_BYTES = 32 * 1024;
 
 export function clientKey(req, scope = 'global') {
@@ -7,13 +9,12 @@ export function clientKey(req, scope = 'global') {
   return `${scope}:${ip}`;
 }
 
-export function assertRateLimit(req, { scope, limit = 20, windowMs = 60_000 } = {}) {
-  const key = clientKey(req, scope);
+function assertFallbackRateLimit(key, { limit, windowMs }) {
   const now = Date.now();
-  const current = buckets.get(key);
+  const current = fallbackBuckets.get(key);
 
   if (!current || current.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    fallbackBuckets.set(key, { count: 1, resetAt: now + windowMs });
     return;
   }
 
@@ -22,8 +23,40 @@ export function assertRateLimit(req, { scope, limit = 20, windowMs = 60_000 } = 
   if (current.count > limit) {
     const error = new Error('Too many requests. Try again later.');
     error.statusCode = 429;
+    error.retryAfter = Math.ceil((current.resetAt - now) / 1000);
     throw error;
   }
+}
+
+export async function assertRateLimit(req, { scope, limit = 20, windowMs = 60_000 } = {}) {
+  const key = clientKey(req, scope);
+
+  if (hasSupabaseConfig()) {
+    try {
+      const { data, error } = await getSupabase().rpc('consume_api_rate_limit', {
+        p_key: key,
+        p_limit: limit,
+        p_window_seconds: Math.max(1, Math.ceil(windowMs / 1000))
+      });
+
+      if (!error) {
+        const result = Array.isArray(data) ? data[0] : data;
+        if (result?.allowed === false) {
+          const rateError = new Error('Too many requests. Try again later.');
+          rateError.statusCode = 429;
+          rateError.retryAfter = Number(result.retry_after_seconds || 60);
+          throw rateError;
+        }
+        return;
+      }
+    } catch (error) {
+      if (error.statusCode === 429) {
+        throw error;
+      }
+    }
+  }
+
+  assertFallbackRateLimit(key, { limit, windowMs });
 }
 
 export function assertBodySize(req) {

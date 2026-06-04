@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'customer-password-reset', limit: 5, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'customer-password-reset', limit: 5, windowMs: 60_000 });
     const body = await readJson(req);
     const result = await requestPasswordResetOtp({ ...body, sourcePortal: 'customer' });
     sendJson(res, 201, result);

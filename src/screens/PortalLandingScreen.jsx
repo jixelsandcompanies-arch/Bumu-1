@@ -51,19 +51,21 @@ const portals = [
   }
 ];
 
-const heroPhoto = '/landing/boda-paygo.jpg';
-const paymentPhoto = '/landing/mpesa-agent.jpg';
-const cookerPhoto = '/landing/gas-cooker.jpg';
-const solarPhoto = '/landing/solar-lamp.jpg';
+const heroPhoto = '/landing/paygo-hero.png';
+const bikePhoto = '/landing/paygo-motorbike.png';
+const phonePhoto = '/landing/paygo-phone.png';
+const cookerPhoto = '/landing/paygo-cooker.png';
+const solarPhoto = '/landing/paygo-solar.png';
 
 const productShowcase = [
-  ['Motorbikes', 'Bodaboda and income-generating motorbikes on manageable PAYGO plans.', heroPhoto],
-  ['Phones', 'Smartphones and connected devices customers can pay for step by step.', paymentPhoto],
-  ['Cookers with lockers', 'Household cooking products and secured asset packages for everyday needs.', cookerPhoto],
-  ['Solar lamps', 'Lighting products and small energy assets for homes, shops, and workspaces.', solarPhoto]
+  ['Motorbikes', 'Income-ready motorcycles with deposits and instalments built around daily cash flow.', bikePhoto],
+  ['Smartphones', 'Connected devices customers can start using now and pay for over time.', phonePhoto],
+  ['Cookers and home assets', 'Practical household products for families and small businesses.', cookerPhoto],
+  ['Solar and lighting', 'Lighting and small energy products for homes, shops, and field work.', solarPhoto]
 ];
 
 const navItems = [
+  ['Home', 'home'],
   ['Portals', 'portals'],
   ['About', 'about'],
   ['Products', 'products'],
@@ -73,24 +75,24 @@ const navItems = [
 ];
 
 const paygoProducts = [
-  ['Motorbikes', 'Bodaboda riders can access income-ready motorcycles and repay in manageable instalments.'],
-  ['Phones', 'Customers can choose smartphones and connected devices without paying the full price upfront.'],
-  ['Cookers and home assets', 'Household products, cookers with lockers, and essential appliances can be offered on PAYGO.'],
-  ['Solar and small energy', 'Solar lamps and practical energy products can support homes, shops, and field work.']
+  ['Motorbikes', 'For riders and businesses that need mobility without one large upfront payment.'],
+  ['Smartphones', 'For customers who need reliable connected devices and flexible repayment.'],
+  ['Home assets', 'Cookers, lockers, appliances, and household tools supplied through approved plans.'],
+  ['Solar energy', 'Lighting and small energy products for homes, shops, and workspaces.']
 ];
 
 const serviceHighlights = [
   {
-    title: 'Flexible asset access',
-    text: 'Customers can start with an approved deposit, receive the product, and continue with a repayment plan that fits daily life.'
+    title: 'Simple start',
+    text: 'Customers choose an approved product, pay the deposit, and begin a clear repayment journey.'
   },
   {
-    title: 'M-Pesa payment convenience',
-    text: 'Payments are designed around familiar Kenyan mobile money habits, including paybill-led repayment journeys.'
+    title: 'Mobile money ready',
+    text: 'Payments are prepared for familiar Kenyan mobile money flows through secured backend integrations.'
   },
   {
-    title: 'Agent and dealer support',
-    text: 'Agents and dealers help customers apply, understand repayment expectations, and receive follow-up support.'
+    title: 'Field support',
+    text: 'Agents and dealers help customers apply, understand the plan, and stay on track after delivery.'
   }
 ];
 
@@ -102,24 +104,48 @@ const locationDetails = [
 ];
 
 const operatingSteps = [
-  ['Choose', 'Select a PAYGO-ready product from BUMU or an approved dealer.'],
-  ['Apply', 'Share the required details and receive screening guidance.'],
-  ['Start', 'Pay the deposit and begin using the product after approval.'],
-  ['Continue', 'Repay in manageable instalments with support when needed.']
+  ['Choose', 'Pick a product that fits work, home, mobility, or energy needs.'],
+  ['Apply', 'Submit the required details through an agent or approved channel.'],
+  ['Start', 'Pay the deposit after approval and receive the product.'],
+  ['Grow', 'Continue with scheduled instalments and support when needed.']
 ];
 
 const trustSignals = [
   'Lipa mdogo mdogo',
-  'Nairobi base',
-  'Kenya-wide dealer plan'
+  'Nairobi operations',
+  'Dealer network across Kenya'
 ];
 
 export function PortalLandingScreen() {
   const [page, setPage] = useState('home');
 
+  function scrollTop() {
+    requestAnimationFrame(() => document.getElementById('site-top')?.scrollIntoView({ block: 'start' }));
+  }
+
+  function openHome() {
+    setPage('home');
+    scrollTop();
+  }
+
   function openPortalPage() {
     setPage('portals');
-    requestAnimationFrame(() => document.getElementById('site-top')?.scrollIntoView({ block: 'start' }));
+    scrollTop();
+  }
+
+  function openSitePage(target) {
+    if (target === 'home') {
+      openHome();
+      return;
+    }
+
+    if (target === 'portals') {
+      openPortalPage();
+      return;
+    }
+
+    setPage(target);
+    scrollTop();
   }
 
   function openPortal(portal) {
@@ -147,45 +173,57 @@ export function PortalLandingScreen() {
     }
   }
 
+  const activeNav = navItems.find(([, target]) => target === page)?.[0] || 'Home';
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator>
-      <View style={styles.nav} id="site-top">
-        <Pressable
-          onPress={() => {
-            setPage('home');
-            requestAnimationFrame(() => document.getElementById('site-top')?.scrollIntoView({ block: 'start' }));
-          }}
-          style={styles.navBrand}
-        >
-          <Image source={bumuLogo} style={styles.navLogo} />
-          <View>
-            <Text style={styles.navTitle}>Bumu Paygo</Text>
-            <Text style={styles.navMeta}>Nairobi, Kenya</Text>
+      <View style={styles.siteShell} id="site-top">
+        <View style={styles.sideMenu}>
+          <Pressable onPress={openHome} style={styles.sideBrand}>
+            <Image source={bumuLogo} style={styles.sideLogo} />
+            <View>
+              <Text style={styles.sideTitle}>Bumu Paygo</Text>
+              <Text style={styles.sideMeta}>Nairobi, Kenya</Text>
+            </View>
+          </Pressable>
+          <View style={styles.sideDivider} />
+          <Text style={styles.sideGroupLabel}>Website</Text>
+          <View style={styles.sideNavLinks}>
+            {navItems.map(([label, target]) => {
+              const active = page === target || (page === 'home' && target === 'home');
+              return (
+                <Pressable
+                  key={target}
+                  onPress={() => openSitePage(target)}
+                  style={[styles.sideNavLink, active && styles.sideNavLinkActive]}
+                >
+                  <Text style={[styles.sideNavText, active && styles.sideNavTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
-        </Pressable>
-        <View style={styles.navLinks}>
-          {navItems.map(([label, target]) => (
-            <Pressable
-              key={target}
-              onPress={() => {
-                if (target === 'portals') {
-                  openPortalPage();
-                  return;
-                }
-
-                setPage(target);
-                requestAnimationFrame(() => document.getElementById('site-top')?.scrollIntoView({ block: 'start' }));
-              }}
-              style={styles.navLink}
-            >
-              <Text style={styles.navLinkText}>{label}</Text>
-            </Pressable>
-          ))}
+          <View style={styles.sideFooter}>
+            <Text style={styles.sideFooterTitle}>PAYGO access</Text>
+            <Text style={styles.sideFooterText}>Motorbikes, phones, cookers, solar and approved products.</Text>
+          </View>
         </View>
-      </View>
 
+        <View style={styles.siteMain}>
+          <View style={styles.financeHeader}>
+            <View>
+              <Text style={styles.headerKicker}>Bumu Paygo</Text>
+              <Text style={styles.headerTitle}>{activeNav}</Text>
+              <Text style={styles.headerText}>Products today. Payments over time.</Text>
+            </View>
+            <Pressable onPress={openPortalPage} style={styles.headerPortalButton}>
+              <Text style={styles.headerPortalText}>Portals</Text>
+              <ArrowRight size={17} color="#ffffff" />
+            </Pressable>
+          </View>
+
+          <View style={styles.pageContent}>
       {page === 'portals' ? (
-        <PortalCardsPage onBack={() => setPage('home')} onOpenPortal={openPortal} />
+        <PortalCardsPage onBack={openHome} onOpenPortal={openPortal} />
       ) : page === 'products' ? (
         <ProductsPage onOpenPortals={openPortalPage} />
       ) : page === 'services' ? (
@@ -207,12 +245,12 @@ export function PortalLandingScreen() {
               <Image source={bumuLogo} style={styles.logo} />
               <View>
                 <Text style={styles.brandName}>Bumu Paygo</Text>
-                <Text style={styles.brandMeta}>Lipa mdogo mdogo products</Text>
+                <Text style={styles.brandMeta}>Premium PAYGO products</Text>
               </View>
             </View>
             <Text style={styles.title}>Bumu Paygo</Text>
             <Text style={styles.subtitle}>
-              Premium PAYGO access for motorbikes, phones, cookers, solar lamps, and practical assets customers can start using now and pay for steadily.
+              Get useful products now and pay over time. Bumu supports motorbikes, phones, cookers, solar products, and approved assets for work and home.
             </Text>
             <View style={styles.heroActions}>
               <Pressable
@@ -237,9 +275,9 @@ export function PortalLandingScreen() {
             <Image source={{ uri: heroPhoto }} style={styles.heroPhoto} resizeMode="cover" />
             <View style={styles.heroPhotoShade} />
             <View style={styles.heroVisualCaption}>
-              <Text style={styles.visualKicker}>PAYGO services</Text>
-              <Text style={styles.visualTitle}>Access today. Pay steadily.</Text>
-              <Text style={styles.visualText}>Products for work, mobility, home use, and everyday progress.</Text>
+              <Text style={styles.visualKicker}>Lipa mdogo mdogo</Text>
+              <Text style={styles.visualTitle}>Start with what you need.</Text>
+              <Text style={styles.visualText}>Flexible access for mobility, communication, cooking, lighting, and trade.</Text>
             </View>
           </View>
         </View>
@@ -248,27 +286,27 @@ export function PortalLandingScreen() {
       <View style={styles.section} id="about">
         <View style={styles.sectionIntro}>
           <Text style={styles.kicker}>About</Text>
-          <Text style={styles.sectionTitle}>PAYGO built around real customers</Text>
+          <Text style={styles.sectionTitle}>A practical way to own what matters</Text>
           <Text style={styles.sectionText}>
-            BUMU helps customers and small businesses access useful products through structured lipa mdogo mdogo plans, with Nairobi operations and a dealer network growing across Kenya.
+            Bumu helps people and small businesses access products that improve daily life, support income, and spread cost into manageable payments.
           </Text>
         </View>
         <View style={styles.aboutGrid}>
           <View style={styles.aboutMain}>
             <Building2 size={24} color={colors.primary} />
-            <Text style={styles.aboutTitle}>Access without paying everything upfront</Text>
+            <Text style={styles.aboutTitle}>Built for real Kenyan needs</Text>
             <Text style={styles.aboutText}>
-              Customers can apply for approved products, pay a deposit, and continue with manageable instalments. BUMU focuses on assets that help people move, work, cook, communicate, and light their spaces.
+              From a rider needing a motorbike to a family needing a cooker or solar light, Bumu keeps the journey clear: apply, pay deposit, receive the product, and continue with agreed instalments.
             </Text>
           </View>
           <View style={styles.metricStack}>
             <View style={styles.metricItem}>
-              <Text style={styles.metricValue}>4</Text>
-              <Text style={styles.metricLabel}>Customer journeys</Text>
+              <Text style={styles.metricValue}>4+</Text>
+              <Text style={styles.metricLabel}>Product categories</Text>
             </View>
             <View style={styles.metricItem}>
-              <Text style={styles.metricValue}>1</Text>
-              <Text style={styles.metricLabel}>PAYGO access model</Text>
+              <Text style={styles.metricValue}>KE</Text>
+              <Text style={styles.metricLabel}>Kenya-focused service</Text>
             </View>
           </View>
         </View>
@@ -277,9 +315,9 @@ export function PortalLandingScreen() {
       <View style={[styles.section, styles.productsSection]} id="products">
         <View style={styles.sectionIntro}>
           <Text style={styles.kicker}>Products</Text>
-          <Text style={styles.sectionTitle}>PAYGO assets for daily life and work</Text>
+          <Text style={styles.sectionTitle}>Products customers can use immediately</Text>
           <Text style={styles.sectionText}>
-            Motorbikes, phones, cookers, solar lamps, and other approved products can be offered through lipa mdogo mdogo.
+            Bumu supports products that bring value from day one, with repayment plans matched to the customer and the asset.
           </Text>
         </View>
         <View style={styles.productGrid}>
@@ -296,13 +334,13 @@ export function PortalLandingScreen() {
       <View style={[styles.section, styles.serviceSection]} id="services">
         <View style={styles.sectionIntro}>
           <Text style={styles.kicker}>Services</Text>
-          <Text style={styles.sectionTitle}>How BUMU supports PAYGO customers</Text>
+          <Text style={styles.sectionTitle}>Service from application to after-sale support</Text>
           <Text style={styles.sectionText}>
-            From product selection to repayment support, BUMU is built for customers, field agents, dealers, and teams serving everyday Kenyan PAYGO needs.
+            Agents, dealers, and support teams help customers understand the product, payment plan, and next step at every stage.
           </Text>
         </View>
         <View style={styles.serviceShowcase}>
-          <Image source={{ uri: paymentPhoto }} style={styles.servicePhoto} resizeMode="cover" />
+          <Image source={{ uri: phonePhoto }} style={styles.servicePhoto} resizeMode="cover" />
           <View style={styles.highlights}>
             {serviceHighlights.map((item) => (
               <View key={item.title} style={styles.highlightCard}>
@@ -318,7 +356,7 @@ export function PortalLandingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionIntro}>
             <Text style={styles.kicker}>Workflow</Text>
-          <Text style={styles.sectionTitle}>From product choice to ownership</Text>
+          <Text style={styles.sectionTitle}>A clear path from need to ownership</Text>
           </View>
           <View style={styles.steps}>
             {operatingSteps.map(([title, text], index) => (
@@ -342,7 +380,7 @@ export function PortalLandingScreen() {
           </View>
           <Text style={styles.sectionTitle}>Based in Nairobi</Text>
           <Text style={styles.sectionText}>
-            BUMU is based in Nairobi, with dealer coverage planned across Kenya so customers can access approved PAYGO products closer to where they live and work.
+            Bumu is based in Nairobi and is building dealer coverage across Kenya so customers can access approved PAYGO products closer to where they live and work.
           </Text>
         </View>
         <View style={styles.locationGrid}>
@@ -361,7 +399,7 @@ export function PortalLandingScreen() {
             <Image source={bumuLogo} style={styles.footerLogo} />
             <View>
               <Text style={styles.footerTitle}>Bumu Paygo</Text>
-              <Text style={styles.footerText}>PAYGO products and customer support.</Text>
+              <Text style={styles.footerText}>Products today. Payments over time.</Text>
             </View>
           </View>
           <View style={styles.footerLinks}>
@@ -382,6 +420,9 @@ export function PortalLandingScreen() {
       </View>
         </>
       )}
+          </View>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -394,7 +435,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Finance, Admin, Agent, and Customer portals use the same shared CRM database.
+            Finance, Admin, Agent, and Customer workspaces are available for approved users.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
@@ -458,9 +499,9 @@ function ProductsPage({ onOpenPortals }) {
       <View style={styles.detailHero}>
         <View style={styles.detailCopy}>
           <Text style={styles.kicker}>Products</Text>
-          <Text style={styles.detailTitle}>PAYGO products for mobility, home, energy, and work</Text>
+          <Text style={styles.detailTitle}>Products for mobility, home, energy, and work</Text>
           <Text style={styles.detailText}>
-            BUMU focuses on useful assets customers can start using without paying the full price upfront. Each product category can be offered with a deposit, instalments, customer support, and dealer follow-up.
+            Bumu focuses on products customers can use immediately while paying in structured instalments. Each category can be offered with a deposit, repayment schedule, and support.
           </Text>
           <Pressable onPress={onOpenPortals} style={styles.primaryInlineAction}>
             <Text style={styles.primaryInlineText}>Open portals</Text>
@@ -483,9 +524,9 @@ function ProductsPage({ onOpenPortals }) {
       </View>
 
       <View style={styles.statementBand}>
-        <Text style={styles.statementTitle}>Any approved product can become PAYGO.</Text>
+        <Text style={styles.statementTitle}>If it helps people move, work, cook, connect, or power life, it can fit PAYGO.</Text>
         <Text style={styles.statementText}>
-          Motorbikes, phones, cookers, solar lamps, appliances, business tools, and dealer-approved assets can be structured for lipa mdogo mdogo when the customer profile and repayment plan are approved.
+          Motorbikes, phones, cookers, solar lamps, appliances, business tools, and dealer-approved assets can be structured for instalment payments after customer approval.
         </Text>
       </View>
     </View>
@@ -497,20 +538,20 @@ function ServicesPage({ onOpenPortals }) {
     <View style={styles.detailPage}>
       <View style={styles.pageHeader}>
         <Text style={styles.kicker}>Services</Text>
-        <Text style={styles.detailTitle}>A premium PAYGO experience from application to support</Text>
+        <Text style={styles.detailTitle}>A premium service experience from application to support</Text>
         <Text style={styles.detailText}>
-          BUMU brings together customer applications, dealer service, repayment guidance, and product follow-up so customers can access practical assets with clarity.
+          Bumu combines product access, dealer service, repayment guidance, and follow-up so customers know exactly what to expect before and after approval.
         </Text>
       </View>
 
       <View style={styles.serviceDetailGrid}>
         {[
-          ['PAYGO applications', 'Customers and agents can begin the application journey for approved products with the details needed for screening.'],
-          ['Customer support', 'Customers receive guidance on repayments, product status, balances, and next steps after approval.'],
-          ['Dealer coordination', 'Dealers and field agents can support onboarding and after-sale follow-up as coverage expands across Kenya.'],
-          ['Mobile money readiness', 'The customer journey is designed for paybill-led M-Pesa repayment flows owned by the backend and payment provider.'],
-          ['Finance visibility', 'Finance teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
-          ['After-sale follow-up', 'Customers can be contacted about missed payments, product needs, and service updates without losing the relationship history.']
+          ['Applications', 'Agents collect the required details for approval and product allocation.'],
+          ['Customer care', 'Customers receive guidance on balances, repayments, product status, and next steps.'],
+          ['Dealer coordination', 'Approved dealers and field teams support onboarding and after-sale service.'],
+          ['Mobile money readiness', 'Payment journeys are prepared for secured mobile money integrations.'],
+          ['Finance visibility', 'Collections, commissions, reports, and payment outcomes remain controlled by role.'],
+          ['Follow-up', 'Support history stays connected so teams can respond quickly and consistently.']
         ].map(([title, text]) => (
           <View key={title} style={styles.serviceDetailCard}>
             <CheckCircle2 size={20} color={colors.success} />
@@ -521,12 +562,12 @@ function ServicesPage({ onOpenPortals }) {
       </View>
 
       <View style={styles.wideMediaPanel}>
-        <Image source={{ uri: paymentPhoto }} style={styles.wideMediaImage} resizeMode="cover" />
+        <Image source={{ uri: solarPhoto }} style={styles.wideMediaImage} resizeMode="cover" />
         <View style={styles.wideMediaCopy}>
           <Text style={styles.kicker}>For customers and teams</Text>
-          <Text style={styles.sectionTitle}>Designed for familiar Kenyan payment behavior</Text>
+          <Text style={styles.sectionTitle}>Built for the way customers already pay</Text>
           <Text style={styles.sectionText}>
-            Customers can use familiar mobile money journeys while BUMU teams and approved dealers keep the service relationship clear, professional, and accountable.
+            Customers can use familiar mobile money journeys while Bumu teams and approved dealers keep service clear, professional, and accountable.
           </Text>
           <Pressable onPress={onOpenPortals} style={styles.secondaryInlineAction}>
             <Text style={styles.secondaryInlineText}>Portal access</Text>
@@ -544,26 +585,26 @@ function AboutPage({ onOpenPortals }) {
       <View style={styles.detailHero}>
         <View style={styles.detailCopy}>
           <Text style={styles.kicker}>About BUMU</Text>
-          <Text style={styles.detailTitle}>Making useful products easier to access</Text>
+          <Text style={styles.detailTitle}>Making useful products easier to own</Text>
           <Text style={styles.detailText}>
-            BUMU Paygo exists for customers who need products that help them earn, move, cook, communicate, and power daily life, but prefer to pay in structured instalments instead of one large upfront amount.
+            Bumu Paygo exists for customers who need products that help them earn, move, cook, communicate, and power daily life without paying the full amount upfront.
           </Text>
           <Text style={styles.detailText}>
-            The company is built from Nairobi with a Kenya-wide dealer vision: premium service, practical products, transparent repayment expectations, and secure portal access for the teams who serve customers.
+            The company is built from Nairobi with a Kenya-wide dealer vision: practical products, respectful service, transparent repayment expectations, and accountable support.
           </Text>
           <Pressable onPress={onOpenPortals} style={styles.primaryInlineAction}>
             <Text style={styles.primaryInlineText}>Open portals</Text>
             <ArrowRight size={17} color="#ffffff" />
           </Pressable>
         </View>
-        <Image source={{ uri: solarPhoto }} style={styles.detailHeroImage} resizeMode="cover" />
+        <Image source={{ uri: cookerPhoto }} style={styles.detailHeroImage} resizeMode="cover" />
       </View>
 
       <View style={styles.valueGrid}>
         {[
           ['Practical', 'Products are selected for real daily use, not only appearance.'],
-          ['Accessible', 'Customers can begin with a deposit and continue with manageable payments.'],
-          ['Professional', 'Agents, dealers, customers, and finance teams use controlled portal journeys.'],
+          ['Accessible', 'Customers can begin with a deposit and continue with planned instalments.'],
+          ['Professional', 'Agents, dealers, customers, and finance teams use clear role-based journeys.'],
           ['Kenyan', 'Nairobi-based operations with dealer coverage planned across the country.']
         ].map(([title, text]) => (
           <View key={title} style={styles.valueCard}>
@@ -582,9 +623,9 @@ function LocationPage() {
       <View style={styles.locationHero}>
         <View style={styles.locationPanel}>
           <MapPin size={28} color={colors.primary} />
-          <Text style={styles.detailTitle}>Nairobi base, Kenya-wide dealer coverage</Text>
+          <Text style={styles.detailTitle}>Nairobi base with Kenya-wide ambition</Text>
           <Text style={styles.detailText}>
-            BUMU operations are based in Nairobi. As dealer coverage expands, customers will be able to access approved PAYGO products through trusted field channels across Kenya.
+            Bumu operations are based in Nairobi. As dealer coverage grows, customers will be able to access approved products through trusted field channels across Kenya.
           </Text>
         </View>
         <View style={styles.locationCards}>
@@ -597,9 +638,9 @@ function LocationPage() {
         </View>
       </View>
       <View style={styles.statementBand}>
-        <Text style={styles.statementTitle}>Office visits and dealer onboarding</Text>
+        <Text style={styles.statementTitle}>Office visits, customer support, and dealer onboarding</Text>
         <Text style={styles.statementText}>
-          Customers, agents, and dealers can use the contact channels to confirm office visit arrangements, product availability, and dealer onboarding information.
+          Customers, agents, and dealers can use the contact channels to confirm visits, product availability, support needs, and onboarding information.
         </Text>
       </View>
     </View>
@@ -611,9 +652,9 @@ function ContactPage({ onOpenPortals }) {
     <View style={styles.detailPage}>
       <View style={styles.pageHeader}>
         <Text style={styles.kicker}>Contact</Text>
-        <Text style={styles.detailTitle}>Talk to BUMU about PAYGO products, dealers, or portal access</Text>
+        <Text style={styles.detailTitle}>Talk to Bumu about products, dealers, or support</Text>
         <Text style={styles.detailText}>
-          Use these placeholder channels for now. They can be replaced with official phone numbers, office address, and support inbox before launch.
+          Reach the team for product information, dealer enquiries, customer support, or approved portal access.
         </Text>
       </View>
 
@@ -637,9 +678,9 @@ function ContactPage({ onOpenPortals }) {
 
       <View style={styles.contactBand}>
         <View>
-          <Text style={styles.statementTitle}>Customers and agents can start from the portals.</Text>
+          <Text style={styles.statementTitle}>Approved users can access their workspace from the portals.</Text>
           <Text style={styles.statementText}>
-            Customer, agent, finance, and admin access stays separated by role while the public website stays open for visitors.
+            Customer, agent, finance, and admin access stays separated by role while the public website stays open for everyone.
           </Text>
         </View>
         <Pressable onPress={onOpenPortals} style={styles.primaryInlineAction}>
@@ -661,6 +702,153 @@ const styles = StyleSheet.create({
   content: {
     minHeight: 'var(--app-vh)',
     paddingBottom: 0
+  },
+  siteShell: {
+    minHeight: 'var(--app-vh)',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: '#eef5fb'
+  },
+  sideMenu: {
+    width: 276,
+    minHeight: 'var(--app-vh)',
+    backgroundColor: '#07152b',
+    paddingHorizontal: 18,
+    paddingTop: 22,
+    paddingBottom: 18,
+    gap: 14,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.10)'
+  },
+  sideBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    cursor: 'pointer'
+  },
+  sideLogo: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2f84ff'
+  },
+  sideTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600'
+  },
+  sideMeta: {
+    color: '#9fb3c8',
+    fontSize: 12,
+    marginTop: 2
+  },
+  sideDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginVertical: 4
+  },
+  sideGroupLabel: {
+    color: '#8ba3bf',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0,
+    textTransform: 'uppercase'
+  },
+  sideNavLinks: {
+    gap: 6
+  },
+  sideNavLink: {
+    minHeight: 40,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  sideNavLinkActive: {
+    backgroundColor: colors.primary
+  },
+  sideNavText: {
+    color: '#dbeafe',
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  sideNavTextActive: {
+    color: '#ffffff',
+    fontWeight: '600'
+  },
+  sideFooter: {
+    marginTop: 'auto',
+    borderWidth: 1,
+    borderColor: 'rgba(147,197,253,0.24)',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    gap: 5
+  },
+  sideFooterTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600'
+  },
+  sideFooterText: {
+    color: '#b8c9df',
+    fontSize: 12,
+    lineHeight: 18
+  },
+  siteMain: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#f7faff'
+  },
+  financeHeader: {
+    minHeight: 92,
+    paddingHorizontal: 28,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#d8e2f0',
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap'
+  },
+  headerKicker: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase'
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '600',
+    marginTop: 3
+  },
+  headerText: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 3
+  },
+  headerPortalButton: {
+    minHeight: 42,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    cursor: 'pointer'
+  },
+  headerPortalText: {
+    color: '#ffffff',
+    fontWeight: '600'
+  },
+  pageContent: {
+    width: '100%'
   },
   nav: {
     minHeight: 66,

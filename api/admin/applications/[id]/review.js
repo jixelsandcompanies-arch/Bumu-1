@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'admin-application-review', limit: 30, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'admin-application-review', limit: 30, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['admin']);
     const body = await readJson(req);
     const id = req.query?.id || req.url.split('/').slice(-2)[0];

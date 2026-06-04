@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'customer-payment-request', limit: 12, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'customer-payment-request', limit: 12, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['customer']);
     const body = await readJson(req);
     const result = await createCustomerPaymentRequest(user, body);

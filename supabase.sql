@@ -741,6 +741,78 @@ alter table public.branches enable row level security;
 alter table public.inventory_products enable row level security;
 alter table public.admin_audit_logs enable row level security;
 
+create table if not exists public.api_rate_limits (
+  rate_key text primary key,
+  request_count integer not null default 0,
+  reset_at timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_api_rate_limits_reset_at
+  on public.api_rate_limits (reset_at);
+
+create or replace function public.consume_api_rate_limit(
+  p_key text,
+  p_limit integer,
+  p_window_seconds integer
+)
+returns table(allowed boolean, retry_after_seconds integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_count integer;
+  v_reset_at timestamptz;
+begin
+  if p_key is null or length(trim(p_key)) = 0 then
+    return query select false, p_window_seconds;
+    return;
+  end if;
+
+  insert into public.api_rate_limits (rate_key, request_count, reset_at, updated_at)
+  values (p_key, 1, v_now + make_interval(secs => greatest(p_window_seconds, 1)), v_now)
+  on conflict (rate_key) do nothing;
+
+  if found then
+    return query select true, 0;
+    return;
+  end if;
+
+  select request_count, reset_at
+    into v_count, v_reset_at
+  from public.api_rate_limits
+  where rate_key = p_key
+  for update;
+
+  if v_reset_at <= v_now then
+    update public.api_rate_limits
+    set request_count = 1,
+        reset_at = v_now + make_interval(secs => greatest(p_window_seconds, 1)),
+        updated_at = v_now
+    where rate_key = p_key;
+
+    return query select true, 0;
+    return;
+  end if;
+
+  if v_count < greatest(p_limit, 1) then
+    update public.api_rate_limits
+    set request_count = request_count + 1,
+        updated_at = v_now
+    where rate_key = p_key;
+
+    return query select true, 0;
+    return;
+  end if;
+
+  return query select false, greatest(1, ceil(extract(epoch from (v_reset_at - v_now)))::integer);
+end;
+$$;
+
+alter table public.api_rate_limits enable row level security;
+
 revoke all on table public.customers from anon, authenticated;
 revoke all on table public.agents from anon, authenticated;
 revoke all on table public.payments from anon, authenticated;
@@ -759,6 +831,10 @@ revoke all on table public.branches from anon, authenticated;
 revoke all on table public.inventory_products from anon, authenticated;
 revoke all on table public.admin_audit_logs from anon, authenticated;
 revoke all on table public.customer_portal_summary from anon, authenticated;
+revoke all on table public.api_rate_limits from public, anon, authenticated;
+revoke all on function public.consume_api_rate_limit(text, integer, integer) from public, anon, authenticated;
+grant all on table public.api_rate_limits to service_role;
+grant execute on function public.consume_api_rate_limit(text, integer, integer) to service_role;
 
 -- Portals should access these tables through secured server-side APIs using SUPABASE_SERVICE_ROLE_KEY.
 -- Add user-facing RLS policies later only if a portal reads Supabase directly from the browser.

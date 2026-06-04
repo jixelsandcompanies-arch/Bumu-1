@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    assertRateLimit(req, { scope: 'agent-customer-create', limit: 20, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'agent-customer-create', limit: 20, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['agent']);
     const body = await readJson(req);
     const result = await createAgentCustomer(user, body);
