@@ -51,11 +51,11 @@ const portals = [
   }
 ];
 
-const heroPhoto = '/landing/paygo-hero.png';
-const bikePhoto = '/landing/paygo-motorbike.png';
-const phonePhoto = '/landing/paygo-phone.png';
-const cookerPhoto = '/landing/paygo-cooker.png';
-const solarPhoto = '/landing/paygo-solar.png';
+const heroPhoto = '/landing/paygo-hero.jpg';
+const bikePhoto = '/landing/paygo-motorbike.jpg';
+const phonePhoto = '/landing/paygo-phone.jpg';
+const cookerPhoto = '/landing/paygo-cooker.jpg';
+const solarPhoto = '/landing/paygo-solar.jpg';
 
 const productShowcase = [
   ['Motorbikes', 'Income-ready motorcycles with deposits and instalments built around daily cash flow.', bikePhoto],
