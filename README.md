@@ -30,6 +30,11 @@ TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_MESSAGING_SERVICE_SID=
 TWILIO_FROM_NUMBER=
+SMS_PROVIDER=twilio
+AFRICASTALKING_ENV=production
+AFRICASTALKING_USERNAME=
+AFRICASTALKING_API_KEY=
+AFRICASTALKING_SENDER_ID=BUMUPAYGO
 ```
 
 ## Supabase Setup
@@ -95,7 +100,19 @@ Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The 
 
 ## Payments
 
-Bumu Paygo uses Twilio for SMS only: OTPs, approval messages, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
+Bumu Paygo can use Twilio or Africa's Talking for SMS only: OTPs, approval messages, reminders, payment confirmations, and commission notifications. Set `SMS_PROVIDER=twilio` or `SMS_PROVIDER=africastalking` in Vercel. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
+
+For Africa's Talking SMS, configure:
+
+```env
+SMS_PROVIDER=africastalking
+AFRICASTALKING_ENV=production
+AFRICASTALKING_USERNAME=your_app_username
+AFRICASTALKING_API_KEY=your_api_key
+AFRICASTALKING_SENDER_ID=BUMUPAYGO
+```
+
+Use the Africa's Talking dashboard to register/approve the `BUMUPAYGO` sender ID for Kenya before relying on production delivery.
 
 For next-of-kin SMS acceptance, set your Twilio phone number or Messaging Service inbound webhook to:
 

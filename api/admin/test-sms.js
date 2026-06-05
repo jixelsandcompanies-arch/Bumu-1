@@ -1,7 +1,7 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../_lib/security.js';
 import { requirePortalUser } from '../_lib/supabase.js';
-import { getSmsStatus, sendSms, twilioConfigDiagnostics } from '../_lib/twilio.js';
+import { getSmsStatus, sendSms, smsConfigDiagnostics } from '../_lib/twilio.js';
 
 function delay(ms) {
   return new Promise((resolve) => {
@@ -37,11 +37,11 @@ export default async function handler(req, res) {
       ? await delay(waitSeconds * 1000).then(() => getSmsStatus(result.sid))
       : null;
 
-    sendJson(res, 200, { twilioConfig: twilioConfigDiagnostics(), result, finalStatus });
+    sendJson(res, 200, { smsConfig: smsConfigDiagnostics(), result, finalStatus });
   } catch (error) {
     sendJson(res, error.statusCode || 500, {
       message: error.message,
-      twilioConfig: twilioConfigDiagnostics(),
+      smsConfig: smsConfigDiagnostics(),
       providerResponse: error.providerResponse || null
     });
   }

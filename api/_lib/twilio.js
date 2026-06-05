@@ -1,4 +1,6 @@
 const TWILIO_MESSAGES_URL = 'https://api.twilio.com/2010-04-01/Accounts';
+const AFRICASTALKING_MESSAGES_URL = 'https://api.africastalking.com/version1/messaging';
+const AFRICASTALKING_SANDBOX_MESSAGES_URL = 'https://api.sandbox.africastalking.com/version1/messaging';
 
 function envValue(name) {
   return String(process.env[name] || '').trim();
@@ -29,12 +31,59 @@ export function twilioConfigDiagnostics() {
   };
 }
 
+export function africasTalkingConfigDiagnostics() {
+  const username = envValue('AFRICASTALKING_USERNAME');
+  const apiKey = envValue('AFRICASTALKING_API_KEY');
+  const senderId = envValue('AFRICASTALKING_SENDER_ID');
+  const environment = envValue('AFRICASTALKING_ENV') || 'production';
+
+  return {
+    username: maskValue(username),
+    usernameConfigured: Boolean(username),
+    apiKeyConfigured: Boolean(apiKey),
+    apiKeyLength: apiKey.length,
+    senderId: senderId || '',
+    senderIdConfigured: Boolean(senderId),
+    environment
+  };
+}
+
+function activeSmsProvider() {
+  const configuredProvider = envValue('SMS_PROVIDER').toLowerCase();
+  if (configuredProvider) return configuredProvider;
+  if (hasAfricasTalkingSmsConfig()) return 'africastalking';
+  return 'twilio';
+}
+
+export function hasAfricasTalkingSmsConfig() {
+  return Boolean(
+    envValue('AFRICASTALKING_USERNAME') &&
+    envValue('AFRICASTALKING_API_KEY')
+  );
+}
+
+export function smsConfigDiagnostics() {
+  const provider = activeSmsProvider();
+  return {
+    provider,
+    configured: hasSmsConfig(),
+    twilio: twilioConfigDiagnostics(),
+    africasTalking: africasTalkingConfigDiagnostics()
+  };
+}
+
 export function hasTwilioSmsConfig() {
   return Boolean(
     envValue('TWILIO_ACCOUNT_SID') &&
     envValue('TWILIO_AUTH_TOKEN') &&
     (envValue('TWILIO_MESSAGING_SERVICE_SID') || envValue('TWILIO_FROM_NUMBER'))
   );
+}
+
+export function hasSmsConfig() {
+  return activeSmsProvider() === 'africastalking'
+    ? hasAfricasTalkingSmsConfig()
+    : hasTwilioSmsConfig();
 }
 
 export function normalizePhone(phone) {
@@ -62,6 +111,64 @@ function portalUrl(portal) {
 }
 
 export async function sendSms({ to, message }) {
+  if (activeSmsProvider() === 'africastalking') {
+    return sendAfricasTalkingSms({ to, message });
+  }
+
+  return sendTwilioSms({ to, message });
+}
+
+async function sendAfricasTalkingSms({ to, message }) {
+  if (!hasAfricasTalkingSmsConfig()) {
+    return { configured: false, delivered: false, provider: 'africastalking' };
+  }
+
+  const phone = normalizePhone(to);
+  if (!phone) {
+    return { configured: true, delivered: false, provider: 'africastalking', reason: 'missing_phone' };
+  }
+
+  const environment = envValue('AFRICASTALKING_ENV').toLowerCase();
+  const url = environment === 'sandbox' ? AFRICASTALKING_SANDBOX_MESSAGES_URL : AFRICASTALKING_MESSAGES_URL;
+  const body = new URLSearchParams({
+    username: envValue('AFRICASTALKING_USERNAME'),
+    to: phone,
+    message: String(message || '')
+  });
+  const senderId = envValue('AFRICASTALKING_SENDER_ID');
+  if (senderId) body.set('from', senderId);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Apikey: envValue('AFRICASTALKING_API_KEY'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json'
+    },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.message || 'Africa’s Talking SMS request failed.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
+  }
+
+  const recipients = data.SMSMessageData?.Recipients || [];
+  const delivered = recipients.length > 0 && recipients.every((item) => String(item.status || '').toLowerCase() === 'success');
+
+  return {
+    configured: true,
+    delivered,
+    provider: 'africastalking',
+    response: data,
+    sid: recipients[0]?.messageId || null
+  };
+}
+
+async function sendTwilioSms({ to, message }) {
   if (!hasTwilioSmsConfig()) {
     return { configured: false, delivered: false, provider: 'twilio' };
   }
