@@ -100,7 +100,9 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         fullName: data.user.user_metadata?.full_name || data.user.email,
-        role: 'admin'
+        role: 'admin',
+        phone: data.user.user_metadata?.phone || '',
+        photoUrl: data.user.user_metadata?.photo_url || ''
       }
     });
   } catch (error) {

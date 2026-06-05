@@ -1,21 +1,18 @@
 import { buildApiUrl } from './apiUrl.js';
 
 const ADMIN_TOKEN_KEY = 'bumu-admin-token';
-const ADMIN_USER_KEY = 'bumu-admin-user';
 const REQUEST_TIMEOUT_MS = 20000;
 
 function getToken() {
   return window.sessionStorage.getItem(ADMIN_TOKEN_KEY) || '';
 }
 
-function setSession({ token, user }) {
+function setSession({ token }) {
   window.sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-  window.sessionStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user || {}));
 }
 
 function clearSession() {
   window.sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-  window.sessionStorage.removeItem(ADMIN_USER_KEY);
 }
 
 async function request(path, { method = 'GET', body } = {}) {

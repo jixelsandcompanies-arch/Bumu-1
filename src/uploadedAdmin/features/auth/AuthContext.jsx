@@ -2,7 +2,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
-const sessionKey = "bumu-uploaded-admin-session";
 const tokenKey = "bumu-admin-token";
 const sessionTimeoutMs = 30 * 60 * 1000;
 
@@ -20,12 +19,10 @@ export function getAdminToken() {
 
 function setAdminSession({ token, user }) {
   if (token) window.sessionStorage.setItem(tokenKey, token);
-  window.sessionStorage.setItem(sessionKey, JSON.stringify(user || {}));
 }
 
 function clearAdminSession() {
   window.sessionStorage.removeItem(tokenKey);
-  window.sessionStorage.removeItem(sessionKey);
 }
 
 async function apiRequest(path, { method = "GET", body } = {}) {
@@ -102,16 +99,6 @@ export const adminPermissionsByRole = {
   finance_officer: ["profile"]
 };
 
-function loadSession() {
-  try {
-    const saved = window.sessionStorage.getItem(sessionKey);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    clearAdminSession();
-    return null;
-  }
-}
-
 function normalizeBackendUser(user = {}) {
   return {
     id: user.id || "",
@@ -124,7 +111,7 @@ function normalizeBackendUser(user = {}) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(loadSession);
+  const [user, setUser] = useState(null);
   const [authStatus, setAuthStatus] = useState(() => (getAdminToken() ? "loading" : "ready"));
   const [otpChallenge, setOtpChallenge] = useState(null);
 
@@ -214,12 +201,18 @@ export function AuthProvider({ children }) {
     };
   }, [logoutForTimeout, user]);
 
-  function updateProfile(profile) {
-    setUser((current) => {
-      const next = { ...(current || defaultUser), ...profile };
-      window.sessionStorage.setItem(sessionKey, JSON.stringify(next));
-      return next;
-    });
+  async function updateProfile(profile) {
+    try {
+      const data = await apiRequest("/api/admin/auth/profile", {
+        method: "PATCH",
+        body: profile
+      });
+      const normalizedUser = normalizeBackendUser(data.user);
+      setUser(normalizedUser);
+      return { ok: true, user: normalizedUser, message: "Profile saved to the shared database." };
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
   }
 
   async function updatePassword({ newPassword, confirmPassword }) {

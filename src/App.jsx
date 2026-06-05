@@ -58,11 +58,8 @@ function requireFreshPortalLogin() {
   [
     'bumu-auth-token',
     'bumu-customer-token',
-    'bumu-customer-user',
     'bumu-agent-token',
-    'bumu-agent-user',
     'bumu-admin-token',
-    'bumu-admin-user',
     'bumu-uploaded-admin-session'
   ].forEach((key) => window.sessionStorage.removeItem(key));
 }

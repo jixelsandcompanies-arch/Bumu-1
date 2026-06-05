@@ -35,9 +35,9 @@ export default function Profile() {
     reader.readAsDataURL(file);
   }
 
-  function handleSave() {
-    updateProfile(form);
-    setMessage("Profile saved. The header has been updated.");
+  async function handleSave() {
+    const result = await updateProfile(form);
+    setMessage(result.message || (result.ok ? "Profile saved. The header has been updated." : "Profile could not be saved."));
   }
 
   async function handlePasswordUpdate(event) {

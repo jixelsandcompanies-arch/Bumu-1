@@ -1,21 +1,18 @@
 import { buildApiUrl } from './apiUrl.js';
 
 const CUSTOMER_TOKEN_KEY = 'bumu-customer-token';
-const CUSTOMER_USER_KEY = 'bumu-customer-user';
 const REQUEST_TIMEOUT_MS = 20000;
 
 export function getCustomerToken() {
   return window.sessionStorage.getItem(CUSTOMER_TOKEN_KEY) || '';
 }
 
-function setCustomerSession({ token, user }) {
+function setCustomerSession({ token }) {
   window.sessionStorage.setItem(CUSTOMER_TOKEN_KEY, token);
-  window.sessionStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user || {}));
 }
 
 function clearCustomerSession() {
   window.sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  window.sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
 async function request(path, { method = 'GET', body } = {}) {

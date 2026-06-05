@@ -17,7 +17,8 @@ export default async function handler(req, res) {
         email: user.email,
         fullName: user.user_metadata?.full_name || user.email,
         role: role === 'admin' || await hasActiveAdminProfile(user) ? 'admin' : role,
-        phone: user.user_metadata?.phone || ''
+        phone: user.user_metadata?.phone || '',
+        photoUrl: user.user_metadata?.photo_url || ''
       }
     });
   } catch (error) {
