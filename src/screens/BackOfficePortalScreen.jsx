@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useInsertionEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import BackOfficeApp from '../backOffice/app/App.jsx';
 import { AppProviders as UploadedAdminProviders } from '../uploadedAdmin/app/providers.jsx';
+import uploadedAdminCss from '../uploadedAdmin/styles/global.css?inline';
 
 export function BackOfficePortalScreen() {
+  useInsertionEffect(() => {
+    const styleId = 'bumu-backoffice-forced-styles';
+    const existing = document.getElementById(styleId);
+    if (existing) {
+      existing.textContent = `${uploadedAdminCss}\n${criticalBackOfficeCss}`;
+      return undefined;
+    }
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `${uploadedAdminCss}\n${criticalBackOfficeCss}`;
+    document.head.appendChild(style);
+    return undefined;
+  }, []);
+
   return (
     <div className="uploaded-admin-viewport">
       <style>{criticalBackOfficeCss}</style>
