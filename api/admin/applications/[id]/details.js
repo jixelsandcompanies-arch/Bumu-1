@@ -47,6 +47,26 @@ export default async function handler(req, res) {
       update.product_id = body.bikeId ? String(body.bikeId) : null;
     }
 
+    if (update.product_id) {
+      const productCheck = await getSupabase()
+        .from('inventory_products')
+        .select('*')
+        .eq('id', update.product_id)
+        .maybeSingle();
+      if (productCheck.error) throw productCheck.error;
+      if (!productCheck.data) {
+        sendJson(res, 404, { message: 'Selected bike was not found.' });
+        return;
+      }
+      if (
+        productCheck.data.status === 'sold' ||
+        (productCheck.data.assigned_customer_id && productCheck.data.assigned_customer_id !== current.data.customer_id)
+      ) {
+        sendJson(res, 409, { message: 'This bike is already sold or reserved for another customer.' });
+        return;
+      }
+    }
+
     const updated = await getSupabase()
       .from('customer_applications')
       .update(update)
@@ -59,7 +79,7 @@ export default async function handler(req, res) {
     if (Object.prototype.hasOwnProperty.call(update, 'product_id')) {
       await getSupabase()
         .from('inventory_products')
-        .update({ assigned_customer_id: null, status: 'available' })
+        .update({ assigned_customer_id: null, status: 'assigned' })
         .eq('assigned_customer_id', current.data.customer_id);
 
       if (update.product_id) {

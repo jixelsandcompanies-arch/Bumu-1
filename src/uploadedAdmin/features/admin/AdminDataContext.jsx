@@ -95,6 +95,7 @@ function mapPortal(portal = {}) {
     status: product.status || "available",
     assignedCustomerId: product.assignedCustomerId || null,
     assignedAgentId: product.assignedAgentId || null,
+    assignedAgentCode: product.assignedAgentCode || null,
     createdAt: product.createdAt || ""
   }));
 
@@ -280,8 +281,17 @@ export function AdminDataProvider({ children }) {
         productModel: bike.model,
         serialNumber: bike.serialNumber,
         chassisNumber: bike.chassisNumber,
+        assignedAgentId: bike.assignedAgentId || "",
         branch: "Main"
       }
+    });
+    await loadPortal();
+  }, [loadPortal]);
+
+  const updateBikeAgent = useCallback(async (bikeId, assignedAgentId) => {
+    await apiRequest(`/api/admin/products/${encodeURIComponent(bikeId)}/assign-agent`, {
+      method: "POST",
+      body: { assignedAgentId: assignedAgentId || "" }
     });
     await loadPortal();
   }, [loadPortal]);
@@ -350,6 +360,7 @@ export function AdminDataProvider({ children }) {
       updateApplicationBikeAssignment,
       updateApplicationVerification,
       updateApplicationStatus,
+      updateBikeAgent,
       updateNotificationStatus,
       updateUserRole,
       updateUserStatus,
@@ -368,6 +379,7 @@ export function AdminDataProvider({ children }) {
       updateApplicationBikeAssignment,
       updateApplicationStatus,
       updateApplicationVerification,
+      updateBikeAgent,
       updateNotificationStatus,
       updateUserRole,
       updateUserStatus,

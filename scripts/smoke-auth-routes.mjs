@@ -114,6 +114,13 @@ const cases = [
     expectedText: 'Sign in is required'
   },
   {
+    name: 'admin product agent assignment is protected',
+    path: '/api/admin/products/test-product/assign-agent',
+    options: { method: 'POST', body: { assignedAgentId: 'test-agent' } },
+    expectedStatus: 401,
+    expectedText: 'Sign in is required'
+  },
+  {
     name: 'finance notification read update is protected',
     path: '/api/notifications',
     options: { method: 'PATCH', body: { ids: ['FNT-test'], status: 'read' } },

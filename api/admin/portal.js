@@ -192,7 +192,8 @@ export default async function handler(req, res) {
           branch: item.branch || '',
           status: item.status || 'available',
           assignedCustomerId: item.assigned_customer_id || null,
-          assignedAgentId: null,
+          assignedAgentId: item.assigned_agent_id || null,
+          assignedAgentCode: item.assigned_agent_code || null,
           createdAt: item.created_at || ''
         })),
         payments: paymentRows.map((item) => ({

@@ -165,7 +165,9 @@ create table if not exists public.inventory_products (
   chassis_number text,
   branch text,
   assigned_customer_id text,
-  status text not null default 'available' check (status in ('available', 'reserved', 'sold', 'maintenance', 'inactive')),
+  assigned_agent_id text,
+  assigned_agent_code text,
+  status text not null default 'available' check (status in ('available', 'assigned', 'reserved', 'sold', 'maintenance', 'inactive')),
   source_portal text not null default 'admin',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -577,6 +579,12 @@ alter table public.inventory_products add column if not exists product_model tex
 alter table public.inventory_products add column if not exists serial_number text;
 alter table public.inventory_products add column if not exists chassis_number text;
 alter table public.inventory_products add column if not exists branch text;
+alter table public.inventory_products add column if not exists assigned_agent_id text;
+alter table public.inventory_products add column if not exists assigned_agent_code text;
+alter table public.inventory_products add column if not exists assigned_customer_id text;
+alter table public.inventory_products drop constraint if exists inventory_products_status_check;
+alter table public.inventory_products add constraint inventory_products_status_check
+  check (status in ('available', 'assigned', 'reserved', 'sold', 'maintenance', 'inactive'));
 alter table public.inventory_products drop constraint if exists inventory_products_required_fields;
 alter table public.inventory_products add constraint inventory_products_required_fields
   check (

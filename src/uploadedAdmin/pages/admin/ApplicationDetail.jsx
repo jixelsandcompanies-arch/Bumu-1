@@ -39,7 +39,10 @@ export default function ApplicationDetail() {
     (log) => log.entityType === "customer_application" && log.entityId === application?.id
   );
   const assignableBikes = bikes.filter(
-    (item) => item.status === "available" || item.id === application?.bikeId
+    (item) =>
+      item.id === application?.bikeId ||
+      item.status === "available" ||
+      (item.status === "assigned" && (!item.assignedAgentId || item.assignedAgentId === agent?.id))
   );
   const [selectedBikeId, setSelectedBikeId] = useState(application?.bikeId || "");
   const [verification, setVerification] = useState(() => ({

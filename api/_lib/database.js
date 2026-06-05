@@ -1032,11 +1032,18 @@ export async function getAgentPortal(user) {
     .select('*')
     .order('created_at', { ascending: false })
     .limit(100);
+  const productRequest = getSupabase()
+    .from('inventory_products')
+    .select('*')
+    .in('status', ['assigned', 'available', 'reserved'])
+    .order('created_at', { ascending: false })
+    .limit(200);
 
-  const [customersResult, commissionsResult, notificationsResult, tasksResult] = await Promise.all([
+  const [customersResult, commissionsResult, notificationsResult, productsResult, tasksResult] = await Promise.all([
     agentCode ? customerRequest.eq('agent_id', agentCode) : customerRequest.eq('agent_name', agentName),
     agentCode ? commissionRequest.eq('agent_code', agentCode) : commissionRequest.eq('agent_name', agentName),
     agentCode ? notificationRequest.eq('agent_code', agentCode) : notificationRequest.eq('agent_name', agentName),
+    agentCode ? productRequest.eq('assigned_agent_code', agentCode) : productRequest.eq('assigned_agent_id', agent.id),
     getSupabase()
       .from('agent_tasks')
       .select('*')
@@ -1045,7 +1052,7 @@ export async function getAgentPortal(user) {
       .limit(100)
   ]);
 
-  [customersResult, commissionsResult, notificationsResult, tasksResult].forEach(({ error }) => {
+  [customersResult, commissionsResult, notificationsResult, productsResult, tasksResult].forEach(({ error }) => {
     if (error) throw mapSupabaseError(error);
   });
 
@@ -1093,6 +1100,16 @@ export async function getAgentPortal(user) {
       dueDate: customer.due_date || '',
       status: mapDisplayStatus(customer.status, 'Active'),
       overdueDays: Number(customer.overdue_days || 0)
+    })),
+    products: (productsResult.data || []).map((product) => ({
+      id: product.id,
+      productType: product.product_type || 'bike',
+      productModel: product.product_model || '',
+      serialNumber: product.serial_number || '',
+      chassisNumber: product.chassis_number || '',
+      branch: product.branch || '',
+      status: product.status || 'assigned',
+      assignedCustomerId: product.assigned_customer_id || null
     })),
     commissions: commissions.map((commission) => ({
       id: commission.id,
@@ -1149,10 +1166,26 @@ export async function createAgentCustomer(user, body) {
   const nextOfKinPassportPhotoUrl = nonEmpty(body.nextOfKinPassportPhotoUrl || body.next_of_kin_passport_photo_url);
   const nextOfKinIdFrontUrl = nonEmpty(body.nextOfKinIdFrontUrl || body.next_of_kin_id_front_url);
   const nextOfKinIdBackUrl = nonEmpty(body.nextOfKinIdBackUrl || body.next_of_kin_id_back_url);
-  const productType = nonEmpty(body.productType) || 'product';
-  const productModel = nonEmpty(body.productModel || body.bikeModel);
-  const serialNumber = nonEmpty(body.serialNumber);
-  const chassisNumber = nonEmpty(body.chassisNumber);
+  const productId = nonEmpty(body.productId || body.product_id);
+  let assignedProduct = null;
+  if (productId) {
+    const productResult = await getSupabase()
+      .from('inventory_products')
+      .select('*')
+      .eq('id', productId)
+      .maybeSingle();
+    if (productResult.error) throw mapSupabaseError(productResult.error);
+    if (!productResult.data) {
+      const error = new Error('Selected bike was not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+    assignedProduct = productResult.data;
+  }
+  const productType = assignedProduct?.product_type || nonEmpty(body.productType) || 'product';
+  const productModel = assignedProduct?.product_model || nonEmpty(body.productModel || body.bikeModel);
+  const serialNumber = assignedProduct?.serial_number || nonEmpty(body.serialNumber);
+  const chassisNumber = assignedProduct?.chassis_number || nonEmpty(body.chassisNumber);
   const dueDate = nonEmpty(body.dueDate);
 
   const required = [
@@ -1213,6 +1246,21 @@ export async function createAgentCustomer(user, body) {
   if (duplicateCheck.error) throw mapSupabaseError(duplicateCheck.error);
   const duplicateNationalId = Boolean(duplicateCheck.data?.length);
 
+  if (assignedProduct) {
+    const productAgentCode = assignedProduct.assigned_agent_code || '';
+    const productAgentId = assignedProduct.assigned_agent_id || '';
+    if ((productAgentCode && productAgentCode !== agentCode) || (productAgentId && productAgentId !== agent.id)) {
+      const error = new Error('This bike is assigned to another agent.');
+      error.statusCode = 403;
+      throw error;
+    }
+    if (assignedProduct.assigned_customer_id || ['reserved', 'sold'].includes(assignedProduct.status)) {
+      const error = new Error('This bike is already reserved or sold.');
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
   const { data, error } = await getSupabase()
     .from('customers')
     .insert({
@@ -1265,6 +1313,7 @@ export async function createAgentCustomer(user, body) {
     .from('customer_applications')
     .insert({
       customer_id: data.id,
+      product_id: assignedProduct?.id || null,
       agent_id: agentCode,
       agent_name: agent.full_name || agent.agent_name,
       national_id: nationalId || null,
@@ -1276,6 +1325,25 @@ export async function createAgentCustomer(user, body) {
     .single();
 
   if (application.error) throw mapSupabaseError(application.error);
+
+  if (assignedProduct) {
+    const reserveProduct = await getSupabase()
+      .from('inventory_products')
+      .update({
+        assigned_customer_id: data.id,
+        status: 'reserved'
+      })
+      .eq('id', assignedProduct.id)
+      .is('assigned_customer_id', null)
+      .select()
+      .maybeSingle();
+    if (reserveProduct.error) throw mapSupabaseError(reserveProduct.error);
+    if (!reserveProduct.data) {
+      const error = new Error('This bike was just reserved by another customer. Choose another assigned bike.');
+      error.statusCode = 409;
+      throw error;
+    }
+  }
 
   if (nextOfKinOtp) {
     const publicBaseUrl = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '').replace(/\/$/, '');
@@ -1471,6 +1539,19 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent, trustedPhon
     .single();
 
   if (updateCustomer.error) throw mapSupabaseError(updateCustomer.error);
+
+  if (!duplicateNationalId && applicationResult.data.product_id) {
+    const productUpdate = await getSupabase()
+      .from('inventory_products')
+      .update({
+        assigned_customer_id: customerId,
+        status: 'sold'
+      })
+      .eq('id', applicationResult.data.product_id)
+      .select()
+      .maybeSingle();
+    if (productUpdate.error) throw mapSupabaseError(productUpdate.error);
+  }
 
   const application = await getSupabase()
     .from('customer_applications')

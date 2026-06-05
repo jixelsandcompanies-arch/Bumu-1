@@ -8,18 +8,19 @@ import { findAgent, findCustomer } from "../../lib/admin/lookups.js";
 const emptyBike = {
   model: "",
   serialNumber: "",
-  chassisNumber: ""
+  chassisNumber: "",
+  assignedAgentId: ""
 };
 
 export default function Bikes() {
-  const { addBike, agents, bikes, customers } = useAdminData();
+  const { addBike, agents, bikes, customers, updateBikeAgent } = useAdminData();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyBike);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const normalizedSerial = form.serialNumber.trim().toLowerCase();
     const normalizedChassis = form.chassisNumber.trim().toLowerCase();
@@ -33,10 +34,25 @@ export default function Bikes() {
       return;
     }
 
-    addBike(form);
-    setMessage(`${form.model} ${form.serialNumber} saved as available stock.`);
-    setForm(emptyBike);
-    setShowForm(false);
+    try {
+      await addBike(form);
+      const agent = findAgent(agents, form.assignedAgentId);
+      setMessage(`${form.model} ${form.serialNumber} saved${agent ? ` and assigned to ${agent.name}` : " as available stock"}.`);
+      setForm(emptyBike);
+      setShowForm(false);
+    } catch (error) {
+      setMessage(error.message || "Could not save bike.");
+    }
+  }
+
+  async function assignBike(row, assignedAgentId) {
+    try {
+      await updateBikeAgent(row.id, assignedAgentId);
+      const agent = findAgent(agents, assignedAgentId);
+      setMessage(agent ? `${row.serialNumber} assigned to ${agent.name}.` : `${row.serialNumber} is now unassigned stock.`);
+    } catch (error) {
+      setMessage(error.message || "Could not assign bike.");
+    }
   }
 
   const columns = [
@@ -52,7 +68,21 @@ export default function Bikes() {
     {
       key: "agent",
       label: "Assigned agent",
-      render: (row) => findAgent(agents, row.assignedAgentId)?.name || "Unassigned"
+      render: (row) => (
+        <select
+          value={row.assignedAgentId || ""}
+          disabled={Boolean(row.assignedCustomerId) || row.status === "sold"}
+          aria-label={`Assigned agent for ${row.serialNumber}`}
+          onChange={(event) => assignBike(row, event.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {agents.filter((agent) => agent.status === "active").map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.name} ({agent.code})
+            </option>
+          ))}
+        </select>
+      )
     },
     { key: "createdAt", label: "Created" }
   ];
@@ -94,6 +124,20 @@ export default function Bikes() {
           </div>
 
           <div className="settings-form">
+            <label>
+              Assign to agent
+              <select
+                value={form.assignedAgentId}
+                onChange={(event) => setForm({ ...form, assignedAgentId: event.target.value })}
+              >
+                <option value="">Unassigned stock</option>
+                {agents.filter((agent) => agent.status === "active").map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name} ({agent.code})
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               Bike model
               <input

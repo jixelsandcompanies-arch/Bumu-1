@@ -28,6 +28,7 @@ const emptyPortal = {
   agent: null,
   summary: { assignedCustomers: 0, overdueCustomers: 0, assignedBalance: 0, paidCommissions: 0, pendingCommissions: 0, openTasks: 0 },
   customers: [],
+  products: [],
   commissions: [],
   notifications: [],
   tasks: []
@@ -460,7 +461,7 @@ function DashboardTab({ portal, onNavigate }) {
   );
 }
 
-function RegisterTab({ onRefresh }) {
+function RegisterTab({ portal, onRefresh }) {
   const steps = ['Customer', 'Customer documents', 'Next of kin', 'Kin documents', 'Product'];
   const [step, setStep] = useState(0);
   const [pendingCustomerId, setPendingCustomerId] = useState('');
@@ -478,6 +479,7 @@ function RegisterTab({ onRefresh }) {
     idFrontUrl: '',
     idBackUrl: '',
     productType: 'bike',
+    productId: '',
     productModel: '',
     serialNumber: '',
     chassisNumber: '',
@@ -501,6 +503,24 @@ function RegisterTab({ onRefresh }) {
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  const assignedBikes = (portal.products || []).filter((product) => (
+    product.productType === 'bike' &&
+    !product.assignedCustomerId &&
+    ['assigned', 'available'].includes(product.status)
+  ));
+
+  function selectBike(productId) {
+    const bike = assignedBikes.find((item) => item.id === productId);
+    setForm((current) => ({
+      ...current,
+      productId,
+      productType: 'bike',
+      productModel: bike?.productModel || '',
+      serialNumber: bike?.serialNumber || '',
+      chassisNumber: bike?.chassisNumber || ''
+    }));
   }
 
   function resetForm() {
@@ -627,7 +647,26 @@ function RegisterTab({ onRefresh }) {
         )}
         {step === 4 && (
           <>
-            <Field fieldStyle={styles.gridField} label="Product type" value={form.productType} onChangeText={(value) => update('productType', value)} placeholder="bike, phone, cooker, solar" />
+            <View style={[styles.field, styles.gridField]}>
+              <Text style={styles.label}>Assigned bike</Text>
+              <select
+                required
+                value={form.productId}
+                onChange={(event) => selectBike(event.target.value)}
+                style={styles.input}
+              >
+                <option value="">Choose one of your assigned bikes</option>
+                {assignedBikes.map((bike) => (
+                  <option key={bike.id} value={bike.id}>
+                    {bike.serialNumber} - {bike.productModel} ({bike.status})
+                  </option>
+                ))}
+              </select>
+              {!assignedBikes.length ? (
+                <Text style={styles.panelText}>No available bikes are assigned to this agent. Ask admin to assign bike stock first.</Text>
+              ) : null}
+            </View>
+            <Field fieldStyle={styles.gridField} label="Product type" value={form.productType} onChangeText={(value) => update('productType', value)} placeholder="bike" />
             <Field fieldStyle={styles.gridField} label="Product model" value={form.productModel} onChangeText={(value) => update('productModel', value)} placeholder="Model name" />
             <Field fieldStyle={styles.gridField} label="Serial number" value={form.serialNumber} onChangeText={(value) => update('serialNumber', value)} placeholder="Serial number" />
             <Field fieldStyle={styles.gridField} label="Chassis number" value={form.chassisNumber} onChangeText={(value) => update('chassisNumber', value)} placeholder="For bikes" />

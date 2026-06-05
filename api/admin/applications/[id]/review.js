@@ -101,6 +101,19 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (nextStatus === 'approved' && application.data.product_id) {
+      const productUpdate = await getSupabase()
+        .from('inventory_products')
+        .update({
+          assigned_customer_id: application.data.customer_id,
+          status: 'sold'
+        })
+        .eq('id', application.data.product_id)
+        .select()
+        .maybeSingle();
+      if (productUpdate.error) throw productUpdate.error;
+    }
+
     const agentResult = application.data.agent_id
       ? await getSupabase().from('agents').select('*').eq('agent_code', application.data.agent_id).maybeSingle()
       : { data: null };

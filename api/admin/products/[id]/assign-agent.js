@@ -1,6 +1,6 @@
-import { readJson, sendJson } from '../_lib/http.js';
-import { assertBodySize, assertRateLimit, assertRequiredTextFields } from '../_lib/security.js';
-import { getSupabase, requirePortalUser } from '../_lib/supabase.js';
+import { readJson, sendJson } from '../../../_lib/http.js';
+import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
+import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -22,24 +22,28 @@ export default async function handler(req, res) {
 
   try {
     assertBodySize(req);
-    await assertRateLimit(req, { scope: 'admin-products', limit: 20, windowMs: 60_000 });
+    await assertRateLimit(req, { scope: 'admin-product-agent-assignment', limit: 30, windowMs: 60_000 });
     const user = await requirePortalUser(req, ['admin']);
     const body = await readJson(req);
-    const productType = String(body.productType || 'product').trim().toLowerCase();
-    const productModel = String(body.productModel || '').trim();
-    const serialNumber = String(body.serialNumber || '').trim();
-    const chassisNumber = String(body.chassisNumber || '').trim();
-    const branch = String(body.branch || '').trim();
+    const id = req.query?.id || req.url.split('/').slice(-2)[0];
     const assignedAgentId = String(body.assignedAgentId || '').trim();
+
+    const productResult = await getSupabase()
+      .from('inventory_products')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (productResult.error) throw productResult.error;
+    if (!productResult.data) {
+      sendJson(res, 404, { message: 'Bike was not found.' });
+      return;
+    }
+    if (productResult.data.assigned_customer_id || productResult.data.status === 'sold') {
+      sendJson(res, 409, { message: 'Sold or customer-assigned bikes cannot be reassigned to another agent.' });
+      return;
+    }
+
     let assignedAgent = null;
-
-    assertRequiredTextFields({
-      'product type': productType,
-      'product model': productModel,
-      'serial number': serialNumber,
-      branch
-    });
-
     if (assignedAgentId) {
       const agentResult = await getSupabase()
         .from('agents')
@@ -48,36 +52,30 @@ export default async function handler(req, res) {
         .maybeSingle();
       if (agentResult.error) throw agentResult.error;
       if (!agentResult.data) {
-        sendJson(res, 404, { message: 'Assigned agent was not found.' });
+        sendJson(res, 404, { message: 'Agent was not found.' });
         return;
       }
       assignedAgent = agentResult.data;
     }
 
-    const { data, error } = await getSupabase()
+    const updated = await getSupabase()
       .from('inventory_products')
-      .insert({
-        product_type: productType,
-        product_model: productModel,
-        serial_number: serialNumber,
-        chassis_number: chassisNumber || null,
-        branch,
+      .update({
         assigned_agent_id: assignedAgent?.id || null,
         assigned_agent_code: assignedAgent?.agent_code || null,
-        status: body.status || (assignedAgent ? 'assigned' : 'available'),
-        source_portal: 'admin'
+        status: assignedAgent ? 'assigned' : 'available'
       })
+      .eq('id', id)
       .select()
       .single();
 
-    if (error) throw error;
-    await audit(user, 'product_created', 'inventory_products', data.id, {
-      productType,
-      productModel,
+    if (updated.error) throw updated.error;
+    await audit(user, 'product_agent_assigned', 'inventory_products', id, {
       assignedAgentId: assignedAgent?.id || null,
       assignedAgentCode: assignedAgent?.agent_code || null
     });
-    sendJson(res, 201, { product: data });
+
+    sendJson(res, 200, { product: updated.data });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
   }
