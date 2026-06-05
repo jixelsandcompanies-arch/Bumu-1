@@ -125,8 +125,41 @@ function normalizeBackendUser(user = {}) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadSession);
-  const [authStatus, setAuthStatus] = useState("ready");
+  const [authStatus, setAuthStatus] = useState(() => (getAdminToken() ? "loading" : "ready"));
   const [otpChallenge, setOtpChallenge] = useState(null);
+
+  useEffect(() => {
+    const token = getAdminToken();
+
+    if (!token) {
+      clearAdminSession();
+      setUser(null);
+      setAuthStatus("ready");
+      return;
+    }
+
+    let cancelled = false;
+    setAuthStatus("loading");
+    apiRequest("/api/admin/auth/me")
+      .then((data) => {
+        if (cancelled) return;
+        const normalizedUser = normalizeBackendUser(data.user);
+        setAdminSession({ token, user: normalizedUser });
+        setUser(normalizedUser);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearAdminSession();
+        setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAuthStatus("ready");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function login(email, password) {
     if (!email || !password) {
