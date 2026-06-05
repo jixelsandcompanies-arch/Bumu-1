@@ -128,15 +128,24 @@ b {
   align-items: center;
   gap: 12px;
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.9);
+  color: #eef6ff;
   min-height: 44px;
   padding: 0 14px;
-  font-weight: 500;
+  font-weight: 600;
+  opacity: 1;
 }
 
 .nav-item svg,
 .sidebar-logout svg {
   color: currentColor;
+  opacity: 1;
+  stroke-width: 2.2;
+}
+
+.nav-item span,
+.sidebar-logout span {
+  color: inherit;
+  opacity: 1;
 }
 
 .nav-group {
@@ -146,7 +155,7 @@ b {
 
 .nav-group-label {
   margin: 0 0 2px;
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 11px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -170,9 +179,9 @@ b {
   gap: 12px;
   min-height: 44px;
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: white;
   padding: 0 14px;
   text-align: left;
