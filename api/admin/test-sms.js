@@ -1,7 +1,7 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../_lib/security.js';
 import { requirePortalUser } from '../_lib/supabase.js';
-import { sendSms } from '../_lib/twilio.js';
+import { sendSms, twilioConfigDiagnostics } from '../_lib/twilio.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,10 +27,11 @@ export default async function handler(req, res) {
       message: `Bumu Paygo test SMS ${new Date().toISOString()}.`
     });
 
-    sendJson(res, 200, { result });
+    sendJson(res, 200, { twilioConfig: twilioConfigDiagnostics(), result });
   } catch (error) {
     sendJson(res, error.statusCode || 500, {
       message: error.message,
+      twilioConfig: twilioConfigDiagnostics(),
       providerResponse: error.providerResponse || null
     });
   }

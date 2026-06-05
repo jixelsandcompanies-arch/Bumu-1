@@ -1,10 +1,39 @@
 const TWILIO_MESSAGES_URL = 'https://api.twilio.com/2010-04-01/Accounts';
 
+function envValue(name) {
+  return String(process.env[name] || '').trim();
+}
+
+function maskValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text.length <= 8) return `${text.slice(0, 2)}...`;
+  return `${text.slice(0, 4)}...${text.slice(-4)}`;
+}
+
+export function twilioConfigDiagnostics() {
+  const accountSid = envValue('TWILIO_ACCOUNT_SID');
+  const messagingServiceSid = envValue('TWILIO_MESSAGING_SERVICE_SID');
+  const fromNumber = envValue('TWILIO_FROM_NUMBER');
+  const authToken = envValue('TWILIO_AUTH_TOKEN');
+
+  return {
+    accountSid: maskValue(accountSid),
+    accountSidStartsWithAC: accountSid.startsWith('AC'),
+    accountSidLength: accountSid.length,
+    authTokenConfigured: Boolean(authToken),
+    authTokenLength: authToken.length,
+    messagingServiceSid: maskValue(messagingServiceSid),
+    messagingServiceSidStartsWithMG: messagingServiceSid.startsWith('MG'),
+    fromNumberConfigured: Boolean(fromNumber)
+  };
+}
+
 export function hasTwilioSmsConfig() {
   return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_FROM_NUMBER)
+    envValue('TWILIO_ACCOUNT_SID') &&
+    envValue('TWILIO_AUTH_TOKEN') &&
+    (envValue('TWILIO_MESSAGING_SERVICE_SID') || envValue('TWILIO_FROM_NUMBER'))
   );
 }
 
@@ -42,22 +71,33 @@ export async function sendSms({ to, message }) {
     return { configured: true, delivered: false, provider: 'twilio', reason: 'missing_phone' };
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const accountSid = envValue('TWILIO_ACCOUNT_SID');
+  const authToken = envValue('TWILIO_AUTH_TOKEN');
+  const messagingServiceSid = envValue('TWILIO_MESSAGING_SERVICE_SID');
+  const fromNumber = envValue('TWILIO_FROM_NUMBER');
+
+  if (!accountSid.startsWith('AC')) {
+    const error = new Error('TWILIO_ACCOUNT_SID must be the Account SID that starts with AC.');
+    error.statusCode = 500;
+    error.providerResponse = twilioConfigDiagnostics();
+    throw error;
+  }
+
   const body = new URLSearchParams({
     To: phone,
     Body: String(message || '')
   });
 
-  if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
-    body.set('MessagingServiceSid', process.env.TWILIO_MESSAGING_SERVICE_SID);
+  if (messagingServiceSid) {
+    body.set('MessagingServiceSid', messagingServiceSid);
   } else {
-    body.set('From', process.env.TWILIO_FROM_NUMBER);
+    body.set('From', fromNumber);
   }
 
   const response = await fetch(`${TWILIO_MESSAGES_URL}/${encodeURIComponent(accountSid)}/Messages.json`, {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json'
     },

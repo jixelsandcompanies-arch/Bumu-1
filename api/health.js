@@ -1,7 +1,7 @@
 import { sendJson } from './_lib/http.js';
 import { proxyBackend } from './_lib/backend.js';
 import { getSupabase, hasSupabaseAuthConfig, hasSupabaseConfig } from './_lib/supabase.js';
-import { hasTwilioSmsConfig } from './_lib/twilio.js';
+import { hasTwilioSmsConfig, twilioConfigDiagnostics } from './_lib/twilio.js';
 
 const REQUIRED_TABLES = [
   'admin_profiles',
@@ -72,6 +72,7 @@ export default async function handler(req, res) {
         payoutCallbackSecretConfigured: Boolean(process.env.PAYOUT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
         smsConfigured: hasTwilioSmsConfig(),
         smsProvider: 'twilio',
+        smsConfig: twilioConfigDiagnostics(),
         paymentProvider: process.env.PAYMENT_PROVIDER || 'daraja',
         commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'daraja'
       },
