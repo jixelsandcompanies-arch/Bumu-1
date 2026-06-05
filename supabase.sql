@@ -32,6 +32,14 @@ create table if not exists public.admin_profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.system_settings (
+  section text primary key,
+  values jsonb not null default '{}'::jsonb,
+  saved_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+
 do $$
 declare
   bootstrap_admin_id uuid;
@@ -923,6 +931,7 @@ alter table public.customer_notifications enable row level security;
 alter table public.password_reset_requests enable row level security;
 alter table public.customer_applications enable row level security;
 alter table public.admin_profiles enable row level security;
+alter table public.system_settings enable row level security;
 alter table public.branches enable row level security;
 alter table public.inventory_products enable row level security;
 alter table public.admin_audit_logs enable row level security;
@@ -1013,6 +1022,7 @@ revoke all on table public.customer_notifications from anon, authenticated;
 revoke all on table public.password_reset_requests from anon, authenticated;
 revoke all on table public.customer_applications from anon, authenticated;
 revoke all on table public.admin_profiles from anon, authenticated;
+revoke all on table public.system_settings from anon, authenticated;
 revoke all on table public.branches from anon, authenticated;
 revoke all on table public.inventory_products from anon, authenticated;
 revoke all on table public.admin_audit_logs from anon, authenticated;
@@ -1020,6 +1030,7 @@ revoke all on table public.customer_portal_summary from anon, authenticated;
 revoke all on table public.api_rate_limits from public, anon, authenticated;
 revoke all on function public.consume_api_rate_limit(text, integer, integer) from public, anon, authenticated;
 grant all on table public.api_rate_limits to service_role;
+grant all on table public.system_settings to service_role;
 grant execute on function public.consume_api_rate_limit(text, integer, integer) to service_role;
 
 -- Portals should access these tables through secured server-side APIs using SUPABASE_SERVICE_ROLE_KEY.

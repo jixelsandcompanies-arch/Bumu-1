@@ -98,12 +98,18 @@ export default async function handler(req, res) {
       }
 
       const signInCheck = await getSupabaseAuth().auth.signInWithPassword({ email, password });
-      if (signInCheck.error || !signInCheck.data?.user) {
+      const canClaimExistingAgentProfile = existing.data &&
+        String(existing.data.email || '').toLowerCase() === email &&
+        String(existing.data.phone || '') === phone &&
+        String(existing.data.national_id || '') === nationalId &&
+        (!existing.data.auth_user_id || existing.data.auth_user_id === authUserId);
+
+      if ((signInCheck.error || !signInCheck.data?.user) && !canClaimExistingAgentProfile) {
         sendJson(res, 409, { message: 'An agent login already exists for this email. Use the existing password or reset it.' });
         return;
       }
 
-      await getSupabase().auth.admin.updateUserById(authUserId, {
+      const updatePayload = {
         user_metadata: {
           ...existingAuthUser.user_metadata,
           full_name: fullName,
@@ -114,7 +120,13 @@ export default async function handler(req, res) {
           ...existingAuthUser.app_metadata,
           role: 'agent'
         }
-      });
+      };
+
+      if (signInCheck.error || !signInCheck.data?.user) {
+        updatePayload.password = password;
+      }
+
+      await getSupabase().auth.admin.updateUserById(authUserId, updatePayload);
     } else {
       const auth = await getSupabase().auth.admin.createUser({
         email,

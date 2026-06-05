@@ -5,6 +5,7 @@ import { hasSmsConfig, smsConfigDiagnostics } from './_lib/twilio.js';
 
 const REQUIRED_TABLES = [
   'admin_profiles',
+  'system_settings',
   'admin_audit_logs',
   'agents',
   'customers',
@@ -70,6 +71,7 @@ export default async function handler(req, res) {
         cronSecretConfigured: Boolean(process.env.CRON_SECRET || process.env.FOLLOW_UP_CRON_SECRET),
         paymentCallbackSecretConfigured: Boolean(process.env.PAYMENT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
         payoutCallbackSecretConfigured: Boolean(process.env.PAYOUT_CALLBACK_SECRET || process.env.WEBHOOK_SECRET),
+        otpPepperConfigured: Boolean(process.env.OTP_PEPPER && process.env.OTP_PEPPER !== 'bumu-paygo'),
         smsConfigured: hasSmsConfig(),
         smsProvider: smsConfigDiagnostics().provider,
         smsConfig: smsConfigDiagnostics(),

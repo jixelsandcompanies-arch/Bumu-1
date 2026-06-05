@@ -50,9 +50,16 @@ function mapDisplayStatus(value, fallback = 'Pending') {
 }
 
 export function hashOtp(identifier, otp) {
+  const pepper = process.env.OTP_PEPPER;
+  if (!pepper || pepper === 'bumu-paygo') {
+    const error = new Error('OTP_PEPPER must be configured with a private random value.');
+    error.statusCode = 500;
+    throw error;
+  }
+
   return crypto
     .createHash('sha256')
-    .update(`${normalizeEmail(identifier)}:${otp}:${process.env.OTP_PEPPER || 'bumu-paygo'}`)
+    .update(`${normalizeEmail(identifier)}:${otp}:${pepper}`)
     .digest('hex');
 }
 

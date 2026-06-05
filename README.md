@@ -24,6 +24,9 @@ VITE_API_BASE_URL=
 PUBLIC_APP_URL=https://bumu-beta.vercel.app
 ADMIN_MAX_ACCOUNTS=10
 CRON_SECRET=generate-a-long-random-secret
+OTP_PEPPER=generate-a-long-random-secret
+PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
+PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYMENT_PROVIDER=daraja
 COMMISSION_PAYOUT_PROVIDER=daraja
 TWILIO_ACCOUNT_SID=
@@ -74,6 +77,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_AUTH_REQUIRED=true
 VITE_API_BASE_URL=
 ADMIN_MAX_ACCOUNTS=10
+CRON_SECRET=generate-a-long-random-secret
+OTP_PEPPER=generate-a-long-random-secret
+PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
+PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
 ```
 
 Create finance users in Supabase Auth, then mark them as finance users:
@@ -92,6 +99,8 @@ For M-Pesa/Daraja payments and payouts, configure these callback URLs:
 Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/callback
 Commission payout callback: https://your-vercel-domain.vercel.app/api/commissions/payout-callback
 ```
+
+Set the matching callback secrets in Vercel. Payment callbacks require `PAYMENT_CALLBACK_SECRET` or `WEBHOOK_SECRET`; payout callbacks require `PAYOUT_CALLBACK_SECRET` or `WEBHOOK_SECRET`. The callback sender must include the secret as `Authorization: Bearer ...`, `x-callback-secret`, `x-webhook-secret`, or `?secret=...`. If no callback secret is configured, callback routes reject requests.
 
 ## Automated Follow-Ups
 
@@ -190,7 +199,7 @@ Forgot password: http://localhost:5173/#/forgot-password
 
 Users register with their own email and password. Accounts are created in Supabase Auth through `/api/auth/register`; they are not stored in browser localStorage.
 
-Password reset OTP sending and password changes must be handled by your secure backend through `BACKEND_API_URL`.
+Password reset OTP sending and password changes are handled by the Vercel API routes with Supabase Auth. If `BACKEND_API_URL` is set, those routes proxy to your secure backend instead.
 
 ## Data Flow
 

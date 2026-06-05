@@ -21,7 +21,7 @@ function readForm(req) {
 
 function validTwilioSignature(req, params) {
   const token = process.env.TWILIO_AUTH_TOKEN || '';
-  if (!token) return true;
+  if (!token) return false;
 
   const signature = String(req.headers['x-twilio-signature'] || '');
   if (!signature) return false;

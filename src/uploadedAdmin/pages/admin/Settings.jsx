@@ -8,7 +8,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { PageHeader } from "../../components/ui/PageHeader.jsx";
-import { supabase } from "../../lib/supabase/client.js";
+import { getAdminToken } from "../../features/auth/AuthContext.jsx";
 
 const sections = [
   { id: "admin", label: "Admin system", icon: Gauge },
@@ -94,6 +94,25 @@ function mergeSectionDefaults(sectionId, values = {}) {
   return { ...defaultSettings[sectionId], ...values };
 }
 
+async function settingsRequest(section, { method = "GET", values } = {}) {
+  const response = await fetch(`/api/admin/settings/${encodeURIComponent(section)}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(values ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${getAdminToken()}`
+    },
+    ...(values ? { body: JSON.stringify({ values }) } : {})
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || `Settings request failed with HTTP ${response.status}.`);
+  }
+
+  return data.setting;
+}
+
 export default function Settings() {
   const [activeSection, setActiveSection] = useState("admin");
   const [saveMessage, setSaveMessage] = useState("");
@@ -106,33 +125,21 @@ export default function Settings() {
     async function loadSection() {
       setLoadingSection(true);
 
-      if (!supabase) {
-        if (active) {
-          setSaveMessage("Supabase is not configured, so system settings cannot be loaded or saved.");
-          setLoadingSection(false);
+      try {
+        const data = await settingsRequest(activeSection);
+        if (!active) return;
+        if (data?.values) {
+          setSettings((current) => ({
+            ...current,
+            [activeSection]: mergeSectionDefaults(activeSection, data.values)
+          }));
         }
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("system_settings")
-        .select("values")
-        .eq("section", activeSection)
-        .maybeSingle();
-
-      if (!active) {
-        return;
-      }
-
-      if (!error && data?.values) {
-        setSettings((current) => ({
-          ...current,
-          [activeSection]: mergeSectionDefaults(activeSection, data.values)
-        }));
-      }
-
-      if (active) {
-        setLoadingSection(false);
+        setSaveMessage("");
+      } catch (error) {
+        if (!active) return;
+        setSaveMessage(error.message);
+      } finally {
+        if (active) setLoadingSection(false);
       }
     }
 
@@ -156,22 +163,19 @@ export default function Settings() {
   async function saveActiveSection() {
     const sectionLabel = sections.find((section) => section.id === activeSection)?.label;
     const values = settings[activeSection];
-    const payload = { section: activeSection, saved_at: new Date().toISOString(), values };
 
-    if (!supabase) {
-      setSaveMessage("Supabase is not configured, so settings cannot be saved. Configure the database first.");
-      return;
+    try {
+      const data = await settingsRequest(activeSection, { method: "PUT", values });
+      if (data?.values) {
+        setSettings((current) => ({
+          ...current,
+          [activeSection]: mergeSectionDefaults(activeSection, data.values)
+        }));
+      }
+      setSaveMessage(`${sectionLabel} saved to system settings.`);
+    } catch (error) {
+      setSaveMessage(`${sectionLabel} could not be saved: ${error.message}`);
     }
-
-    const { error } = await supabase
-      .from("system_settings")
-      .upsert(payload, { onConflict: "section" });
-
-    setSaveMessage(
-      error
-        ? `${sectionLabel} could not be saved: ${error.message}`
-        : `${sectionLabel} saved to system settings.`
-    );
   }
 
   return (
