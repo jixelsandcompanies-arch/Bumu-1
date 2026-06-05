@@ -98,10 +98,17 @@ export const authService = {
     return data.user;
   },
 
-  async requestPasswordReset(identifier) {
+  async requestPasswordReset(request) {
+    const payload = typeof request === 'string'
+      ? { identifier: request.trim() }
+      : {
+          identifier: String(request?.identifier || request?.email || '').trim(),
+          phone: String(request?.phone || '').trim()
+        };
+
     return apiRequest('/api/auth/request-reset', {
       method: 'POST',
-      body: { identifier: identifier.trim() }
+      body: payload
     });
   },
 

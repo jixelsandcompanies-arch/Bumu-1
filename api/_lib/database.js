@@ -78,9 +78,9 @@ async function sendOtp(body, email, otp) {
     body.phone ? sendOtpSms({ phone: body.phone, otp }).catch((error) => ({
       configured: true,
       delivered: false,
-      provider: 'twilio',
+      provider: 'sms',
       error: error.message
-    })) : Promise.resolve({ configured: false, delivered: false, provider: 'twilio' })
+    })) : Promise.resolve({ configured: false, delivered: false, provider: 'sms' })
   ]);
 
   return { email: emailDelivery, sms: smsDelivery };

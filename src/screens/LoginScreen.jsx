@@ -189,6 +189,7 @@ function RegisterPage() {
 
 function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState('');
+  const [phone, setPhone] = useState('');
   const [maskedIdentifier, setMaskedIdentifier] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
@@ -228,12 +229,19 @@ function ForgotPasswordPage() {
   async function sendOtp() {
     try {
       setError('');
-      await authService.requestPasswordReset(identifier);
-      setMaskedIdentifier(maskAccount(identifier));
+      const result = await authService.requestPasswordReset({ identifier, phone });
+      if (!result.delivered) {
+        setOtpSent(false);
+        setNotice('');
+        setError(result.message || 'OTP could not be delivered. Check the email/SMS provider settings and try again.');
+        return;
+      }
+
+      setMaskedIdentifier(phone.trim() ? maskAccount(phone) : maskAccount(identifier));
       setOtpSent(true);
       setOtpExpiresAt(Date.now() + 10 * 60 * 1000);
       setNow(Date.now());
-      setNotice('');
+      setNotice(result.message || 'OTP sent.');
     } catch (err) {
       setError(err.message);
     }
@@ -301,13 +309,19 @@ function ForgotPasswordPage() {
         <>
           <View style={styles.formGroup}>
             <Text style={styles.formGroupTitle}>Account</Text>
-            <Text style={styles.formGroupHelp}>Enter your email to receive OTP.</Text>
+            <Text style={styles.formGroupHelp}>Enter your email and phone number to receive OTP.</Text>
           </View>
           <Field
-            label="Email or phone"
+            label="Email"
             value={identifier}
             onChangeText={setIdentifier}
-            placeholder="Enter email or phone"
+            placeholder="Enter email"
+          />
+          <Field
+            label="Phone number"
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="Enter phone number"
           />
           <Button icon={Mail} onPress={sendOtp} style={styles.fullButton}>Send OTP</Button>
         </>
@@ -328,7 +342,7 @@ function ForgotPasswordPage() {
             <>
               <View style={styles.compactActionRow}>
                 <Pressable onPress={backToResendOtp} style={styles.compactLinkButton}>
-                  <Text style={styles.compactLinkText}>No OTP received? Confirm your email and resend the code.</Text>
+                  <Text style={styles.compactLinkText}>No OTP received? Confirm your email and phone number, then resend the code.</Text>
                 </Pressable>
               </View>
               <View>
