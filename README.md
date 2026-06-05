@@ -13,6 +13,8 @@ npm run dev
 
 Open `http://localhost:5173/`.
 
+<!-- Redeploy trigger: small edit to force Vercel to build latest commit with fixes -->
+
 To test database-backed mode locally, copy `.env.production.template` to `.env.local` and set:
 
 ```env
