@@ -45,7 +45,7 @@ function applyCleanPortalRoute() {
 
   const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
   const routeByPath = {
-    '/admin-bumu': '#/admin',
+    '/admin-bumu': '#/admin/login',
     '/finance-bumu': '#/login',
     '/customer-bumu': '#/customer',
     '/agent-bumu': '#/agent'
