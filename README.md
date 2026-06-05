@@ -41,7 +41,7 @@ AFRICASTALKING_PAYMENTS_SANDBOX=false
 AFRICASTALKING_B2C_REASON=BusinessPayment
 ```
 
-Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking. For payments and payouts, create an Africa's Talking Payment Product and set `AFRICASTALKING_PAYMENT_PRODUCT`; set `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL` to your payment channel/paybill if Africa's Talking gives you one.
+Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking. In Kenya, the live dashboard may not show a Payments menu; ask Africa's Talking Payments support for the API payment product/channel values after they host your Paybill or enable B2C. Set `AFRICASTALKING_PAYMENT_PRODUCT` and, if supplied, `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL`.
 
 ## Supabase Setup
 
@@ -104,6 +104,8 @@ https://your-vercel-domain.vercel.app/api/africastalking/payments-callback?secre
 ```
 
 Set `PAYMENT_CALLBACK_SECRET` in Vercel and put the same value in the callback URL query string as shown above. If no callback secret is configured, callback routes reject requests.
+
+For Kenya Mobile C2B, email `payments@africastalking.com` and ask them to host your Paybill. Include your organization name, Paybill number, callback URL, contact/admin details, and the payment product/channel values they assign. Normal hosted-Paybill C2B callbacks can be recorded even when the app did not create a payment request first, as long as the customer pays using an account reference that matches a customer ID, national ID, or registered customer phone. For B2C commission payouts, Africa's Talking support may require a Bulk Payment shortcode; use the values they provide in `AFRICASTALKING_PAYMENT_PRODUCT` and `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL`.
 
 ## Automated Follow-Ups
 

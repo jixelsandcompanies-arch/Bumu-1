@@ -611,6 +611,205 @@ export async function completePaymentRequest(paymentRequest, {
   };
 }
 
+async function findCustomerForProviderPayment({ accountReference, phone }) {
+  const reference = nonEmpty(accountReference);
+  const normalizedPhone = normalizePhone(phone);
+  const rawPhone = nonEmpty(phone);
+
+  if (reference) {
+    for (const [column, value] of [['id', reference], ['national_id', reference]]) {
+      const result = await getSupabase()
+        .from('customers')
+        .select('*')
+        .eq(column, value)
+        .maybeSingle();
+      if (result.error) throw mapSupabaseError(result.error);
+      if (result.data) return result.data;
+    }
+  }
+
+  const phoneCandidates = [...new Set([normalizedPhone, rawPhone].filter(Boolean))];
+  for (const candidate of phoneCandidates) {
+    const result = await getSupabase()
+      .from('customers')
+      .select('*')
+      .eq('customer_phone', candidate)
+      .maybeSingle();
+    if (result.error) throw mapSupabaseError(result.error);
+    if (result.data) return result.data;
+  }
+
+  const recentCustomers = await getSupabase()
+    .from('customers')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (recentCustomers.error) throw mapSupabaseError(recentCustomers.error);
+
+  return (recentCustomers.data || []).find((customer) => {
+    if (reference && [customer.id, customer.national_id, customer.customer_phone].some((value) => String(value || '').trim() === reference)) {
+      return true;
+    }
+    return normalizedPhone && normalizePhone(customer.customer_phone) === normalizedPhone;
+  }) || null;
+}
+
+export async function completeProviderC2BPayment({
+  amount,
+  phone,
+  receipt,
+  providerReference,
+  providerTransactionId,
+  providerResponse = {},
+  paidAt,
+  accountReference,
+  method = 'africastalking_mobile_c2b'
+} = {}) {
+  const transactionId = providerTransactionId || receipt || providerReference;
+  const paymentReceipt = receipt || transactionId || providerReference;
+  const paidAmount = Number(amount || 0);
+  const completedAt = paidAt || new Date().toISOString();
+
+  if (!paymentReceipt) {
+    const error = new Error('Payment callback transaction reference is missing.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!paidAmount || paidAmount <= 0) {
+    const error = new Error('Payment callback amount is missing or invalid.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingPayment = await getSupabase()
+    .from('payments')
+    .select('id')
+    .or(`receipt.eq.${paymentReceipt},provider_transaction_id.eq.${transactionId || paymentReceipt},provider_reference.eq.${providerReference || paymentReceipt}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPayment.error) throw mapSupabaseError(existingPayment.error);
+  if (existingPayment.data) return { duplicate: true, payment: existingPayment.data };
+
+  const customer = await findCustomerForProviderPayment({ accountReference, phone });
+  if (!customer) {
+    const error = new Error('No customer matched this C2B payment account reference or payer phone.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const nextPaidAmount = Number(customer.paid_amount || 0) + paidAmount;
+  const nextBalance = Math.max(Number(customer.balance || customer.total_payable || 0) - paidAmount, 0);
+  const totalPayable = Number(customer.total_payable || 0);
+  const repaymentPct = totalPayable > 0 ? Math.min(100, (nextPaidAmount / totalPayable) * 100) : 0;
+
+  const insertPayment = await getSupabase()
+    .from('payments')
+    .insert({
+      customer_id: customer.id,
+      customer_name: customer.customer_name || 'Customer',
+      customer_phone: customer.customer_phone || phone,
+      product_type: customer.product_type || 'product',
+      product_model: customer.product_model || customer.bike_model || null,
+      agent_name: customer.agent_name || null,
+      agent_id: customer.agent_id || null,
+      bike_model: customer.bike_model || null,
+      serial_number: customer.serial_number || null,
+      chassis_number: customer.chassis_number || null,
+      total_payable: totalPayable,
+      paid_amount: paidAmount,
+      balance: nextBalance,
+      deposit_credit: 0,
+      paygo_payment: paidAmount,
+      date: completedAt,
+      receipt: paymentReceipt,
+      provider_reference: providerReference || transactionId || null,
+      provider_transaction_id: transactionId || null,
+      provider_account_reference: accountReference || customer.id,
+      provider_payer_phone: String(phone || ''),
+      provider_paid_at: completedAt,
+      method,
+      status: 'paid',
+      source_portal: 'africastalking_c2b'
+    })
+    .select()
+    .single();
+
+  if (insertPayment.error) throw mapSupabaseError(insertPayment.error);
+  await ensureSaleCommissionForPayment(insertPayment.data);
+
+  const updateCustomer = await getSupabase()
+    .from('customers')
+    .update({
+      paid_amount: nextPaidAmount,
+      balance: nextBalance,
+      last_payment_date: completedAt.slice(0, 10),
+      status: nextBalance <= 0 ? 'paid' : 'active',
+      overdue_days: nextBalance <= 0 ? 0 : Number(customer.overdue_days || 0)
+    })
+    .eq('id', customer.id);
+
+  if (updateCustomer.error) throw mapSupabaseError(updateCustomer.error);
+
+  const sideEffects = await Promise.all([
+    getSupabase()
+      .from('customer_notifications')
+      .insert({
+        customer_id: customer.id,
+        title: 'Payment confirmed',
+        message: `Payment of KES ${paidAmount.toLocaleString('en-KE')} was confirmed.`,
+        type: 'payment',
+        status: 'unread'
+      }),
+    getSupabase()
+      .from('finance_notifications')
+      .insert({
+        type: 'payment_confirmed',
+        title: 'C2B payment confirmed',
+        message: `${customer.customer_name || 'Customer'} paid KES ${paidAmount.toLocaleString('en-KE')}.`,
+        issue: 'Africa\'s Talking C2B callback was received and matched to a customer.',
+        follow_up: 'Review reconciliation only if the amount or account looks unusual.',
+        customer_id: customer.id,
+        customer_name: customer.customer_name || '',
+        customer_phone: customer.customer_phone || phone || '',
+        agent_name: customer.agent_name || null,
+        agent_code: customer.agent_id || null,
+        amount: paidAmount,
+        balance: nextBalance,
+        overdue_days: Number(customer.overdue_days || 0),
+        source_portal: 'africastalking_c2b',
+        severity: 'success',
+        status: 'unread'
+      }),
+    getSupabase()
+      .from('reconciliation')
+      .insert({
+        payment_id: insertPayment.data.id,
+        receipt: paymentReceipt,
+        customer_name: customer.customer_name || 'Customer',
+        national_id: customer.national_id || null,
+        provider_amount: paidAmount,
+        system_amount: paidAmount,
+        date: completedAt.slice(0, 10),
+        status: 'matched',
+        source_portal: 'africastalking_c2b'
+      })
+  ]);
+
+  sideEffects.forEach((result) => {
+    if (result.error) throw mapSupabaseError(result.error);
+  });
+
+  return {
+    duplicate: false,
+    payment: insertPayment.data,
+    customer,
+    paidAmount,
+    nextBalance,
+    repaymentPct
+  };
+}
+
 export async function findCustomerForAuthUser(user) {
   const supabase = getSupabase();
   const userEmail = normalizeEmail(user?.email);
