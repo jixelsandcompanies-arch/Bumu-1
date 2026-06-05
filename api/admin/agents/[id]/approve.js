@@ -20,6 +20,11 @@ async function auditSafe(user, action, targetTable, targetId, details = {}) {
   }));
 }
 
+function temporaryPassword() {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `Agent@${new Date().getFullYear()}${random}!`;
+}
+
 async function findAuthUserByEmail(email) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail) return null;
@@ -63,6 +68,7 @@ export default async function handler(req, res) {
     }
 
     let authUserId = current.data.auth_user_id || null;
+    let generatedPassword = '';
     if (!authUserId) {
       const authUser = await findAuthUserByEmail(current.data.email);
       if (authUser && (authUser.app_metadata?.role || authUser.user_metadata?.role || 'agent') !== 'agent') {
@@ -70,6 +76,31 @@ export default async function handler(req, res) {
         return;
       }
       authUserId = authUser?.id || null;
+
+      if (!authUserId) {
+        generatedPassword = temporaryPassword();
+        const created = await getSupabase().auth.admin.createUser({
+          email: current.data.email,
+          password: generatedPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: current.data.full_name || current.data.agent_name || current.data.email,
+            phone: current.data.phone || '',
+            role: 'agent',
+            status: 'active'
+          },
+          app_metadata: {
+            role: 'agent',
+            status: 'active'
+          }
+        });
+
+        if (created.error || !created.data?.user) {
+          sendJson(res, 400, { message: created.error?.message || 'Could not create agent login.' });
+          return;
+        }
+        authUserId = created.data.user.id;
+      }
     }
 
     const updated = await getSupabase()
@@ -108,8 +139,8 @@ export default async function handler(req, res) {
       portal: 'agent'
     }).catch((error) => ({ delivered: false, error: error.message, provider: 'twilio' }));
 
-    await auditSafe(user, 'agent_approved', 'agents', id, { email: updated.data.email, smsResult });
-    sendJson(res, 200, { agent: updated.data, smsResult });
+    await auditSafe(user, 'agent_approved', 'agents', id, { email: updated.data.email, smsResult, loginCreated: Boolean(generatedPassword) });
+    sendJson(res, 200, { agent: updated.data, smsResult, temporaryPassword: generatedPassword || null });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
   }

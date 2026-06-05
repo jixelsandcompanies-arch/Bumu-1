@@ -1,12 +1,30 @@
 import { readJson, sendJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, validateStrongPassword } from '../../_lib/security.js';
-import { getSupabase } from '../../_lib/supabase.js';
+import { getSupabase, getSupabaseAuth } from '../../_lib/supabase.js';
 
 function agentCode(seed = '') {
   const compactDate = new Date().toISOString().slice(2, 10).replace(/-/g, '');
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
   const stable = String(seed || random).replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase() || 'AG';
   return `AG-KE-${compactDate}-${stable}${random}`;
+}
+
+async function findAuthUserByEmail(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  let page = 1;
+  while (page <= 10) {
+    const { data, error } = await getSupabase().auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw error;
+
+    const user = data.users.find((item) => String(item.email || '').toLowerCase() === normalizedEmail);
+    if (user) return user;
+    if (data.users.length < 100) return null;
+    page += 1;
+  }
+
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -68,29 +86,61 @@ export default async function handler(req, res) {
       return;
     }
 
-    const auth = await getSupabase().auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        phone,
-        role: 'agent'
-      },
-      app_metadata: {
-        role: 'agent'
-      }
-    });
+    const existingAuthUser = await findAuthUserByEmail(email);
+    let authUserId = existingAuthUser?.id || '';
+    let createdAuthUser = false;
 
-    if (auth.error) {
-      sendJson(res, 400, { message: auth.error.message || 'Could not create agent account.' });
-      return;
+    if (existingAuthUser) {
+      const role = existingAuthUser.app_metadata?.role || existingAuthUser.user_metadata?.role || 'agent';
+      if (role !== 'agent') {
+        sendJson(res, 409, { message: 'This email is already used by another portal role.' });
+        return;
+      }
+
+      const signInCheck = await getSupabaseAuth().auth.signInWithPassword({ email, password });
+      if (signInCheck.error || !signInCheck.data?.user) {
+        sendJson(res, 409, { message: 'An agent login already exists for this email. Use the existing password or reset it.' });
+        return;
+      }
+
+      await getSupabase().auth.admin.updateUserById(authUserId, {
+        user_metadata: {
+          ...existingAuthUser.user_metadata,
+          full_name: fullName,
+          phone,
+          role: 'agent'
+        },
+        app_metadata: {
+          ...existingAuthUser.app_metadata,
+          role: 'agent'
+        }
+      });
+    } else {
+      const auth = await getSupabase().auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          phone,
+          role: 'agent'
+        },
+        app_metadata: {
+          role: 'agent'
+        }
+      });
+
+      if (auth.error) {
+        sendJson(res, 400, { message: auth.error.message || 'Could not create agent account.' });
+        return;
+      }
+
+      authUserId = auth.data.user.id;
+      createdAuthUser = true;
     }
 
-    const authUserId = auth.data.user.id;
-
     async function rollbackAuthUser() {
-      await getSupabase().auth.admin.deleteUser(authUserId).catch(() => {});
+      if (createdAuthUser) await getSupabase().auth.admin.deleteUser(authUserId).catch(() => {});
     }
 
     if (existing.data) {

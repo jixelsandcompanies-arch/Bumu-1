@@ -232,15 +232,17 @@ export function AdminDataProvider({ children }) {
   }, [loadPortal]);
 
   const updateAgentStatus = useCallback(async (agentId, status) => {
+    let result = null;
     if (status === "active") {
-      await apiRequest(`/api/admin/agents/${encodeURIComponent(agentId)}/approve`, { method: "POST" });
+      result = await apiRequest(`/api/admin/agents/${encodeURIComponent(agentId)}/approve`, { method: "POST" });
     } else {
-      await apiRequest(`/api/admin/agents/${encodeURIComponent(agentId)}/status`, {
+      result = await apiRequest(`/api/admin/agents/${encodeURIComponent(agentId)}/status`, {
         method: "POST",
         body: { status: backendAgentStatus(status) }
       });
     }
     await loadPortal();
+    return result;
   }, [loadPortal]);
 
   const updateApplicationVerification = useCallback(async (applicationId, verification) => {

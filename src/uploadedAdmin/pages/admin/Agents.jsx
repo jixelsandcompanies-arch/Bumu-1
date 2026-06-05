@@ -69,8 +69,10 @@ export default function Agents() {
   async function changeAgentStatus(agent, status) {
     setSubmitting(true);
     try {
-      await updateAgentStatus(agent.id, status);
-      setMessage(`${agent.name} ${status.replaceAll("_", " ")}.`);
+      const result = await updateAgentStatus(agent.id, status);
+      setMessage(result?.temporaryPassword
+        ? `${agent.name} ${status.replaceAll("_", " ")}. Temporary password: ${result.temporaryPassword}`
+        : `${agent.name} ${status.replaceAll("_", " ")}.`);
     } catch (error) {
       setMessage(error.message || "Could not update agent status.");
     } finally {
