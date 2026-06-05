@@ -1,5 +1,5 @@
 import { sendPaymentConfirmedSms, sendCommissionPaidSms } from '../_lib/africastalking.js';
-import { completePaymentRequest, failPaymentRequest } from '../_lib/database.js';
+import { completePaymentRequest, completeProviderC2BPayment, failPaymentRequest } from '../_lib/database.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
@@ -53,6 +53,42 @@ async function handlePaymentRequest(body, transactionId) {
       providerResponse: body
     });
   }
+
+  return true;
+}
+
+async function handleDirectC2BPayment(body, transactionId) {
+  if (!isSuccess(body.status)) return false;
+
+  const accountReference = body.accountNumber ||
+    body.accountReference ||
+    body.account ||
+    body.clientAccount ||
+    body?.metadata?.accountReference ||
+    body?.metadata?.customerId ||
+    '';
+  const amount = parseAmount(body.value || body.amount);
+  const phone = body.phoneNumber || body.phone || body.source || body.sender;
+
+  const result = await completeProviderC2BPayment({
+    amount,
+    phone,
+    receipt: transactionId,
+    providerReference: transactionId,
+    providerTransactionId: transactionId,
+    providerResponse: body,
+    paidAt: new Date().toISOString(),
+    accountReference,
+    method: 'africastalking_mobile_c2b'
+  });
+
+  await sendPaymentConfirmedSms({
+    customer: { ...result.customer, customer_phone: result.customer.customer_phone || phone },
+    amount: result.paidAmount,
+    receipt: transactionId,
+    balance: result.nextBalance,
+    repaymentPct: result.repaymentPct
+  }).catch(() => null);
 
   return true;
 }
@@ -127,9 +163,10 @@ export default async function handler(req, res) {
     }
 
     const handledPayment = await handlePaymentRequest(body, transactionId);
-    const handledPayout = handledPayment ? false : await handlePayoutRequest(body, transactionId);
+    const handledDirectC2B = handledPayment ? false : await handleDirectC2BPayment(body, transactionId);
+    const handledPayout = handledPayment || handledDirectC2B ? false : await handlePayoutRequest(body, transactionId);
 
-    if (!handledPayment && !handledPayout) {
+    if (!handledPayment && !handledDirectC2B && !handledPayout) {
       sendJson(res, 404, { message: 'Matching payment or payout request was not found.' });
       return;
     }
