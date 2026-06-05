@@ -8,6 +8,7 @@ import {
   listCustomerPaymentRecords,
   listCustomers,
   listFinanceNotifications,
+  listInventory,
   listPayments,
   listReconciliation,
   markAgentCommissionsPaid,
@@ -84,6 +85,7 @@ async function runSupabaseHandler(req, path, { method, body }) {
   if (method === 'GET' && path === '/dashboard') return getDashboard();
   if (method === 'GET' && path === '/customers') return listCustomers(query);
   if (method === 'GET' && path === '/customers/payment-records') return listCustomerPaymentRecords(query);
+  if (method === 'GET' && path === '/inventory') return listInventory(query);
   if (method === 'GET' && path === '/payments') return listPayments(query);
   if (method === 'GET' && path === '/notifications') return listFinanceNotifications(query);
   if ((method === 'PATCH' || method === 'DELETE') && path === '/notifications') {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, CreditCard, Download, Flag, HandCoins, RefreshCcw, Users } from 'lucide-react';
+import { AlertTriangle, Bell, Bike, CreditCard, Download, Flag, HandCoins, RefreshCcw, Users } from 'lucide-react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Button } from '../components/ui/Button.jsx';
 import { Section } from '../components/ui/Section.jsx';
@@ -7,6 +7,7 @@ import { StatusPill } from '../components/ui/StatusPill.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { agentPortalService } from '../services/agentPortalService.js';
 import { emptyDashboardSummary, financeService } from '../services/financeService.js';
+import { inventoryService } from '../services/inventoryService.js';
 import { paymentService } from '../services/paymentService.js';
 import { colors } from '../theme/colors.js';
 import { formatKes } from '../utils/currency.js';
@@ -17,10 +18,13 @@ export function DashboardScreen({ onNavigate, notifications = [] }) {
   const [payments, setPayments] = useState([]);
   const [dashboard, setDashboard] = useState({ summary: emptyDashboardSummary, trend: [] });
   const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
   const collectionTrend = dashboard.trend.length > 0 ? dashboard.trend : buildTrendFromPayments(payments);
   const maxAmount = Math.max(...collectionTrend.map((item) => item.amount), 1);
   const overdueCustomers = customers.filter((customer) => Number(customer.overdueDays || 0) > 0);
   const latestAlerts = notifications.slice(0, 3);
+  const soldProducts = products.filter((product) => product.status === 'sold');
+  const reservedProducts = products.filter((product) => product.status === 'reserved');
 
   useEffect(() => {
     let mounted = true;
@@ -28,6 +32,7 @@ export function DashboardScreen({ onNavigate, notifications = [] }) {
       paymentService.listPayments().then((records) => mounted && setPayments(records)).catch(() => mounted && setPayments([]));
       financeService.getDashboard().then((data) => mounted && setDashboard(data)).catch(() => mounted && setDashboard({ summary: emptyDashboardSummary, trend: [] }));
       agentPortalService.listRegisteredCustomers().then((records) => mounted && setCustomers(records)).catch(() => mounted && setCustomers([]));
+      inventoryService.listProducts().then((records) => mounted && setProducts(records)).catch(() => mounted && setProducts([]));
     };
 
     loadDashboardData();
@@ -121,6 +126,8 @@ export function DashboardScreen({ onNavigate, notifications = [] }) {
         <Metric label="Reconciliation flags" value={dashboard.summary.reconciliationFlags} icon={RefreshCcw} tone="orange" />
         <Metric label="Unpaid commission" value={formatKes(dashboard.summary.unpaidCommissions)} icon={Flag} tone="rose" />
         <Metric label="Active accounts" value={dashboard.summary.activeAccounts} icon={Users} tone="teal" />
+        <Metric label="Sold bikes" value={soldProducts.length} icon={Bike} tone="success" />
+        <Metric label="Reserved bikes" value={reservedProducts.length} icon={Bike} tone="warning" />
       </View>
 
       <View style={styles.grid}>
@@ -191,6 +198,30 @@ export function DashboardScreen({ onNavigate, notifications = [] }) {
           ))}
         </Section>
       </View>
+
+      <Section title="Sold bike tracker">
+        {soldProducts.slice(0, 5).map((product) => {
+          const customer = customers.find((item) => item.id === product.assignedCustomerId);
+          return (
+            <View key={product.id} style={styles.dataRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{product.productModel || 'Bike'}</Text>
+                <Text style={styles.rowMuted}>{product.serialNumber || product.chassisNumber || 'No serial'} | {customer?.customerName || customer?.name || 'Customer pending sync'}</Text>
+                <Text style={styles.rowMuted}>Agent {product.assignedAgentCode || customer?.agentId || 'Not assigned'}</Text>
+              </View>
+              <StatusPill status="sold" />
+            </View>
+          );
+        })}
+        {soldProducts.length === 0 && (
+          <View style={styles.dataRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>No sold bikes yet</Text>
+              <Text style={styles.rowMuted}>Approved assigned bikes will appear here for finance tracking.</Text>
+            </View>
+          </View>
+        )}
+      </Section>
 
       <View style={styles.quickActions}>
         <Button icon={CreditCard} onPress={() => onNavigate('payments')}>Review payments</Button>

@@ -1530,6 +1530,65 @@ async function createScreeningNotification({ customer, agent, duplicateNationalI
     });
 }
 
+export async function markApplicationProductSold({ application, customer, sourcePortal = 'screening' }) {
+  if (!application?.product_id || !application?.customer_id) return { product: null };
+
+  const currentProduct = await getSupabase()
+    .from('inventory_products')
+    .select('*')
+    .eq('id', application.product_id)
+    .maybeSingle();
+
+  if (currentProduct.error) throw mapSupabaseError(currentProduct.error);
+  if (!currentProduct.data) return { product: null };
+
+  const alreadySold = currentProduct.data.status === 'sold' && currentProduct.data.assigned_customer_id === application.customer_id;
+  const product = alreadySold
+    ? currentProduct.data
+    : await getSupabase()
+      .from('inventory_products')
+      .update({
+        assigned_customer_id: application.customer_id,
+        status: 'sold'
+      })
+      .eq('id', application.product_id)
+      .select()
+      .maybeSingle()
+      .then((result) => {
+        if (result.error) throw mapSupabaseError(result.error);
+        return result.data;
+      });
+
+  if (!product || alreadySold) return { product };
+
+  const customerName = customer?.customer_name || application.customers?.customer_name || 'Customer';
+  const customerPhone = customer?.customer_phone || application.customers?.customer_phone || '';
+  const agentName = application.agent_name || customer?.agent_name || 'Agent';
+  const serial = product.serial_number || product.chassis_number || 'no serial';
+  const model = product.product_model || 'bike';
+
+  await getSupabase()
+    .from('finance_notifications')
+    .insert({
+      type: 'product_sold',
+      title: 'Assigned bike sold',
+      message: `${model} ${serial} was sold to ${customerName} by ${agentName}.`,
+      issue: 'Inventory moved from assigned/reserved to sold after customer approval.',
+      follow_up: 'Finance should track deposit, repayment, and agent commission against this sold bike.',
+      customer_id: application.customer_id,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      agent_name: agentName,
+      agent_code: application.agent_id || customer?.agent_id || null,
+      balance: Number(customer?.balance || application.customers?.balance || 0),
+      source_portal: sourcePortal,
+      severity: 'success',
+      status: 'unread'
+    });
+
+  return { product };
+}
+
 function activationSmsWasDelivered(result) {
   return Boolean(result?.customer?.delivered);
 }
@@ -1647,17 +1706,12 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent, trustedPhon
 
   if (updateCustomer.error) throw mapSupabaseError(updateCustomer.error);
 
-  if (!duplicateNationalId && applicationResult.data.product_id) {
-    const productUpdate = await getSupabase()
-      .from('inventory_products')
-      .update({
-        assigned_customer_id: customerId,
-        status: 'sold'
-      })
-      .eq('id', applicationResult.data.product_id)
-      .select()
-      .maybeSingle();
-    if (productUpdate.error) throw mapSupabaseError(productUpdate.error);
+  if (!duplicateNationalId) {
+    await markApplicationProductSold({
+      application: applicationResult.data,
+      customer: updateCustomer.data,
+      sourcePortal: 'next_of_kin_automation'
+    });
   }
 
   const application = await getSupabase()
@@ -1951,6 +2005,21 @@ export async function listCustomerPaymentRecords(query = {}) {
 
   if (error) throw mapSupabaseError(error);
   return { payments: data || [] };
+}
+
+export async function listInventory(query = {}) {
+  let request = getSupabase()
+    .from('inventory_products')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (query.status) request = request.eq('status', query.status);
+  if (query.agentCode) request = request.eq('assigned_agent_code', query.agentCode);
+
+  const { data, error } = await applyRange(request, query, 500);
+
+  if (error) throw mapSupabaseError(error);
+  return { products: data || [] };
 }
 
 export async function listCommissions(query = {}) {

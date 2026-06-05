@@ -2,7 +2,7 @@ import { readJson, sendJson } from '../../../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
 import { sendScreeningSms } from '../../../_lib/twilio.js';
-import { createOtp, hashOtp } from '../../../_lib/database.js';
+import { createOtp, hashOtp, markApplicationProductSold } from '../../../_lib/database.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -101,17 +101,14 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (nextStatus === 'approved' && application.data.product_id) {
-      const productUpdate = await getSupabase()
-        .from('inventory_products')
-        .update({
-          assigned_customer_id: application.data.customer_id,
-          status: 'sold'
-        })
-        .eq('id', application.data.product_id)
-        .select()
-        .maybeSingle();
-      if (productUpdate.error) throw productUpdate.error;
+    let soldProduct = null;
+    if (nextStatus === 'approved') {
+      const sold = await markApplicationProductSold({
+        application: application.data,
+        customer: updateCustomer.data,
+        sourcePortal: 'admin_screening'
+      });
+      soldProduct = sold.product;
     }
 
     const agentResult = application.data.agent_id
@@ -142,8 +139,8 @@ export default async function handler(req, res) {
       error: notificationError.message
     }));
 
-    await auditSafe(user, `application_${nextStatus}`, 'customer_applications', id, { reason, smsResult, notificationResult });
-    sendJson(res, 200, { application: updateApplication.data, customer: updateCustomer.data, smsResult });
+    await auditSafe(user, `application_${nextStatus}`, 'customer_applications', id, { reason, smsResult, notificationResult, soldProduct });
+    sendJson(res, 200, { application: updateApplication.data, customer: updateCustomer.data, soldProduct, smsResult });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
   }
