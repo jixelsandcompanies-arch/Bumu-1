@@ -40,10 +40,14 @@ function isAuthRoute() {
   return ['#/login', '#/register', '#/forgot-password'].includes(window.location.hash);
 }
 
+function cleanPortalPath() {
+  return window.location.pathname.replace(/\/+$/, '').toLowerCase();
+}
+
 function applyCleanPortalRoute() {
   if (window.location.hash) return;
 
-  const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+  const path = cleanPortalPath();
   const routeByPath = {
     '/admin-bumu': '#/admin/login',
     '/finance-bumu': '#/login',
@@ -86,11 +90,24 @@ function isAdminRoute() {
   return window.location.hash.startsWith('#/admin');
 }
 
+function isFinanceRoute() {
+  return cleanPortalPath() === '/finance-bumu' || isAuthRoute();
+}
+
 function isNextOfKinRoute() {
   return window.location.hash.startsWith('#/next-of-kin');
 }
 
 function portalMetaForRoute() {
+  if (isAdminRoute()) {
+    return {
+      title: 'Bumu Paygo Admin Portal',
+      manifest: '/manifest-admin.webmanifest',
+      appleTitle: 'Bumu Admin',
+      description: 'Admin CRM for Bumu Paygo screening, users, bikes, reports, audit, and approvals.'
+    };
+  }
+
   if (isAgentRoute()) {
     return {
       title: 'Bumu Paygo Agent Portal',
@@ -106,6 +123,15 @@ function portalMetaForRoute() {
       manifest: '/manifest-customer.webmanifest',
       appleTitle: 'Bumu Customer',
       description: 'Customer app for Bumu Paygo balances, M-Pesa payments, payment history, and account alerts.'
+    };
+  }
+
+  if (isFinanceRoute()) {
+    return {
+      title: 'Bumu Paygo Finance Portal',
+      manifest: '/manifest-finance.webmanifest',
+      appleTitle: 'Bumu Finance',
+      description: 'Finance workspace for Bumu Paygo collections, commissions, reconciliation, reports, and notifications.'
     };
   }
 

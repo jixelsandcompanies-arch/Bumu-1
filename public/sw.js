@@ -1,8 +1,10 @@
-const CACHE_NAME = 'bumu-paygo-shell-v6';
+const CACHE_NAME = 'bumu-paygo-shell-v7';
 const APP_SHELL = [
   '/manifest.webmanifest',
+  '/manifest-admin.webmanifest',
   '/manifest-agent.webmanifest',
   '/manifest-customer.webmanifest',
+  '/manifest-finance.webmanifest',
   '/icons/favicon-32.png',
   '/icons/apple-touch-icon.png',
   '/icons/icon-192.png',
