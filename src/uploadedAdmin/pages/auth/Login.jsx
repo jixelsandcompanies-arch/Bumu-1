@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getPortalPathForRole, useAuth } from "../../features/auth/AuthContext.jsx";
-import bumuLogo from "../../../../BumuLogo.jpeg";
+import { bumuLogo } from "@/assets/index.js";
 
 export default function Login() {
   const navigate = useNavigate();

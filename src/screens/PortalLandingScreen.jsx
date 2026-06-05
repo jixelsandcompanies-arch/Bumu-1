@@ -13,7 +13,7 @@ import {
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/ui/Text.jsx';
 import { colors } from '../theme/colors.js';
-import bumuLogo from '../../BumuLogo.jpeg';
+import { bumuLogo } from '@/assets/index.js';
 
 const portals = [
   {

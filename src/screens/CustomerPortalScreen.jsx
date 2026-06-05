@@ -19,7 +19,7 @@ import { FloatingInstallButton } from '../components/ui/FloatingInstallButton.js
 import { Text } from '../components/ui/Text.jsx';
 import { customerPortalService } from '../services/customerPortalService.js';
 import { colors } from '../theme/colors.js';
-import bumuLogo from '../../BumuLogo.jpeg';
+import { bumuLogo } from '@/assets/index.js';
 
 const tabs = [
   ['dashboard', 'Dashboard', Home],

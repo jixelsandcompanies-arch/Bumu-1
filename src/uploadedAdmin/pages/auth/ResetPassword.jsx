@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext.jsx";
-import bumuLogo from "../../../../BumuLogo.jpeg";
+import { bumuLogo } from "@/assets/index.js";
 
 export default function ResetPassword() {
   const { requestPasswordReset } = useAuth();

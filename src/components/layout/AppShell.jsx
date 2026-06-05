@@ -5,7 +5,7 @@ import { colors } from '../../theme/colors.js';
 import { Button } from '../ui/Button.jsx';
 import { Text } from '../ui/Text.jsx';
 import { navGroups, navItems } from './navigation.js';
-import bumuLogo from '../../../BumuLogo.jpeg';
+import { bumuLogo } from '@/assets/index.js';
 
 export function AppShell({
   activeScreen,
