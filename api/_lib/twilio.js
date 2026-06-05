@@ -17,6 +17,21 @@ export function normalizePhone(phone) {
   return String(phone || '').trim().startsWith('+') ? String(phone).trim() : `+${digits}`;
 }
 
+function publicAppBaseUrl() {
+  const configured = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '').replace(/\/$/, '');
+  if (!configured) return 'https://bumu-beta.vercel.app';
+  return configured.startsWith('http') ? configured : `https://${configured}`;
+}
+
+function portalUrl(portal) {
+  const baseUrl = publicAppBaseUrl();
+  const key = String(portal || '').toLowerCase();
+  if (key === 'agent') return `${baseUrl}/#/agent`;
+  if (key === 'customer') return `${baseUrl}/#/customer`;
+  if (key === 'admin') return `${baseUrl}/#/admin`;
+  return `${baseUrl}/#/login`;
+}
+
 export async function sendSms({ to, message }) {
   if (!hasTwilioSmsConfig()) {
     return { configured: false, delivered: false, provider: 'twilio' };
@@ -91,8 +106,8 @@ export async function sendScreeningSms({ action, customer, agent, reason, activa
 
   if (action === 'approve') {
     const customerMessage = activationOtp
-      ? `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal and enter OTP ${activationOtp} to activate your account. Valid for 10 minutes.`
-      : `Congratulations ${customerName}! Your Bumu Paygo application has been approved. Open the Bumu Paygo customer portal or contact Bumu Paygo support for account activation.`;
+      ? `Congratulations ${customerName}! Your Bumu Paygo account has been approved. Open ${portalUrl('customer')} and enter OTP ${activationOtp} to activate your account and log in. Valid for 10 minutes.`
+      : `Congratulations ${customerName}! Your Bumu Paygo account has been approved and activated. You can now log in at ${portalUrl('customer')}.`;
 
     const [customerResult, agentResult] = await Promise.all([
       sendSms({ to: customerPhone, message: customerMessage }),
@@ -149,9 +164,10 @@ export async function sendAgentFollowUpSms({ agentPhone, customerName, customerP
 }
 
 export async function sendAccountApprovedSms({ phone, name, portal }) {
+  const portalName = portal || 'portal';
   return sendSms({
     to: phone,
-    message: `Hello ${name || 'there'}, your Bumu Paygo ${portal || 'portal'} account has been approved. You can now sign in.`
+    message: `Hello ${name || 'there'}, your Bumu Paygo ${portalName} account has been approved and activated by admin. You can now log in at ${portalUrl(portalName)}.`
   });
 }
 
