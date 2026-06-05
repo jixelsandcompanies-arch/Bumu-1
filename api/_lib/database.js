@@ -63,6 +63,10 @@ export function hashOtp(identifier, otp) {
     .digest('hex');
 }
 
+function hasOtpPepper() {
+  return Boolean(process.env.OTP_PEPPER && process.env.OTP_PEPPER !== 'bumu-paygo');
+}
+
 export function createOtp() {
   return String(crypto.randomInt(100000, 1000000));
 }
@@ -137,6 +141,22 @@ async function sendPasswordResetOtp(body, email) {
         phone: normalizePhone(phone)
       };
     }
+  }
+
+  if (!hasOtpPepper()) {
+    return {
+      delivery: {
+        local_otp: {
+          configured: false,
+          delivered: false,
+          provider: 'local_otp',
+          error: 'OTP_PEPPER is not configured.'
+        }
+      },
+      delivered: false,
+      otpHash: null,
+      phone
+    };
   }
 
   const otp = createOtp();
@@ -952,7 +972,7 @@ export async function requestPasswordResetOtp(body) {
     request: data,
     message: resetOtp.delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved but not delivered. Configure TWILIO_VERIFY_SERVICE_SID for reliable SMS OTP, or RESEND_API_KEY/OTP_FROM_EMAIL for email OTP.'
+      : 'OTP request saved but not delivered. Enter a phone number for Twilio Verify SMS OTP, or configure OTP_PEPPER plus RESEND_API_KEY/OTP_FROM_EMAIL for email OTP.'
   };
 }
 

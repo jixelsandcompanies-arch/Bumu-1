@@ -49,6 +49,7 @@ export function SettingsScreen({
   const [deviceLock, setDeviceLock] = useState(false);
   const [passwordFormOpen, setPasswordFormOpen] = useState(false);
   const [passwordEmail, setPasswordEmail] = useState('');
+  const [passwordPhone, setPasswordPhone] = useState(() => profileSettings?.phone || '');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -66,6 +67,7 @@ export function SettingsScreen({
     setName(profileSettings?.name || '');
     setRole(profileSettings?.role || '');
     setPhone(profileSettings?.phone || '');
+    setPasswordPhone((current) => current || profileSettings?.phone || '');
     setBranch(profileSettings?.branch || '');
   }, [profileSettings]);
 
@@ -146,9 +148,17 @@ export function SettingsScreen({
     }
 
     try {
-      await authService.requestPasswordReset(passwordEmail.trim());
+      const result = await authService.requestPasswordReset({
+        identifier: passwordEmail.trim(),
+        phone: passwordPhone.trim()
+      });
+      if (!result.delivered) {
+        setOtpSent(false);
+        setPasswordNotice(result.message || 'OTP could not be delivered. Confirm your phone number and OTP provider settings.');
+        return;
+      }
       setOtpSent(true);
-      setPasswordNotice(`OTP sent to ${passwordEmail.trim()}. If it does not arrive, go back and resend it.`);
+      setPasswordNotice(`OTP sent to ${passwordPhone.trim() || passwordEmail.trim()}. If it does not arrive, go back and resend it.`);
     } catch (error) {
       setPasswordNotice(error.message);
     }
@@ -323,6 +333,13 @@ export function SettingsScreen({
                   onChangeText={setPasswordEmail}
                   style={styles.formInput}
                   placeholder="Email address"
+                  placeholderTextColor="var(--app-muted)"
+                />
+                <TextInput
+                  value={passwordPhone}
+                  onChangeText={setPasswordPhone}
+                  style={styles.formInput}
+                  placeholder="Phone number for SMS OTP"
                   placeholderTextColor="var(--app-muted)"
                 />
                 <View style={styles.validationRow}>
