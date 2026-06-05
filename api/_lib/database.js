@@ -1,16 +1,14 @@
 import crypto from 'node:crypto';
 import {
-  checkVerifyOtp,
-  hasTwilioVerifyConfig,
+  hasAfricasTalkingSmsConfig,
   normalizePhone,
   sendAgentFollowUpSms,
   sendCommissionPaidSms,
   sendNextOfKinAcceptanceSms,
   sendOtpSms,
   sendPaymentReminderSms,
-  sendScreeningSms,
-  startVerifyOtp
-} from './twilio.js';
+  sendScreeningSms
+} from './africastalking.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -108,11 +106,7 @@ async function sendOtp(body, email, otp) {
   return { email: emailDelivery, sms: smsDelivery };
 }
 
-function isTwilioVerifyResetRequest(request) {
-  return request?.provider_response?.verify?.provider === 'twilio_verify';
-}
-
-function mapOtpDeliveryError(error, provider = 'twilio_verify') {
+function mapOtpDeliveryError(error, provider = 'africastalking') {
   return {
     configured: true,
     delivered: false,
@@ -124,25 +118,6 @@ function mapOtpDeliveryError(error, provider = 'twilio_verify') {
 
 async function sendPasswordResetOtp(body, email) {
   const phone = String(body.phone || '').trim();
-  if (hasTwilioVerifyConfig() && phone) {
-    try {
-      const verify = await startVerifyOtp({ phone });
-      return {
-        delivery: { verify },
-        delivered: Boolean(verify.delivered),
-        otpHash: null,
-        phone: verify.phone || normalizePhone(phone)
-      };
-    } catch (error) {
-      return {
-        delivery: { verify: mapOtpDeliveryError(error) },
-        delivered: false,
-        otpHash: null,
-        phone: normalizePhone(phone)
-      };
-    }
-  }
-
   if (!hasOtpPepper()) {
     return {
       delivery: {
@@ -160,32 +135,23 @@ async function sendPasswordResetOtp(body, email) {
   }
 
   const otp = createOtp();
-  const delivery = await sendOtp(body, email, otp);
+  const delivery = hasAfricasTalkingSmsConfig() && phone
+    ? {
+        email: { configured: false, delivered: false, provider: 'not_used' },
+        sms: await sendOtpSms({ phone, otp }).catch((error) => mapOtpDeliveryError(error))
+      }
+    : await sendOtp(body, email, otp);
   return {
     delivery,
     delivered: Boolean(delivery.email?.delivered || delivery.sms?.delivered),
     otpHash: hashOtp(email, otp),
-    phone
+    phone: phone ? normalizePhone(phone) : ''
   };
 }
 
 async function confirmPasswordResetOtp(request, identifier, otp) {
   if (!request || new Date(request.otp_expires_at).getTime() < Date.now()) {
     return { verified: false };
-  }
-
-  if (isTwilioVerifyResetRequest(request)) {
-    try {
-      return await checkVerifyOtp({ phone: request.phone, otp });
-    } catch (error) {
-      return {
-        configured: true,
-        verified: false,
-        provider: 'twilio_verify',
-        error: error.message,
-        response: error.providerResponse || null
-      };
-    }
   }
 
   return {
@@ -972,7 +938,7 @@ export async function requestPasswordResetOtp(body) {
     request: data,
     message: resetOtp.delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved but not delivered. Enter a phone number for Twilio Verify SMS OTP, or configure OTP_PEPPER plus RESEND_API_KEY/OTP_FROM_EMAIL for email OTP.'
+      : 'OTP request saved but not delivered. Enter a phone number and configure AFRICASTALKING_USERNAME/AFRICASTALKING_API_KEY, or configure RESEND_API_KEY/OTP_FROM_EMAIL for email OTP.'
   };
 }
 
@@ -1361,7 +1327,7 @@ export async function createAgentCustomer(user, body) {
   const agentCode = agent.agent_code || agent.agent_id;
   const nextOfKinOtp = nextOfKinPhone ? createOtp() : '';
   const nextOfKinOtpExpiresAt = nextOfKinOtp ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
-  let nextOfKinOtpDelivery = { configured: false, delivered: false, provider: 'twilio' };
+  let nextOfKinOtpDelivery = { configured: false, delivered: false, provider: 'africastalking' };
   const duplicateCheck = nationalId
     ? await getSupabase()
         .from('customers')
@@ -1486,7 +1452,7 @@ export async function createAgentCustomer(user, body) {
     }).catch((deliveryError) => ({
       configured: true,
       delivered: false,
-      provider: 'twilio',
+      provider: 'africastalking',
       error: deliveryError.message
     }));
 
@@ -1506,7 +1472,7 @@ export async function createAgentCustomer(user, body) {
     data.next_of_kin_otp_status = updateOtpDelivery.data.next_of_kin_otp_status;
 
     if (!nextOfKinOtpDelivery.delivered) {
-      const deliveryError = new Error('Next-of-kin acceptance SMS could not be sent. Check Twilio SMS settings before submitting this application.');
+      const deliveryError = new Error('Next-of-kin acceptance SMS could not be sent. Check Africa\'s Talking SMS settings before submitting this application.');
       deliveryError.statusCode = 502;
       throw deliveryError;
     }
@@ -1696,11 +1662,11 @@ async function completeNextOfKinAcceptance({ customerId, otp, agent, trustedPhon
     activationOtp
   }).catch((smsError) => ({
     error: smsError.message,
-    provider: 'twilio'
+    provider: 'africastalking'
   }));
 
   if (activationOtp && !activationSmsWasDelivered(smsResult)) {
-    const error = new Error('Customer activation OTP could not be sent. Check Twilio SMS settings before approving this application.');
+    const error = new Error('Customer activation OTP could not be sent. Check Africa\'s Talking SMS settings before approving this application.');
     error.statusCode = 502;
     throw error;
   }

@@ -1,7 +1,7 @@
 import { sendJson } from './_lib/http.js';
 import { proxyBackend } from './_lib/backend.js';
 import { getSupabase, hasSupabaseAuthConfig, hasSupabaseConfig } from './_lib/supabase.js';
-import { hasSmsConfig, smsConfigDiagnostics } from './_lib/twilio.js';
+import { hasSmsConfig, smsConfigDiagnostics } from './_lib/africastalking.js';
 
 const REQUIRED_TABLES = [
   'admin_profiles',
@@ -75,8 +75,11 @@ export default async function handler(req, res) {
         smsConfigured: hasSmsConfig(),
         smsProvider: smsConfigDiagnostics().provider,
         smsConfig: smsConfigDiagnostics(),
-        passwordResetOtpProvider: smsConfigDiagnostics().verifyConfigured ? 'twilio_verify' : 'local_or_email',
-        passwordResetOtpConfigured: smsConfigDiagnostics().verifyConfigured || Boolean(process.env.RESEND_API_KEY && process.env.OTP_FROM_EMAIL),
+        passwordResetOtpProvider: hasSmsConfig() ? 'africastalking_sms' : 'local_or_email',
+        passwordResetOtpConfigured: (
+          hasSmsConfig() ||
+          Boolean(process.env.RESEND_API_KEY && process.env.OTP_FROM_EMAIL)
+        ) && Boolean(process.env.OTP_PEPPER && process.env.OTP_PEPPER !== 'bumu-paygo'),
         paymentProvider: process.env.PAYMENT_PROVIDER || 'daraja',
         commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'daraja'
       },

@@ -1,7 +1,7 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../_lib/security.js';
 import { requirePortalUser } from '../_lib/supabase.js';
-import { getSmsStatus, sendSms, smsConfigDiagnostics } from '../_lib/twilio.js';
+import { getSmsStatus, sendSms, smsConfigDiagnostics } from '../_lib/africastalking.js';
 
 function delay(ms) {
   return new Promise((resolve) => {

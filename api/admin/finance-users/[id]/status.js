@@ -1,7 +1,7 @@
 import { readJson, sendJson } from '../../../_lib/http.js';
 import { assertBodySize, assertRateLimit } from '../../../_lib/security.js';
 import { getSupabase, requirePortalUser } from '../../../_lib/supabase.js';
-import { sendAccountApprovedSms } from '../../../_lib/twilio.js';
+import { sendAccountApprovedSms } from '../../../_lib/africastalking.js';
 
 async function audit(user, action, targetTable, targetId, details = {}) {
   await getSupabase().from('admin_audit_logs').insert({
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
           phone: current.data.user.user_metadata?.phone,
           name: current.data.user.user_metadata?.full_name || current.data.user.email,
           portal: current.data.user.app_metadata?.role || current.data.user.user_metadata?.role || 'portal'
-        }).catch((error) => ({ delivered: false, error: error.message, provider: 'twilio' }))
+        }).catch((error) => ({ delivered: false, error: error.message, provider: 'africastalking' }))
       : null;
 
     await audit(admin, 'user_status_updated', 'auth.users', id, { status, smsResult });

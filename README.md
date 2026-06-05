@@ -29,15 +29,14 @@ PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYMENT_PROVIDER=daraja
 COMMISSION_PAYOUT_PROVIDER=daraja
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_VERIFY_SERVICE_SID=
-TWILIO_VERIFY_CHANNEL=sms
-TWILIO_MESSAGING_SERVICE_SID=
-TWILIO_FROM_NUMBER=
+AFRICASTALKING_USERNAME=
+AFRICASTALKING_API_KEY=
+AFRICASTALKING_SENDER_ID=
+AFRICASTALKING_SANDBOX=false
+AFRICASTALKING_INBOUND_SECRET=
 ```
 
-Set `TWILIO_VERIFY_SERVICE_SID` to the Verify Service SID that starts with `VA` to send password reset OTPs through Twilio Verify. Keep `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM_NUMBER` for normal SMS flows such as approvals, next-of-kin acceptance, reminders, and payment notices.
+Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking.
 
 ## Supabase Setup
 
@@ -104,16 +103,16 @@ Set the matching callback secrets in Vercel. Payment callbacks require `PAYMENT_
 
 ## Automated Follow-Ups
 
-Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The job updates customer overdue status, creates customer notifications, creates agent follow-up notifications, creates finance risk alerts, and sends Twilio SMS reminders. Set `CRON_SECRET` in Vercel so Vercel cron signs the request and outsiders cannot trigger reminder SMS.
+Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The job updates customer overdue status, creates customer notifications, creates agent follow-up notifications, creates finance risk alerts, and sends Africa's Talking SMS reminders. Set `CRON_SECRET` in Vercel so Vercel cron signs the request and outsiders cannot trigger reminder SMS.
 
 ## Payments
 
-Bumu Paygo uses Twilio for SMS only: OTPs, approval messages, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
+Bumu Paygo uses Africa's Talking for SMS only: OTPs, approval messages, next-of-kin links, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
 
-For next-of-kin SMS acceptance, set your Twilio phone number or Messaging Service inbound webhook to:
+For next-of-kin SMS acceptance, set your Africa's Talking incoming SMS callback URL to:
 
 ```text
-https://your-vercel-domain.vercel.app/api/twilio/inbound
+https://your-vercel-domain.vercel.app/api/africastalking/inbound
 ```
 
 Use `POST`. When the next-of-kin replies `1`, `YES`, or `ACCEPT`, the webhook confirms acceptance, moves the application through automatic screening, and sends the customer activation OTP if the application is approved. The SMS link flow also remains available.

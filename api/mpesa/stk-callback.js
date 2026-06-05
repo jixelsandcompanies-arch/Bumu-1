@@ -1,6 +1,6 @@
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
-import { sendPaymentConfirmedSms } from '../_lib/twilio.js';
+import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
 import { completePaymentRequest, failPaymentRequest } from '../_lib/database.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 

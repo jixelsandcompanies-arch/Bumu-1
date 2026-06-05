@@ -1,4 +1,4 @@
-import { sendCommissionPaidSms } from '../_lib/twilio.js';
+import { sendCommissionPaidSms } from '../_lib/africastalking.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
