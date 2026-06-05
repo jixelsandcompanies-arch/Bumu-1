@@ -27,6 +27,7 @@ async function countRecentFailedLogins(email) {
     .select('id', { count: 'exact', head: true })
     .eq('actor_email', email)
     .eq('action', 'admin_login_failed')
+    .eq('details->>reason', 'invalid_credentials')
     .gte('created_at', since);
 
   if (result.error) throw result.error;
