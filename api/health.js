@@ -73,6 +73,8 @@ export default async function handler(req, res) {
         smsConfigured: hasSmsConfig(),
         smsProvider: smsConfigDiagnostics().provider,
         smsConfig: smsConfigDiagnostics(),
+        passwordResetOtpProvider: smsConfigDiagnostics().verifyConfigured ? 'twilio_verify' : 'local_or_email',
+        passwordResetOtpConfigured: smsConfigDiagnostics().verifyConfigured || Boolean(process.env.RESEND_API_KEY && process.env.OTP_FROM_EMAIL),
         paymentProvider: process.env.PAYMENT_PROVIDER || 'daraja',
         commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'daraja'
       },

@@ -1,5 +1,16 @@
 import crypto from 'node:crypto';
-import { sendAgentFollowUpSms, sendCommissionPaidSms, sendNextOfKinAcceptanceSms, sendOtpSms, sendPaymentReminderSms, sendScreeningSms } from './twilio.js';
+import {
+  checkVerifyOtp,
+  hasTwilioVerifyConfig,
+  normalizePhone,
+  sendAgentFollowUpSms,
+  sendCommissionPaidSms,
+  sendNextOfKinAcceptanceSms,
+  sendOtpSms,
+  sendPaymentReminderSms,
+  sendScreeningSms,
+  startVerifyOtp
+} from './twilio.js';
 import { getSupabase } from './supabase.js';
 import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
@@ -84,6 +95,76 @@ async function sendOtp(body, email, otp) {
   ]);
 
   return { email: emailDelivery, sms: smsDelivery };
+}
+
+function isTwilioVerifyResetRequest(request) {
+  return request?.provider_response?.verify?.provider === 'twilio_verify';
+}
+
+function mapOtpDeliveryError(error, provider = 'twilio_verify') {
+  return {
+    configured: true,
+    delivered: false,
+    provider,
+    error: error.message,
+    response: error.providerResponse || null
+  };
+}
+
+async function sendPasswordResetOtp(body, email) {
+  const phone = String(body.phone || '').trim();
+  if (hasTwilioVerifyConfig() && phone) {
+    try {
+      const verify = await startVerifyOtp({ phone });
+      return {
+        delivery: { verify },
+        delivered: Boolean(verify.delivered),
+        otpHash: null,
+        phone: verify.phone || normalizePhone(phone)
+      };
+    } catch (error) {
+      return {
+        delivery: { verify: mapOtpDeliveryError(error) },
+        delivered: false,
+        otpHash: null,
+        phone: normalizePhone(phone)
+      };
+    }
+  }
+
+  const otp = createOtp();
+  const delivery = await sendOtp(body, email, otp);
+  return {
+    delivery,
+    delivered: Boolean(delivery.email?.delivered || delivery.sms?.delivered),
+    otpHash: hashOtp(email, otp),
+    phone
+  };
+}
+
+async function confirmPasswordResetOtp(request, identifier, otp) {
+  if (!request || new Date(request.otp_expires_at).getTime() < Date.now()) {
+    return { verified: false };
+  }
+
+  if (isTwilioVerifyResetRequest(request)) {
+    try {
+      return await checkVerifyOtp({ phone: request.phone, otp });
+    } catch (error) {
+      return {
+        configured: true,
+        verified: false,
+        provider: 'twilio_verify',
+        error: error.message,
+        response: error.providerResponse || null
+      };
+    }
+  }
+
+  return {
+    verified: Boolean(request.otp_hash && request.otp_hash === hashOtp(identifier, otp)),
+    provider: request.provider_response?.sms?.provider || request.provider_response?.email?.provider || 'local_otp'
+  };
 }
 
 async function findAuthUserByEmail(email) {
@@ -839,21 +920,19 @@ export async function requestPasswordResetOtp(body) {
     return { sent: true, delivered: false };
   }
 
-  const otp = createOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  const delivery = await sendOtp(body, identifier, otp);
-  const delivered = Boolean(delivery.email?.delivered || delivery.sms?.delivered);
+  const resetOtp = await sendPasswordResetOtp(body, identifier);
 
   const { data, error } = await getSupabase()
     .from('password_reset_requests')
     .insert({
       email: identifier,
-      phone: body.phone || '',
-      otp_hash: hashOtp(identifier, otp),
-      status: delivered ? 'otp_sent' : 'otp_required',
+      phone: resetOtp.phone || body.phone || '',
+      otp_hash: resetOtp.otpHash,
+      status: resetOtp.delivered ? 'otp_sent' : 'otp_required',
       source_portal: body.sourcePortal || body.source_portal || 'finance',
       otp_expires_at: expiresAt,
-      provider_response: delivery
+      provider_response: resetOtp.delivery
     })
     .select('id,email,status,otp_expires_at,source_portal,created_at')
     .single();
@@ -862,11 +941,11 @@ export async function requestPasswordResetOtp(body) {
 
   return {
     sent: true,
-    delivered,
+    delivered: resetOtp.delivered,
     request: data,
-    message: delivered
+    message: resetOtp.delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL or TWILIO_* variables to send OTP automatically.'
+      : 'OTP request saved but not delivered. Configure TWILIO_VERIFY_SERVICE_SID for reliable SMS OTP, or RESEND_API_KEY/OTP_FROM_EMAIL for email OTP.'
   };
 }
 
@@ -891,9 +970,11 @@ export async function verifyPasswordResetOtp(body) {
 
   if (error) throw mapSupabaseError(error);
 
-  if (!data || data.otp_hash !== hashOtp(identifier, otp) || new Date(data.otp_expires_at).getTime() < Date.now()) {
+  const verification = await confirmPasswordResetOtp(data, identifier, otp);
+  if (!verification.verified) {
     const invalid = new Error('Invalid or expired OTP.');
     invalid.statusCode = 400;
+    invalid.providerResponse = verification.response || null;
     throw invalid;
   }
 
@@ -901,7 +982,11 @@ export async function verifyPasswordResetOtp(body) {
     .from('password_reset_requests')
     .update({
       status: 'verified',
-      otp_verified_at: new Date().toISOString()
+      otp_verified_at: new Date().toISOString(),
+      provider_response: {
+        ...(data.provider_response || {}),
+        verification
+      }
     })
     .eq('id', data.id)
     .select('id,email,status,otp_verified_at')
@@ -933,10 +1018,21 @@ export async function resetPasswordWithOtp(body) {
 
   if (error) throw mapSupabaseError(error);
 
-  if (!data || data.otp_hash !== hashOtp(identifier, otp) || new Date(data.otp_expires_at).getTime() < Date.now()) {
+  if (!data || new Date(data.otp_expires_at).getTime() < Date.now()) {
     const invalid = new Error('Invalid or expired OTP.');
     invalid.statusCode = 400;
     throw invalid;
+  }
+
+  let verification = { verified: data.status === 'verified', provider: 'previously_verified' };
+  if (data.status !== 'verified') {
+    verification = await confirmPasswordResetOtp(data, identifier, otp);
+    if (!verification.verified) {
+      const invalid = new Error('Invalid or expired OTP.');
+      invalid.statusCode = 400;
+      invalid.providerResponse = verification.response || null;
+      throw invalid;
+    }
   }
 
   const user = await findAuthUserByEmail(identifier);
@@ -953,7 +1049,11 @@ export async function resetPasswordWithOtp(body) {
     .from('password_reset_requests')
     .update({
       status: 'completed',
-      otp_verified_at: data.otp_verified_at || new Date().toISOString()
+      otp_verified_at: data.otp_verified_at || new Date().toISOString(),
+      provider_response: {
+        ...(data.provider_response || {}),
+        resetVerification: verification
+      }
     })
     .eq('id', data.id)
     .select('id,email,status')

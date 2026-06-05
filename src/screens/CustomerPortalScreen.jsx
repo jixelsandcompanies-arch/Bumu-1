@@ -286,9 +286,14 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
 
     setSubmitting(true);
     try {
-      await customerPortalService.requestPasswordReset({ email: email.trim(), phone: phone.trim() });
+      const result = await customerPortalService.requestPasswordReset({ email: email.trim(), phone: phone.trim() });
+      if (!result.delivered) {
+        setOtpSent(false);
+        setNotice(result.message || 'OTP could not be delivered. Check the SMS provider settings and try again.');
+        return;
+      }
       setOtpSent(true);
-      setNotice(`OTP sent to ${email.trim()}. If it does not arrive, go back and resend it.`);
+      setNotice(result.message || 'OTP sent. If it does not arrive, go back and resend it.');
     } catch (error) {
       setNotice(error.message);
     } finally {

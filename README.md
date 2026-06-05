@@ -28,9 +28,13 @@ PAYMENT_PROVIDER=daraja
 COMMISSION_PAYOUT_PROVIDER=daraja
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
+TWILIO_VERIFY_SERVICE_SID=
+TWILIO_VERIFY_CHANNEL=sms
 TWILIO_MESSAGING_SERVICE_SID=
 TWILIO_FROM_NUMBER=
 ```
+
+Set `TWILIO_VERIFY_SERVICE_SID` to the Verify Service SID that starts with `VA` to send password reset OTPs through Twilio Verify. Keep `TWILIO_MESSAGING_SERVICE_SID` or `TWILIO_FROM_NUMBER` for normal SMS flows such as approvals, next-of-kin acceptance, reminders, and payment notices.
 
 ## Supabase Setup
 

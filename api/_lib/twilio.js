@@ -1,4 +1,5 @@
 const TWILIO_MESSAGES_URL = 'https://api.twilio.com/2010-04-01/Accounts';
+const TWILIO_VERIFY_URL = 'https://verify.twilio.com/v2/Services';
 
 function envValue(name) {
   return String(process.env[name] || '').trim();
@@ -16,6 +17,7 @@ export function twilioConfigDiagnostics() {
   const messagingServiceSid = envValue('TWILIO_MESSAGING_SERVICE_SID');
   const fromNumber = envValue('TWILIO_FROM_NUMBER');
   const authToken = envValue('TWILIO_AUTH_TOKEN');
+  const verifyServiceSid = envValue('TWILIO_VERIFY_SERVICE_SID');
 
   return {
     accountSid: maskValue(accountSid),
@@ -25,7 +27,10 @@ export function twilioConfigDiagnostics() {
     authTokenLength: authToken.length,
     messagingServiceSid: maskValue(messagingServiceSid),
     messagingServiceSidStartsWithMG: messagingServiceSid.startsWith('MG'),
-    fromNumberConfigured: Boolean(fromNumber)
+    fromNumberConfigured: Boolean(fromNumber),
+    verifyServiceSid: maskValue(verifyServiceSid),
+    verifyServiceSidStartsWithVA: verifyServiceSid.startsWith('VA'),
+    verifyConfigured: hasTwilioVerifyConfig()
   };
 }
 
@@ -33,6 +38,7 @@ export function smsConfigDiagnostics() {
   return {
     provider: 'twilio',
     configured: hasTwilioSmsConfig(),
+    verifyConfigured: hasTwilioVerifyConfig(),
     twilio: twilioConfigDiagnostics()
   };
 }
@@ -42,6 +48,14 @@ export function hasTwilioSmsConfig() {
     envValue('TWILIO_ACCOUNT_SID') &&
     envValue('TWILIO_AUTH_TOKEN') &&
     (envValue('TWILIO_MESSAGING_SERVICE_SID') || envValue('TWILIO_FROM_NUMBER'))
+  );
+}
+
+export function hasTwilioVerifyConfig() {
+  return Boolean(
+    envValue('TWILIO_ACCOUNT_SID') &&
+    envValue('TWILIO_AUTH_TOKEN') &&
+    envValue('TWILIO_VERIFY_SERVICE_SID')
   );
 }
 
@@ -159,6 +173,97 @@ export async function getSmsStatus(sid) {
   }
 
   return data;
+}
+
+async function twilioVerifyRequest(path, body) {
+  const accountSid = envValue('TWILIO_ACCOUNT_SID');
+  const authToken = envValue('TWILIO_AUTH_TOKEN');
+  const serviceSid = envValue('TWILIO_VERIFY_SERVICE_SID');
+
+  if (!hasTwilioVerifyConfig()) {
+    return { configured: false, delivered: false, provider: 'twilio_verify' };
+  }
+
+  if (!accountSid.startsWith('AC')) {
+    const error = new Error('TWILIO_ACCOUNT_SID must be the Account SID that starts with AC.');
+    error.statusCode = 500;
+    error.providerResponse = twilioConfigDiagnostics();
+    throw error;
+  }
+
+  if (!serviceSid.startsWith('VA')) {
+    const error = new Error('TWILIO_VERIFY_SERVICE_SID must be the Verify Service SID that starts with VA.');
+    error.statusCode = 500;
+    error.providerResponse = twilioConfigDiagnostics();
+    throw error;
+  }
+
+  const response = await fetch(`${TWILIO_VERIFY_URL}/${encodeURIComponent(serviceSid)}/${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json'
+    },
+    body
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.message || 'Twilio Verify request failed.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
+  }
+
+  return data;
+}
+
+export async function startVerifyOtp({ phone }) {
+  const to = normalizePhone(phone);
+  if (!to) {
+    return { configured: hasTwilioVerifyConfig(), delivered: false, provider: 'twilio_verify', reason: 'missing_phone' };
+  }
+
+  const channel = envValue('TWILIO_VERIFY_CHANNEL') || 'sms';
+  const data = await twilioVerifyRequest('Verifications', new URLSearchParams({
+    To: to,
+    Channel: channel
+  }));
+
+  return {
+    configured: true,
+    delivered: ['pending', 'approved'].includes(String(data.status || '').toLowerCase()),
+    provider: 'twilio_verify',
+    phone: to,
+    channel,
+    sid: data.sid,
+    status: data.status,
+    response: data
+  };
+}
+
+export async function checkVerifyOtp({ phone, otp }) {
+  const to = normalizePhone(phone);
+  if (!to || !/^\d{6}$/.test(String(otp || '').trim())) {
+    return { configured: hasTwilioVerifyConfig(), verified: false, provider: 'twilio_verify', reason: 'invalid_input' };
+  }
+
+  const data = await twilioVerifyRequest('VerificationCheck', new URLSearchParams({
+    To: to,
+    Code: String(otp).trim()
+  }));
+
+  const status = String(data.status || '').toLowerCase();
+  return {
+    configured: true,
+    verified: status === 'approved' || data.valid === true,
+    provider: 'twilio_verify',
+    phone: to,
+    sid: data.sid,
+    status: data.status,
+    response: data
+  };
 }
 
 export async function sendOtpSms({ phone, otp }) {
