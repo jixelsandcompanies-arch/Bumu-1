@@ -14,6 +14,7 @@ export default function Applications() {
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [submittingId, setSubmittingId] = useState("");
 
   const visibleApplications = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -39,7 +40,7 @@ export default function Applications() {
     });
   }, [agents, applications, bikes, customers, query, statusFilter]);
 
-  function quickDecision(application, status) {
+  async function quickDecision(application, status) {
     if (status === "approved") {
       const blockers = getApplicationApprovalBlockers(application);
       if (blockers.length > 0) {
@@ -53,8 +54,15 @@ export default function Applications() {
       info_required: "More information requested from screening queue.",
       rejected: "Rejected from screening queue quick action."
     };
-    updateApplicationStatus(application.id, status, notes[status]);
-    setMessage(`Application ${application.id} ${status.replaceAll("_", " ")}.`);
+    setSubmittingId(application.id);
+    try {
+      await updateApplicationStatus(application.id, status, notes[status]);
+      setMessage(`Application ${application.id} ${status.replaceAll("_", " ")}.`);
+    } catch (error) {
+      setMessage(error.message || `Could not update application ${application.id}.`);
+    } finally {
+      setSubmittingId("");
+    }
   }
 
   const columns = [
@@ -93,13 +101,13 @@ export default function Applications() {
           <Link to={`/admin/applications/${row.id}`}>Open</Link>
           {["pending_screening", "info_required"].includes(row.status) ? (
             <>
-              <OtpActionButton className="button secondary" label={`approve ${row.id}`} onVerified={() => quickDecision(row, "approved")}>
-                Approve
+              <OtpActionButton className="button secondary" disabled={Boolean(submittingId)} label={`approve ${row.id}`} onVerified={() => quickDecision(row, "approved")}>
+                {submittingId === row.id ? "Working..." : "Approve"}
               </OtpActionButton>
-              <button type="button" onClick={() => quickDecision(row, "info_required")}>
+              <button type="button" disabled={Boolean(submittingId)} onClick={() => quickDecision(row, "info_required")}>
                 Info
               </button>
-              <button type="button" onClick={() => quickDecision(row, "rejected")}>
+              <button type="button" disabled={Boolean(submittingId)} onClick={() => quickDecision(row, "rejected")}>
                 Reject
               </button>
             </>

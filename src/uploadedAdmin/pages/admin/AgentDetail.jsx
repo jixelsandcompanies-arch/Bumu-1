@@ -11,6 +11,7 @@ export default function AgentDetail() {
   const { agentId } = useParams();
   const { agents, customers, updateAgentStatus } = useAdminData();
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const agent = findAgent(agents, agentId);
 
   if (!agent) {
@@ -25,9 +26,16 @@ export default function AgentDetail() {
   const portfolio = customers.filter((customer) => customer.agentId === agent.id);
   const staffRole = agent.role?.replaceAll("_", " ") || "Field agent";
 
-  function changeStatus(status) {
-    updateAgentStatus(agent.id, status);
-    setMessage(`${agent.name} ${status.replaceAll("_", " ")}.`);
+  async function changeStatus(status) {
+    setSubmitting(true);
+    try {
+      await updateAgentStatus(agent.id, status);
+      setMessage(`${agent.name} ${status.replaceAll("_", " ")}.`);
+    } catch (error) {
+      setMessage(error.message || "Could not update agent status.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -55,13 +63,13 @@ export default function AgentDetail() {
             <div><dt>Region</dt><dd>{agent.region}</dd></div>
           </dl>
           <div className="decision-actions">
-            <button className="button success" type="button" onClick={() => changeStatus("active")}>
-              Set active
+            <button className="button success" type="button" disabled={submitting} onClick={() => changeStatus("active")}>
+              {submitting ? "Working..." : "Set active"}
             </button>
-            <button className="button warning" type="button" onClick={() => changeStatus("suspended")}>
+            <button className="button warning" type="button" disabled={submitting} onClick={() => changeStatus("suspended")}>
               Suspend
             </button>
-            <button className="button danger" type="button" onClick={() => changeStatus("deactivated")}>
+            <button className="button danger" type="button" disabled={submitting} onClick={() => changeStatus("deactivated")}>
               Deactivate
             </button>
           </div>

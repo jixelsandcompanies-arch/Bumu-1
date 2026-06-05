@@ -24,6 +24,7 @@ export default function Agents() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const visibleAgents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -36,7 +37,7 @@ export default function Agents() {
     });
   }, [agents, query, statusFilter]);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const normalizedNationalId = form.nationalId.trim();
     const normalizedPhone = form.phone.trim().toLowerCase();
@@ -52,20 +53,34 @@ export default function Agents() {
       return;
     }
 
-    addAgent(form);
-    setMessage(`${form.name} created and marked pending approval.`);
-    setForm(emptyAgent);
-    setShowForm(false);
+    setSubmitting(true);
+    try {
+      await addAgent(form);
+      setMessage(`${form.name} created and marked pending approval.`);
+      setForm(emptyAgent);
+      setShowForm(false);
+    } catch (error) {
+      setMessage(error.message || "Could not create agent.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function changeAgentStatus(agent, status) {
-    updateAgentStatus(agent.id, status);
-    setMessage(`${agent.name} ${status.replaceAll("_", " ")}.`);
+  async function changeAgentStatus(agent, status) {
+    setSubmitting(true);
+    try {
+      await updateAgentStatus(agent.id, status);
+      setMessage(`${agent.name} ${status.replaceAll("_", " ")}.`);
+    } catch (error) {
+      setMessage(error.message || "Could not update agent status.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function confirmStatusChange() {
+  async function confirmStatusChange() {
     if (pendingStatus) {
-      changeAgentStatus(pendingStatus.agent, pendingStatus.status);
+      await changeAgentStatus(pendingStatus.agent, pendingStatus.status);
       setPendingStatus(null);
     }
   }
@@ -91,12 +106,12 @@ export default function Agents() {
         <div className="table-actions">
           <Link to={`/admin/agents/${row.id}`}>View</Link>
           {row.status === "pending_approval" ? (
-            <button type="button" onClick={() => setPendingStatus({ agent: row, status: "active" })}>
+            <button type="button" disabled={submitting} onClick={() => setPendingStatus({ agent: row, status: "active" })}>
               Approve
             </button>
           ) : null}
           {row.status === "active" ? (
-            <button type="button" onClick={() => setPendingStatus({ agent: row, status: "suspended" })}>
+            <button type="button" disabled={submitting} onClick={() => setPendingStatus({ agent: row, status: "suspended" })}>
               Suspend
             </button>
           ) : null}
@@ -191,7 +206,7 @@ export default function Agents() {
           </div>
 
           <div className="page-actions">
-            <button className="button primary" type="submit">Save agent</button>
+            <button className="button primary" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save agent"}</button>
             <button className="button secondary" type="button" onClick={() => setShowForm(false)}>
               Cancel
             </button>

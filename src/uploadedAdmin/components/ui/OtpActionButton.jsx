@@ -13,6 +13,7 @@ export function OtpActionButton({
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   function startChallenge() {
     createOtpChallenge(label);
@@ -21,7 +22,7 @@ export function OtpActionButton({
     setOpen(true);
   }
 
-  function submitOtp(event) {
+  async function submitOtp(event) {
     event.preventDefault();
     const result = verifyOtpChallenge(code);
 
@@ -30,8 +31,15 @@ export function OtpActionButton({
       return;
     }
 
-    setOpen(false);
-    onVerified();
+    setSubmitting(true);
+    try {
+      await onVerified();
+      setOpen(false);
+    } catch (error) {
+      setMessage(error.message || "Could not complete this action.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -59,11 +67,11 @@ export function OtpActionButton({
             </label>
             {message ? <p className="form-error">{message}</p> : null}
             <div className="page-actions">
-              <button className="button secondary" type="button" onClick={() => setOpen(false)}>
+              <button className="button secondary" type="button" disabled={submitting} onClick={() => setOpen(false)}>
                 Cancel
               </button>
-              <button className="button primary" type="submit">
-                Verify
+              <button className="button primary" type="submit" disabled={submitting}>
+                {submitting ? "Working..." : "Verify"}
               </button>
             </div>
           </form>

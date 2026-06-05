@@ -27,6 +27,7 @@ export default function ApplicationDetail() {
   const [message, setMessage] = useState("");
   const [documentPreview, setDocumentPreview] = useState(null);
   const [pendingDecision, setPendingDecision] = useState(null);
+  const [submittingDecision, setSubmittingDecision] = useState(false);
 
   const application = applications.find((item) => item.id === applicationId);
   const customer = useMemo(
@@ -88,7 +89,7 @@ export default function ApplicationDetail() {
     );
   }
 
-  function submitStatus(status) {
+  async function submitStatus(status) {
     if (status === "approved") {
       const blockers = getApplicationApprovalBlockers(application);
       if (blockers.length > 0) {
@@ -97,21 +98,28 @@ export default function ApplicationDetail() {
       }
     }
 
-    updateApplicationStatus(application.id, status, note);
-    setNote("");
-    setMessage(`Screening decision saved as ${status.replaceAll("_", " ")}.`);
+    setSubmittingDecision(true);
+    try {
+      await updateApplicationStatus(application.id, status, note);
+      setNote("");
+      setMessage(`Screening decision saved as ${status.replaceAll("_", " ")}.`);
+    } catch (error) {
+      setMessage(error.message || "Could not save screening decision.");
+    } finally {
+      setSubmittingDecision(false);
+    }
   }
 
   function requestDecision(status) {
     setPendingDecision(status);
   }
 
-  function confirmDecision() {
+  async function confirmDecision() {
     if (!pendingDecision) {
       return;
     }
 
-    submitStatus(pendingDecision);
+    await submitStatus(pendingDecision);
     setPendingDecision(null);
   }
 
@@ -399,14 +407,15 @@ export default function ApplicationDetail() {
           <OtpActionButton
             className="button success"
             label={`approve ${application.id}`}
+            disabled={submittingDecision}
             onVerified={() => requestDecision("approved")}
           >
-            Approve
+            {submittingDecision ? "Working..." : "Approve"}
           </OtpActionButton>
-          <OtpActionButton className="button warning" label={`request information for ${application.id}`} onVerified={() => requestDecision("info_required")}>
+          <OtpActionButton className="button warning" disabled={submittingDecision} label={`request information for ${application.id}`} onVerified={() => requestDecision("info_required")}>
             Request information
           </OtpActionButton>
-          <OtpActionButton className="button danger" label={`reject ${application.id}`} onVerified={() => requestDecision("rejected")}>
+          <OtpActionButton className="button danger" disabled={submittingDecision} label={`reject ${application.id}`} onVerified={() => requestDecision("rejected")}>
             Reject
           </OtpActionButton>
         </div>
