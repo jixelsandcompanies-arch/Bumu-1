@@ -510,6 +510,62 @@ function RegisterTab({ portal, onRefresh }) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  const stepRequirements = [
+    [
+      ['Customer name', form.customerName],
+      ['Customer phone', form.customerPhone],
+      ['National ID', form.nationalId],
+      ['Date of birth', form.dateOfBirth],
+      ['Gender', form.gender],
+      ['Location', form.location],
+      ['Occupation', form.occupation]
+    ],
+    [
+      ['Customer passport photo', form.passportPhotoUrl],
+      ['Customer national ID front scan', form.idFrontUrl],
+      ['Customer national ID back scan', form.idBackUrl]
+    ],
+    [
+      ['Next-of-kin name', form.nextOfKinName],
+      ['Next-of-kin phone', form.nextOfKinPhone],
+      ['Next-of-kin relationship', form.nextOfKinRelationship],
+      ['Next-of-kin national ID', form.nextOfKinNationalId],
+      ['Next-of-kin gender', form.nextOfKinGender],
+      ['Next-of-kin location', form.nextOfKinLocation],
+      ['Next-of-kin occupation', form.nextOfKinOccupation]
+    ],
+    [
+      ['Next-of-kin passport photo', form.nextOfKinPassportPhotoUrl],
+      ['Next-of-kin national ID front scan', form.nextOfKinIdFrontUrl],
+      ['Next-of-kin national ID back scan', form.nextOfKinIdBackUrl]
+    ],
+    [
+      ['Assigned bike', form.productId],
+      ['Product model', form.productModel],
+      ['Serial number or chassis number', form.serialNumber || form.chassisNumber],
+      ['Total payable', form.totalPayable],
+      ['Deposit amount', form.depositAmount],
+      ['Daily installment', form.dailyInstallment],
+      ['Due date', form.dueDate]
+    ]
+  ];
+
+  function missingForStep(index = step) {
+    return (stepRequirements[index] || [])
+      .filter(([, value]) => !String(value || '').trim())
+      .map(([label]) => label);
+  }
+
+  function continueStep() {
+    const missing = missingForStep();
+    if (missing.length) {
+      setMessage(`Complete before continuing: ${missing.join(', ')}.`);
+      return;
+    }
+    setMessage('');
+    setStep((current) => current + 1);
+  }
+
   const assignedBikes = (portal.products || []).filter((product) => (
     product.productType === 'bike' &&
     !product.assignedCustomerId &&
@@ -535,6 +591,15 @@ function RegisterTab({ portal, onRefresh }) {
 
   async function submit() {
     setMessage('');
+    const missing = stepRequirements.flat()
+      .filter(([, value]) => !String(value || '').trim())
+      .map(([label]) => label);
+    if (missing.length) {
+      setMessage(`Complete required fields before submission: ${missing.join(', ')}.`);
+      setStep(stepRequirements.findIndex((items) => items.some(([, value]) => !String(value || '').trim())));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const result = await agentWorkspaceService.createCustomer(form);
@@ -547,13 +612,13 @@ function RegisterTab({ portal, onRefresh }) {
       if (result.nextOfKinOtpRequired && result.customer?.id) {
         setPendingCustomerId('');
         setNextOfKinOtp('');
-        setMessage(`Next-of-kin acceptance link was sent by SMS. ${promptMessage} Screening will continue when the next-of-kin opens the link and accepts.`);
+        setMessage(`Application submitted to admin screening. Next-of-kin acceptance link was sent by SMS. ${promptMessage}`);
         resetForm();
         await onRefresh();
         return;
       }
 
-      setMessage(`Customer application submitted. ${promptMessage}`);
+      setMessage(`Customer application submitted to screening. ${promptMessage}`);
       resetForm();
       await onRefresh();
     } catch (error) {
@@ -630,9 +695,9 @@ function RegisterTab({ portal, onRefresh }) {
         )}
         {step === 1 && (
           <>
-            <MediaCapture field="passportPhotoUrl" label="Open camera for customer passport photo" value={form.passportPhotoUrl} onUploaded={(value) => update('passportPhotoUrl', value)} />
-            <MediaCapture field="idFrontUrl" label="Scan customer ID/passport front" value={form.idFrontUrl} onUploaded={(value) => update('idFrontUrl', value)} />
-            <MediaCapture field="idBackUrl" label="Scan customer ID/passport back" value={form.idBackUrl} onUploaded={(value) => update('idBackUrl', value)} />
+            <MediaCapture field="passportPhotoUrl" label="Customer passport photo" captureKind="portrait" value={form.passportPhotoUrl} onUploaded={(value) => update('passportPhotoUrl', value)} />
+            <MediaCapture field="idFrontUrl" label="Customer national ID front scan" captureKind="id-front" value={form.idFrontUrl} onUploaded={(value) => update('idFrontUrl', value)} />
+            <MediaCapture field="idBackUrl" label="Customer national ID back scan" captureKind="id-back" value={form.idBackUrl} onUploaded={(value) => update('idBackUrl', value)} />
           </>
         )}
         {step === 2 && (
@@ -648,9 +713,9 @@ function RegisterTab({ portal, onRefresh }) {
         )}
         {step === 3 && (
           <>
-            <MediaCapture field="nextOfKinPassportPhotoUrl" label="Open camera for next-of-kin passport/copy photo" value={form.nextOfKinPassportPhotoUrl} onUploaded={(value) => update('nextOfKinPassportPhotoUrl', value)} />
-            <MediaCapture field="nextOfKinIdFrontUrl" label="Scan next-of-kin ID/passport front" value={form.nextOfKinIdFrontUrl} onUploaded={(value) => update('nextOfKinIdFrontUrl', value)} />
-            <MediaCapture field="nextOfKinIdBackUrl" label="Scan next-of-kin ID/passport back" value={form.nextOfKinIdBackUrl} onUploaded={(value) => update('nextOfKinIdBackUrl', value)} />
+            <MediaCapture field="nextOfKinPassportPhotoUrl" label="Next-of-kin passport photo" captureKind="portrait" value={form.nextOfKinPassportPhotoUrl} onUploaded={(value) => update('nextOfKinPassportPhotoUrl', value)} />
+            <MediaCapture field="nextOfKinIdFrontUrl" label="Next-of-kin national ID front scan" captureKind="id-front" value={form.nextOfKinIdFrontUrl} onUploaded={(value) => update('nextOfKinIdFrontUrl', value)} />
+            <MediaCapture field="nextOfKinIdBackUrl" label="Next-of-kin national ID back scan" captureKind="id-back" value={form.nextOfKinIdBackUrl} onUploaded={(value) => update('nextOfKinIdBackUrl', value)} />
           </>
         )}
         {step === 4 && (
@@ -689,7 +754,7 @@ function RegisterTab({ portal, onRefresh }) {
       <View style={styles.stepActions}>
         {step > 0 && <Button variant="secondary" onPress={() => setStep((current) => current - 1)}>Back</Button>}
         {step < steps.length - 1 ? (
-          <Button onPress={() => setStep((current) => current + 1)}>Continue</Button>
+          <Button onPress={continueStep}>Continue</Button>
         ) : (
           <Button icon={UserPlus} onPress={submit} disabled={submitting} style={styles.fullButton}>
             {submitting ? 'Saving...' : 'Save and send OTP'}
@@ -700,7 +765,7 @@ function RegisterTab({ portal, onRefresh }) {
   );
 }
 
-function MediaCapture({ field, label, value, onUploaded }) {
+function MediaCapture({ field, label, captureKind = 'document', value, onUploaded }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -818,9 +883,19 @@ function MediaCapture({ field, label, value, onUploaded }) {
     }
   }
 
+  const isIdScan = captureKind.startsWith('id-');
+  const captureHelp = captureKind === 'portrait'
+    ? 'Capture a clear face/passport photo.'
+    : captureKind === 'id-front'
+      ? 'Place the real national ID front inside the frame. Avoid glare and cut edges.'
+      : captureKind === 'id-back'
+        ? 'Place the real national ID back inside the frame. Keep text readable.'
+        : 'Capture a clear document image.';
+
   return (
     <View style={styles.mediaField}>
       <Text style={styles.label}>{label}</Text>
+      <Text style={styles.mediaHelp}>{captureHelp}</Text>
       <View style={styles.mediaBox}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={value ? styles.mediaName : styles.mediaPlaceholder}>
@@ -836,6 +911,13 @@ function MediaCapture({ field, label, value, onUploaded }) {
         <View style={styles.cameraPanel}>
           <View style={styles.cameraPreviewWrap}>
             <video ref={videoRef} playsInline muted autoPlay style={styles.cameraPreview} />
+            {isIdScan ? (
+              <View pointerEvents="none" style={styles.idScanFrame}>
+                <View style={styles.idScanInner}>
+                  <Text style={styles.idScanText}>{captureKind === 'id-front' ? 'ID FRONT' : 'ID BACK'}</Text>
+                </View>
+              </View>
+            ) : null}
             {!cameraReady ? <Text style={styles.cameraLoading}>Starting camera...</Text> : null}
           </View>
           <View style={styles.cameraActions}>
@@ -1149,11 +1231,15 @@ const styles = StyleSheet.create({
   field: { gap: 6, width: '100%' },
   gridField: { flexGrow: 1, flexBasis: 230, width: 'auto' },
   mediaField: { flexGrow: 1, flexBasis: 230, width: 'auto', gap: 6 },
+  mediaHelp: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   mediaBox: { minHeight: 48, borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, backgroundColor: '#ffffff' },
   cameraPanel: { borderWidth: 1, borderColor: '#d5e2ef', borderRadius: 8, padding: 8, gap: 8, backgroundColor: '#f8fbff' },
   cameraPreviewWrap: { position: 'relative', width: '100%', minHeight: 220, aspectRatio: '4 / 3', maxHeight: 360, borderRadius: 8, overflow: 'hidden', backgroundColor: '#0f172a' },
   cameraPreview: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#0f172a', display: 'block' },
   cameraLoading: { position: 'absolute', left: 0, right: 0, top: '45%', textAlign: 'center', color: '#ffffff', fontWeight: '600' },
+  idScanFrame: { position: 'absolute', left: 14, right: 14, top: 24, bottom: 24, borderWidth: 2, borderColor: '#bfdbfe', borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.08)' },
+  idScanInner: { width: '78%', aspectRatio: '1.58 / 1', borderWidth: 1, borderColor: 'rgba(255,255,255,0.86)', borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  idScanText: { color: '#ffffff', fontSize: 13, fontWeight: '700', letterSpacing: 0, textShadowColor: 'rgba(15,23,42,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   cameraActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
   mediaName: { color: colors.text, fontSize: 13, fontWeight: '600' },
   mediaPlaceholder: { color: colors.muted, fontSize: 13 },

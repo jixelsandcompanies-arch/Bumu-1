@@ -1408,7 +1408,7 @@ export async function createAgentCustomer(user, body) {
       balance: totalPayable,
       due_date: dueDate,
       daily_installment: dailyInstallment,
-      application_status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
+      application_status: 'pending_screening',
       status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
       source_portal: 'agent'
     })
@@ -1424,7 +1424,7 @@ export async function createAgentCustomer(user, body) {
       agent_id: agentCode,
       agent_name: agent.full_name || agent.agent_name,
       national_id: nationalId || null,
-      status: nextOfKinOtp ? 'next_of_kin_pending' : 'pending_screening',
+      status: 'pending_screening',
       duplicate_national_id: duplicateNationalId,
       source_portal: 'agent'
     })

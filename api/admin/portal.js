@@ -37,17 +37,20 @@ async function signedDocumentUrl(reference) {
 
 async function buildApplicationDocuments(customer = {}) {
   const entries = [
-    ['Customer passport', customer.passport_photo_url],
-    ['Customer ID front', customer.id_front_url],
-    ['Customer ID back', customer.id_back_url],
-    ['Next-of-kin passport/copy', customer.next_of_kin_passport_photo_url],
-    ['Next-of-kin ID front', customer.next_of_kin_id_front_url],
-    ['Next-of-kin ID back', customer.next_of_kin_id_back_url]
+    ['Customer passport photo', customer.passport_photo_url],
+    ['Customer national ID front scan', customer.id_front_url],
+    ['Customer national ID back scan', customer.id_back_url],
+    ['Next-of-kin passport photo', customer.next_of_kin_passport_photo_url],
+    ['Next-of-kin national ID front scan', customer.next_of_kin_id_front_url],
+    ['Next-of-kin national ID back scan', customer.next_of_kin_id_back_url]
   ];
 
   return Promise.all(entries.map(async ([label, reference]) => ({
+    type: label,
     label,
-    url: await signedDocumentUrl(reference)
+    url: await signedDocumentUrl(reference),
+    status: 'captured',
+    storagePath: reference
   }))).then((items) => items.filter((item) => item.url));
 }
 
