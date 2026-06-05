@@ -1,202 +1,157 @@
-import { Bell, BellDot, MessageSquareText, Search, Send, Smartphone } from "lucide-react";
+import { Bell, BellDot, ChevronDown, ChevronRight, Mail, MailOpen, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
-import { DataTable } from "../../uploadedAdmin/components/ui/DataTable.jsx";
-import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
-import { StatCard } from "../../uploadedAdmin/components/ui/StatCard.jsx";
-import { StatusBadge } from "../../uploadedAdmin/components/ui/StatusBadge.jsx";
 import { useAdminData } from "../../uploadedAdmin/features/admin/AdminDataContext.jsx";
 
-const channelLabels = {
-  in_app: "In app",
-  sms: "SMS",
-  email: "Email",
-  whatsapp: "WhatsApp"
-};
-
-function getNotificationPriority(notification) {
+function priorityFor(notification) {
   const text = `${notification.title} ${notification.message}`.toLowerCase();
-
-  if (text.includes("duplicate") || text.includes("rejected") || text.includes("overdue")) {
-    return "urgent";
-  }
-
-  if (text.includes("pending") || text.includes("info required") || text.includes("waiting")) {
-    return "follow_up";
-  }
-
+  if (text.includes("duplicate") || text.includes("rejected") || text.includes("overdue")) return "urgent";
+  if (text.includes("pending") || text.includes("info required") || text.includes("waiting")) return "follow up";
   return "normal";
+}
+
+function groupLabel(value) {
+  const date = new Date(String(value || "").replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return "Activity";
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function BackOfficeNotifications() {
   const { notifications = [], updateNotificationStatus } = useAdminData();
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [channelFilter, setChannelFilter] = useState("all");
+  const [openId, setOpenId] = useState("");
   const [message, setMessage] = useState("");
 
   const unread = notifications.filter((item) => item.status === "unread").length;
-  const sms = notifications.filter((item) => item.channel === "sms").length;
-  const inApp = notifications.filter((item) => item.channel === "in_app").length;
-  const urgent = notifications.filter((item) => getNotificationPriority(item) === "urgent").length;
-
-  const channelOptions = useMemo(
-    () => Array.from(new Set(notifications.map((notification) => notification.channel))).sort(),
-    [notifications]
-  );
-
   const visibleNotifications = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    return [...notifications].sort((a, b) => {
+      const left = new Date(String(a.createdAt || "").replace(" ", "T")).getTime() || 0;
+      const right = new Date(String(b.createdAt || "").replace(" ", "T")).getTime() || 0;
+      return right - left;
+    });
+  }, [notifications]);
 
-    return notifications
-      .filter((item) => statusFilter === "all" || item.status === statusFilter)
-      .filter((item) => channelFilter === "all" || item.channel === channelFilter)
-      .filter((item) => {
-        if (!normalizedQuery) return true;
-        return [item.title, item.message, item.channel, item.status, item.createdAt]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery);
-      });
-  }, [channelFilter, notifications, query, statusFilter]);
+  const groups = useMemo(() => {
+    return visibleNotifications.reduce((acc, notification) => {
+      const label = groupLabel(notification.createdAt);
+      if (!acc[label]) acc[label] = [];
+      acc[label].push(notification);
+      return acc;
+    }, {});
+  }, [visibleNotifications]);
 
-  async function markVisibleAsRead() {
-    const unreadIds = visibleNotifications.filter((item) => item.status === "unread").map((item) => item.id);
+  async function markAllRead() {
+    const unreadIds = notifications.filter((item) => item.status === "unread").map((item) => item.id);
     if (!unreadIds.length) {
-      setMessage("No unread notifications in this view.");
+      setMessage("No unread alerts.");
       return;
     }
     try {
       await updateNotificationStatus(unreadIds, "read");
-      setMessage(`${unreadIds.length} notifications marked as read.`);
+      setMessage("All messages marked as read.");
     } catch (error) {
-      setMessage(error.message || "Could not update notification status.");
+      setMessage(error.message || "Could not update messages.");
     }
   }
 
-  async function toggleNotificationStatus(notification) {
+  async function toggleRead(notification) {
+    const nextStatus = notification.status === "unread" ? "read" : "unread";
     try {
-      const nextStatus = notification.status === "unread" ? "read" : "unread";
       await updateNotificationStatus([notification.id], nextStatus);
-      setMessage(`Notification marked ${nextStatus}.`);
+      setMessage(`Message marked ${nextStatus}.`);
     } catch (error) {
-      setMessage(error.message || "Could not update notification status.");
+      setMessage(error.message || "Could not update message.");
     }
-  }
-
-  function resetFilters() {
-    setQuery("");
-    setStatusFilter("all");
-    setChannelFilter("all");
-    setMessage("");
   }
 
   return (
-    <section className="page-stack">
-      <PageHeader
-        eyebrow="Notifications"
-        title="Screening alerts"
-        description="Review notifications for customer screening, missing details, duplicates, and urgent follow-up requests."
-        actions={
-          <div className="page-actions">
-            <button className="button primary" type="button" onClick={markVisibleAsRead}>
-              <BellDot size={18} />
-              Mark visible read
-            </button>
-            <button className="button secondary" type="button" onClick={resetFilters}>
-              <Bell size={18} />
-              Reset filters
+    <section className="finance-style-page">
+      <div className="finance-style-shell">
+        <div className="finance-style-header">
+          <div className="finance-style-activity-line">
+            <span className="finance-style-dot" />
+            <p className="finance-style-eyebrow">Alert activity</p>
+          </div>
+          <div className="finance-style-title-row">
+            <h2>Alerts</h2>
+            <button className="button secondary" type="button" onClick={markAllRead}>
+              <MailOpen size={17} />
+              Mark all read
             </button>
           </div>
-        }
-      />
-
-      {message ? <div className="alert soft">{message}</div> : null}
-
-      <div className="stat-grid compact">
-        <StatCard icon={Bell} label="Total notifications" value={notifications.length} detail="All channels" />
-        <StatCard icon={BellDot} label="Unread" value={unread} detail="Needs review" tone="warning" />
-        <StatCard icon={Smartphone} label="In-app" value={inApp} detail="Portal alerts" />
-        <StatCard icon={Send} label="SMS" value={sms} detail="Agent messages" />
-        <StatCard icon={MessageSquareText} label="Priority" value={urgent} detail="Urgent flags" tone="danger" />
-      </div>
-
-      <div className="panel table-toolbar notifications-toolbar">
-        <label>
-          Search notifications
-          <div className="input-with-icon">
-            <Search size={17} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, message, channel..." />
-          </div>
-        </label>
-        <label>
-          Status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">All notifications</option>
-            <option value="unread">Unread</option>
-            <option value="read">Read</option>
-          </select>
-        </label>
-        <label>
-          Channel
-          <select value={channelFilter} onChange={(event) => setChannelFilter(event.target.value)}>
-            <option value="all">All channels</option>
-            {channelOptions.map((channel) => (
-              <option key={channel} value={channel}>
-                {channelLabels[channel] || channel}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="toolbar-count">
-          <span>Visible</span>
-          <strong>{visibleNotifications.length}</strong>
+          {message ? <p className="finance-style-notice">{message}</p> : null}
         </div>
-      </div>
 
-      <DataTable
-        columns={[
-          {
-            key: "title",
-            label: "Title",
-            render: (row) => (
-              <div className="notification-title-cell">
-                <span className={`notification-dot ${row.status === "unread" ? "is-unread" : ""}`} />
-                <strong>{row.title}</strong>
+        <section className="finance-style-group">
+          <div className="finance-style-group-title">
+            <span>Notification history</span>
+            {unread > 0 ? <b>{unread} new</b> : null}
+          </div>
+          <div className="finance-style-list">
+            {Object.entries(groups).map(([label, items]) => (
+              <div className="finance-style-activity-group" key={label}>
+                <p>{label}</p>
+                {items.map((notification) => {
+                  const isOpen = openId === notification.id;
+                  const RowIcon = isOpen ? ChevronDown : ChevronRight;
+                  const isUnread = notification.status === "unread";
+                  const priority = priorityFor(notification);
+                  return (
+                    <article className="finance-style-notification" key={notification.id}>
+                      <button
+                        className={`finance-style-notification-row ${isUnread ? "is-unread" : ""}`}
+                        type="button"
+                        onClick={() => setOpenId(isOpen ? "" : notification.id)}
+                      >
+                        <span className={`finance-style-icon ${priority === "urgent" ? "danger" : "blue"}`}>
+                          {priority === "urgent" ? <ShieldAlert size={18} /> : <Bell size={18} />}
+                        </span>
+                        <span className="finance-style-notification-body">
+                          <span className="finance-style-meta-line">
+                            <em>{priority}</em>
+                            {isUnread ? <i /> : null}
+                          </span>
+                          <strong>{notification.title}</strong>
+                          <small>{notification.message}</small>
+                          <time>{notification.createdAt}</time>
+                        </span>
+                        <RowIcon size={18} />
+                      </button>
+
+                      {isOpen ? (
+                        <div className="finance-style-notification-detail">
+                          <div>
+                            <span>Channel</span>
+                            <strong>{notification.channel || "in_app"}</strong>
+                          </div>
+                          <div>
+                            <span>Status</span>
+                            <strong>{notification.status}</strong>
+                          </div>
+                          <p>{notification.message}</p>
+                          <button className="finance-style-icon-button" type="button" onClick={() => toggleRead(notification)}>
+                            {isUnread ? <MailOpen size={16} /> : <Mail size={16} />}
+                          </button>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
-            )
-          },
-          { key: "message", label: "Message" },
-          {
-            key: "channel",
-            label: "Channel",
-            render: (row) => <span className="channel-chip">{channelLabels[row.channel] || row.channel}</span>
-          },
-          {
-            key: "priority",
-            label: "Priority",
-            render: (row) => <StatusBadge status={getNotificationPriority(row)} />
-          },
-          {
-            key: "status",
-            label: "Status",
-            render: (row) => <StatusBadge status={row.status} />
-          },
-          { key: "createdAt", label: "Created" },
-          {
-            key: "actions",
-            label: "Actions",
-            render: (row) => (
-              <div className="table-actions">
-                <button type="button" onClick={() => toggleNotificationStatus(row)}>
-                  {row.status === "unread" ? "Mark read" : "Mark unread"}
-                </button>
+            ))}
+            {!visibleNotifications.length ? (
+              <div className="finance-style-empty">
+                <BellDot size={30} />
+                <strong>No alerts</strong>
+                <span>Back Office alerts will appear here.</span>
               </div>
-            )
-          }
-        ]}
-        rows={visibleNotifications}
-        emptyMessage="No notifications match this view."
-      />
+            ) : null}
+          </div>
+        </section>
+      </div>
     </section>
   );
 }

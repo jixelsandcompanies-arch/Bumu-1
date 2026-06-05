@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { Camera, KeyRound, LockKeyhole, Smartphone, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
-import { LockKeyhole, UserRound } from "lucide-react";
-import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
 import { useAuth } from "../../uploadedAdmin/features/auth/AuthContext.jsx";
+import { useState } from "react";
+
+function initialsFor(name) {
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "--";
+}
 
 export default function BackOfficeProfile() {
   const { updateProfile, user } = useAuth();
@@ -13,97 +22,104 @@ export default function BackOfficeProfile() {
     photoUrl: user?.photoUrl || ""
   });
   const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function saveProfile(event) {
-    event.preventDefault();
-    setSaving(true);
-    const result = await updateProfile(form);
-    setSaving(false);
-    setMessage(result.message || (result.ok ? "Profile saved successfully." : "Profile could not be saved."));
-  }
 
   function handlePhotoChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setForm((current) => ({ ...current, photoUrl: String(reader.result || "") }));
+    reader.onload = () => {
+      setForm((current) => ({ ...current, photoUrl: String(reader.result || "") }));
+      setMessage("Profile picture updated.");
+    };
     reader.readAsDataURL(file);
   }
 
+  async function saveProfile() {
+    const result = await updateProfile(form);
+    setMessage(result.message || (result.ok ? "Profile saved successfully." : "Profile could not be saved."));
+  }
+
   return (
-    <section className="page-stack">
-      <PageHeader
-        eyebrow="Account"
-        title="Profile"
-        description="Manage your Back Office account details, access information, and security preferences."
-      />
-      {message ? <div className="alert soft">{message}</div> : null}
-
-      <div className="detail-grid">
-        <article className="panel">
-          <div className="settings-card-header">
-            <div>
-              <p className="eyebrow">Profile</p>
-              <h3>Account details</h3>
-            </div>
-            <UserRound size={22} />
+    <section className="finance-style-page">
+      <div className="finance-style-shell">
+        <div className="finance-style-header">
+          <div className="finance-style-activity-line">
+            <span className="finance-style-dot" />
+            <p className="finance-style-eyebrow">Me activity</p>
           </div>
+          <h2>Profile</h2>
+          {message ? <p className="finance-style-notice">{message}</p> : null}
+        </div>
 
-          <div className="profile-photo-row">
-            <div className="profile-photo-preview">
-              {form.photoUrl ? <img src={form.photoUrl} alt="Profile preview" /> : <UserRound size={36} />}
-            </div>
-            <label className="upload-control">
-              Profile photo
-              <input type="file" accept="image/png,image/jpeg,image/jpg" onChange={handlePhotoChange} />
-              <span>Upload JPG or PNG</span>
-            </label>
+        <article className="finance-style-profile-panel">
+          <div className="finance-style-avatar">
+            {form.photoUrl ? <img src={form.photoUrl} alt="Profile preview" /> : <span>{initialsFor(form.name)}</span>}
           </div>
-
-          <div className="settings-form">
-            <label>
-              Full name
-              <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-            </label>
-            <label>
-              Email
-              <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-            </label>
-            <label>
-              Phone
-              <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-            </label>
-            <label>
-              Role
-              <input value={user?.role?.replaceAll("_", " ") || ""} readOnly />
-            </label>
+          <div className="finance-style-profile-info">
+            <strong>{form.name || user?.email || "Back Office user"}</strong>
+            <span>{user?.role?.replaceAll("_", " ") || "back office"}</span>
           </div>
+          <label className="button secondary">
+            <Camera size={17} />
+            {form.photoUrl ? "Update profile picture" : "Add profile picture"}
+            <input type="file" accept="image/png,image/jpeg,image/jpg" hidden onChange={handlePhotoChange} />
+          </label>
         </article>
 
-        <article className="panel">
-          <div className="settings-card-header">
-            <div>
-              <p className="eyebrow">Security</p>
-              <h3>Password and access</h3>
-            </div>
-            <LockKeyhole size={22} />
+        <FinanceGroup title="Profile">
+          <FinanceEditableRow icon={UserRound} label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
+          <FinanceEditableRow icon={UserRound} label="Email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} type="email" />
+          <FinanceEditableRow icon={Smartphone} label="Phone" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} />
+          <FinanceStaticRow icon={LockKeyhole} label="Role" value={user?.role?.replaceAll("_", " ") || "back office"} />
+          <div className="finance-style-save-row">
+            <button className="finance-style-save-button" type="button" onClick={saveProfile}>Save</button>
           </div>
+        </FinanceGroup>
 
-          <div className="settings-form">
-            <p className="text-muted">Password changes are handled through the reset flow for security. If you need a new password, request a reset link.</p>
-            <Link className="button secondary" to="/reset-password">
-              Request password reset
-            </Link>
-          </div>
-        </article>
-      </div>
-
-      <div className="page-actions">
-        <button className="button primary" type="button" onClick={saveProfile} disabled={saving}>
-          {saving ? "Saving..." : "Save profile"}
-        </button>
+        <FinanceGroup title="Account">
+          <FinanceLinkRow icon={KeyRound} label="Password and OTP" value="Change password" to="/reset-password" />
+          <FinanceStaticRow icon={LockKeyhole} label="App access" value="Back Office only" />
+        </FinanceGroup>
       </div>
     </section>
+  );
+}
+
+function FinanceGroup({ title, children }) {
+  return (
+    <section className="finance-style-group">
+      <h3>{title}</h3>
+      <div className="finance-style-list">{children}</div>
+    </section>
+  );
+}
+
+function FinanceEditableRow({ icon: Icon, label, value, onChange, type = "text" }) {
+  return (
+    <div className="finance-style-row">
+      <span className="finance-style-icon blue"><Icon size={18} /></span>
+      <label>{label}</label>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function FinanceStaticRow({ icon: Icon, label, value }) {
+  return (
+    <div className="finance-style-row">
+      <span className="finance-style-icon green"><Icon size={18} /></span>
+      <label>{label}</label>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function FinanceLinkRow({ icon: Icon, label, value, to }) {
+  return (
+    <Link className="finance-style-row finance-style-link-row" to={to}>
+      <span className="finance-style-icon blue"><Icon size={18} /></span>
+      <label>{label}</label>
+      <strong>{value}</strong>
+    </Link>
   );
 }

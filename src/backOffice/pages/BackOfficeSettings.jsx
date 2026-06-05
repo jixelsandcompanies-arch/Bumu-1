@@ -1,20 +1,22 @@
+import { Bell, CheckCircle2, Clock3, KeyRound, LockKeyhole, MessageSquareText, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
-import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
-import { StatCard } from "../../uploadedAdmin/components/ui/StatCard.jsx";
-import { Save, Bell, ShieldCheck, RefreshCw } from "lucide-react";
 
 const storageKey = "bumu-backoffice-settings";
 const defaultSettings = {
-  autoRefresh: true,
-  emailAlerts: true,
-  inAppAlerts: true,
-  showCompletedCases: true
+  queueRefresh: "Manual",
+  layout: "App view",
+  paymentAlerts: true,
+  duplicateAlerts: true,
+  infoAlerts: true,
+  otpActions: true,
+  sessionTimeout: "30 minutes",
+  nextOfKinConfirm: true
 };
 
 function loadSettings() {
   try {
     const value = window.localStorage.getItem(storageKey);
-    return value ? JSON.parse(value) : defaultSettings;
+    return value ? { ...defaultSettings, ...JSON.parse(value) } : defaultSettings;
   } catch {
     return defaultSettings;
   }
@@ -28,84 +30,115 @@ export default function BackOfficeSettings() {
     setSettings(loadSettings());
   }, []);
 
-  function updateSetting(key, value) {
+  function update(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
   }
 
   function saveSettings() {
     window.localStorage.setItem(storageKey, JSON.stringify(settings));
-    setMessage("Workspace preferences saved.");
-  }
-
-  function resetDefaults() {
-    setSettings(defaultSettings);
-    setMessage("Default preferences restored.");
+    setMessage("Settings saved successfully.");
   }
 
   return (
-    <section className="page-stack">
-      <PageHeader
-        eyebrow="Settings"
-        title="Workspace preferences"
-        description="Configure how the Back Office screening workspace behaves, what notifications you receive, and how cases are grouped." 
-      />
-
-      {message ? <div className="alert soft">{message}</div> : null}
-
-      <div className="stat-grid compact">
-        <StatCard icon={ShieldCheck} label="Screening safety" value={settings.showCompletedCases ? "Full" : "Focused"} detail="Case view mode" />
-        <StatCard icon={Bell} label="Notifications" value={settings.inAppAlerts ? "Active" : "Muted"} detail="In-app alerts" />
-        <StatCard icon={RefreshCw} label="Auto refresh" value={settings.autoRefresh ? "On" : "Off"} detail="Queue refresh" />
-        <StatCard icon={Save} label="Save state" value="Local" detail="Browser preferences" />
-      </div>
-
-      <article className="panel settings-page">
-        <div className="settings-card-header">
-          <div>
-            <p className="eyebrow">Notifications</p>
-            <h3>Alert preferences</h3>
+    <section className="finance-style-page">
+      <div className="finance-style-shell">
+        <div className="finance-style-header">
+          <div className="finance-style-activity-line">
+            <span className="finance-style-dot" />
+            <p className="finance-style-eyebrow">Me activity</p>
           </div>
+          <h2>Settings</h2>
+          {message ? <p className="finance-style-notice">{message}</p> : null}
         </div>
-        <div className="settings-form">
-          <label className="field-block">
-            <input
-              type="checkbox"
-              checked={settings.emailAlerts}
-              onChange={(event) => updateSetting("emailAlerts", event.target.checked)}
-            />
-            Receive email alerts when a case is returned for information.
-          </label>
-          <label className="field-block">
-            <input
-              type="checkbox"
-              checked={settings.inAppAlerts}
-              onChange={(event) => updateSetting("inAppAlerts", event.target.checked)}
-            />
-            Show in-app screening notifications in the Back Office portal.
-          </label>
-          <label className="field-block">
-            <input
-              type="checkbox"
-              checked={settings.autoRefresh}
-              onChange={(event) => updateSetting("autoRefresh", event.target.checked)}
-            />
-            Refresh the screening queue automatically every 15 seconds.
-          </label>
-          <label className="field-block">
-            <input
-              type="checkbox"
-              checked={settings.showCompletedCases}
-              onChange={(event) => updateSetting("showCompletedCases", event.target.checked)}
-            />
-            Include completed screening cases in the overview metrics.
-          </label>
-        </div>
-      </article>
 
-      <div className="page-actions">
-        <button className="button primary" type="button" onClick={saveSettings}>Save settings</button>
-        <button className="button secondary" type="button" onClick={resetDefaults}>Restore defaults</button>
+        <FinanceGroup title="Appearance">
+          <div className="finance-style-row finance-style-row-wrap">
+            <span className="finance-style-icon violet"><Smartphone size={18} /></span>
+            <label>App layout</label>
+            <div className="finance-style-segmented">
+              {["App view", "Compact"].map((option) => (
+                <button
+                  className={settings.layout === option ? "is-active" : ""}
+                  key={option}
+                  type="button"
+                  onClick={() => update("layout", option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+          <SelectRow icon={RefreshCw} label="Queue refresh" value={settings.queueRefresh} options={["Manual", "15 seconds", "60 seconds"]} onChange={(value) => update("queueRefresh", value)} />
+        </FinanceGroup>
+
+        <FinanceGroup title="Notifications">
+          <ToggleRow icon={Bell} label="Payment alerts" checked={settings.paymentAlerts} onChange={(value) => update("paymentAlerts", value)} />
+          <ToggleRow icon={ShieldCheck} label="Duplicate ID alerts" checked={settings.duplicateAlerts} onChange={(value) => update("duplicateAlerts", value)} tone="red" />
+          <ToggleRow icon={MessageSquareText} label="Info required alerts" checked={settings.infoAlerts} onChange={(value) => update("infoAlerts", value)} tone="amber" />
+        </FinanceGroup>
+
+        <FinanceGroup title="Security">
+          <StaticRow icon={ShieldCheck} label="App access" value="Back Office only" tone="green" />
+          <ToggleRow icon={KeyRound} label="OTP for decisions" checked={settings.otpActions} onChange={(value) => update("otpActions", value)} tone="amber" />
+          <ToggleRow icon={CheckCircle2} label="Next-of-kin confirmation" checked={settings.nextOfKinConfirm} onChange={(value) => update("nextOfKinConfirm", value)} tone="green" />
+          <SelectRow icon={Clock3} label="Session timeout" value={settings.sessionTimeout} options={["15 minutes", "30 minutes", "1 hour"]} onChange={(value) => update("sessionTimeout", value)} tone="red" />
+        </FinanceGroup>
+
+        <FinanceGroup title="Account">
+          <StaticRow icon={LockKeyhole} label="Device session" value="Temporary only" />
+          <div className="finance-style-save-row">
+            <button className="finance-style-save-button" type="button" onClick={saveSettings}>Save</button>
+          </div>
+        </FinanceGroup>
       </div>
     </section>
+  );
+}
+
+function FinanceGroup({ title, children }) {
+  return (
+    <section className="finance-style-group">
+      <h3>{title}</h3>
+      <div className="finance-style-list">{children}</div>
+    </section>
+  );
+}
+
+function toneClass(tone = "blue") {
+  return `finance-style-icon ${tone}`;
+}
+
+function ToggleRow({ icon: Icon, label, checked, onChange, tone = "blue" }) {
+  return (
+    <button className={`finance-style-row finance-style-switch-row ${checked ? "is-on" : ""}`} type="button" onClick={() => onChange(!checked)}>
+      <span className={toneClass(checked ? "blue" : tone)}><Icon size={18} /></span>
+      <label>{label}</label>
+      <span className="finance-style-switch-wrap">
+        <em>{checked ? "On" : "Off"}</em>
+        <i><b /></i>
+      </span>
+    </button>
+  );
+}
+
+function SelectRow({ icon: Icon, label, value, options, onChange, tone = "blue" }) {
+  return (
+    <div className="finance-style-row">
+      <span className={toneClass(tone)}><Icon size={18} /></span>
+      <label>{label}</label>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function StaticRow({ icon: Icon, label, value, tone = "blue" }) {
+  return (
+    <div className="finance-style-row">
+      <span className={toneClass(tone)}><Icon size={18} /></span>
+      <label>{label}</label>
+      <strong>{value}</strong>
+    </div>
   );
 }
