@@ -15,6 +15,7 @@ function initialsFor(name) {
 
 export default function BackOfficeProfile() {
   const { updateProfile, user } = useAuth();
+  const portalRoleLabel = "back office";
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -57,7 +58,7 @@ export default function BackOfficeProfile() {
           </div>
           <div className="finance-style-profile-info">
             <strong>{form.name || user?.email || "Back Office user"}</strong>
-            <span>{user?.role?.replaceAll("_", " ") || "back office"}</span>
+            <span>{portalRoleLabel}</span>
           </div>
           <label className="button secondary">
             <Camera size={17} />
@@ -70,7 +71,7 @@ export default function BackOfficeProfile() {
           <FinanceEditableRow icon={UserRound} label="Name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
           <FinanceEditableRow icon={UserRound} label="Email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} type="email" />
           <FinanceEditableRow icon={Smartphone} label="Phone" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} />
-          <FinanceStaticRow icon={LockKeyhole} label="Role" value={user?.role?.replaceAll("_", " ") || "back office"} />
+          <FinanceStaticRow icon={LockKeyhole} label="Role" value={portalRoleLabel} />
           <div className="finance-style-save-row">
             <button className="finance-style-save-button" type="button" onClick={saveProfile}>Save</button>
           </div>

@@ -91,11 +91,8 @@ export const adminPermissionsByRole = {
   back_office_officer: [
     "overview",
     "applications",
-    "agents",
-    "customers",
-    "bikes",
     "notifications",
-    "audit",
+    "settings",
     "profile"
   ],
   finance_officer: ["profile"]

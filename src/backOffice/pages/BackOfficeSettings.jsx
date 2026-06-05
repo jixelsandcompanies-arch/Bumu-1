@@ -5,7 +5,7 @@ const storageKey = "bumu-backoffice-settings";
 const defaultSettings = {
   queueRefresh: "Manual",
   layout: "App view",
-  paymentAlerts: true,
+  approvalAlerts: true,
   duplicateAlerts: true,
   infoAlerts: true,
   otpActions: true,
@@ -72,7 +72,7 @@ export default function BackOfficeSettings() {
         </FinanceGroup>
 
         <FinanceGroup title="Notifications">
-          <ToggleRow icon={Bell} label="Payment alerts" checked={settings.paymentAlerts} onChange={(value) => update("paymentAlerts", value)} />
+          <ToggleRow icon={Bell} label="Approval decision alerts" checked={settings.approvalAlerts} onChange={(value) => update("approvalAlerts", value)} />
           <ToggleRow icon={ShieldCheck} label="Duplicate ID alerts" checked={settings.duplicateAlerts} onChange={(value) => update("duplicateAlerts", value)} tone="red" />
           <ToggleRow icon={MessageSquareText} label="Info required alerts" checked={settings.infoAlerts} onChange={(value) => update("infoAlerts", value)} tone="amber" />
         </FinanceGroup>

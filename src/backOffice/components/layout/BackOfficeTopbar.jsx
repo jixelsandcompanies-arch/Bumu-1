@@ -5,6 +5,7 @@ import { useAuth } from "../../../uploadedAdmin/features/auth/AuthContext.jsx";
 export function BackOfficeTopbar({ onToggleSidebar }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const portalRoleLabel = "back office";
 
   return (
     <header className="topbar">
@@ -58,7 +59,7 @@ export function BackOfficeTopbar({ onToggleSidebar }) {
           </span>
           <span className="user-chip-text">
             <span>{user?.name}</span>
-            <small>{user?.role?.replaceAll("_", " ")}</small>
+            <small>{portalRoleLabel}</small>
           </span>
         </Link>
       </div>
