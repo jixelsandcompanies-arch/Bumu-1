@@ -106,7 +106,7 @@ function LoginPage({ onLogin }) {
         setError('This sign-in is only for the finance team.');
         return;
       }
-      onLogin();
+      onLogin(user);
     } catch (err) {
       setError(err.message);
     }

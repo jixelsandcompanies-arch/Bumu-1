@@ -94,16 +94,6 @@ function mergeSectionDefaults(sectionId, values = {}) {
   return { ...defaultSettings[sectionId], ...values };
 }
 
-function loadLocalSection(sectionId) {
-  try {
-    const saved = localStorage.getItem(`bumu-paygo-settings-${sectionId}`);
-    return saved ? JSON.parse(saved).values : null;
-  } catch {
-    localStorage.removeItem(`bumu-paygo-settings-${sectionId}`);
-    return null;
-  }
-}
-
 export default function Settings() {
   const [activeSection, setActiveSection] = useState("admin");
   const [saveMessage, setSaveMessage] = useState("");
@@ -116,32 +106,29 @@ export default function Settings() {
     async function loadSection() {
       setLoadingSection(true);
 
-      if (supabase) {
-        const { data, error } = await supabase
-          .from("system_settings")
-          .select("values")
-          .eq("section", activeSection)
-          .maybeSingle();
-
-        if (!active) {
-          return;
+      if (!supabase) {
+        if (active) {
+          setSaveMessage("Supabase is not configured, so system settings cannot be loaded or saved.");
+          setLoadingSection(false);
         }
+        return;
+      }
 
-        if (!error && data?.values) {
-          setSettings((current) => ({
-            ...current,
-            [activeSection]: mergeSectionDefaults(activeSection, data.values)
-          }));
-        }
-      } else {
-        const values = loadLocalSection(activeSection);
+      const { data, error } = await supabase
+        .from("system_settings")
+        .select("values")
+        .eq("section", activeSection)
+        .maybeSingle();
 
-        if (active && values) {
-          setSettings((current) => ({
-            ...current,
-            [activeSection]: mergeSectionDefaults(activeSection, values)
-          }));
-        }
+      if (!active) {
+        return;
+      }
+
+      if (!error && data?.values) {
+        setSettings((current) => ({
+          ...current,
+          [activeSection]: mergeSectionDefaults(activeSection, data.values)
+        }));
       }
 
       if (active) {
@@ -171,21 +158,20 @@ export default function Settings() {
     const values = settings[activeSection];
     const payload = { section: activeSection, saved_at: new Date().toISOString(), values };
 
-    if (supabase) {
-      const { error } = await supabase
-        .from("system_settings")
-        .upsert(payload, { onConflict: "section" });
-
-      setSaveMessage(
-        error
-          ? `${sectionLabel} could not be saved: ${error.message}`
-          : `${sectionLabel} saved to system settings.`
-      );
+    if (!supabase) {
+      setSaveMessage("Supabase is not configured, so settings cannot be saved. Configure the database first.");
       return;
     }
 
-    localStorage.setItem(`bumu-paygo-settings-${activeSection}`, JSON.stringify(payload));
-    setSaveMessage(`${sectionLabel} saved to local development storage.`);
+    const { error } = await supabase
+      .from("system_settings")
+      .upsert(payload, { onConflict: "section" });
+
+    setSaveMessage(
+      error
+        ? `${sectionLabel} could not be saved: ${error.message}`
+        : `${sectionLabel} saved to system settings.`
+    );
   }
 
   return (

@@ -12,35 +12,6 @@ import { buildMonthlyPaygoCommissions, formatPercent } from '../utils/commission
 import { Header } from './PaymentsScreen.jsx';
 
 const NO_DATA = 'No data yet';
-const AGENT_LOOKUP_DRAFT_KEY = 'bumu-riders-agent-lookup-draft';
-const AGENT_LOOKUP_RECORDS_KEY = 'bumu-riders-agent-lookup-records';
-
-function readAgentLookupDraft() {
-  try {
-    const draft = JSON.parse(window.sessionStorage.getItem(AGENT_LOOKUP_DRAFT_KEY) || '{}');
-    return {
-      agentName: typeof draft.agentName === 'string' ? draft.agentName : '',
-      agentId: typeof draft.agentId === 'string' ? draft.agentId : ''
-    };
-  } catch {
-    return { agentName: '', agentId: '' };
-  }
-}
-
-function readAgentLookupRecords() {
-  try {
-    const saved = JSON.parse(window.sessionStorage.getItem(AGENT_LOOKUP_RECORDS_KEY) || '{}');
-    return {
-      hasSearched: Boolean(saved.hasSearched),
-      agentPayments: Array.isArray(saved.agentPayments) ? saved.agentPayments : [],
-      searchedAgentName: typeof saved.searchedAgentName === 'string' ? saved.searchedAgentName : '',
-      searchedAgentId: typeof saved.searchedAgentId === 'string' ? saved.searchedAgentId : ''
-    };
-  } catch {
-    return { hasSearched: false, agentPayments: [], searchedAgentName: '', searchedAgentId: '' };
-  }
-}
-
 function hasValue(value) {
   return value !== null && value !== undefined && value !== '';
 }
@@ -67,26 +38,12 @@ function identifierForPayment(payment) {
 
 export function CustomersScreen() {
   const [query, setQuery] = useState('');
-  const [agentName, setAgentName] = useState(() => readAgentLookupDraft().agentName);
-  const [agentId, setAgentId] = useState(() => readAgentLookupDraft().agentId);
-  const [hasSearched, setHasSearched] = useState(() => readAgentLookupRecords().hasSearched);
-  const [agentPayments, setAgentPayments] = useState(() => readAgentLookupRecords().agentPayments);
-  const [searchedAgentName, setSearchedAgentName] = useState(() => readAgentLookupRecords().searchedAgentName);
-  const [searchedAgentId, setSearchedAgentId] = useState(() => readAgentLookupRecords().searchedAgentId);
-
-  useEffect(() => {
-    window.sessionStorage.setItem(
-      AGENT_LOOKUP_DRAFT_KEY,
-      JSON.stringify({ agentName, agentId })
-    );
-  }, [agentName, agentId]);
-
-  useEffect(() => {
-    window.sessionStorage.setItem(
-      AGENT_LOOKUP_RECORDS_KEY,
-      JSON.stringify({ hasSearched, agentPayments, searchedAgentName, searchedAgentId })
-    );
-  }, [hasSearched, agentPayments, searchedAgentName, searchedAgentId]);
+  const [agentName, setAgentName] = useState('');
+  const [agentId, setAgentId] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [agentPayments, setAgentPayments] = useState([]);
+  const [searchedAgentName, setSearchedAgentName] = useState('');
+  const [searchedAgentId, setSearchedAgentId] = useState('');
 
   const payments = useMemo(() => {
     const value = query.toLowerCase();
@@ -168,7 +125,6 @@ export function CustomersScreen() {
     setQuery('');
     setSearchedAgentName('');
     setSearchedAgentId('');
-    window.sessionStorage.removeItem(AGENT_LOOKUP_RECORDS_KEY);
   }
 
   return (

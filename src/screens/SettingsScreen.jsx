@@ -24,20 +24,10 @@ import { Text } from '../components/ui/Text.jsx';
 import { authService } from '../services/authService.js';
 import { colors } from '../theme/colors.js';
 
-const savedProfile = () => {
-  try {
-    const profile = JSON.parse(window.sessionStorage.getItem('bumu-profile-settings') || '{}');
-    const { userCode, ...visibleProfile } = profile;
-
-    return visibleProfile;
-  } catch {
-    return {};
-  }
-};
-
 export function SettingsScreen({
   profilePhoto,
   onProfilePhotoChange,
+  profileSettings,
   onProfileSettingsChange,
   onStatusMessage,
   themeMode,
@@ -48,10 +38,10 @@ export function SettingsScreen({
   onInstall
 }) {
   const fileInputRef = useRef(null);
-  const [name, setName] = useState(() => savedProfile().name || '');
-  const [role, setRole] = useState(() => savedProfile().role || '');
-  const [phone, setPhone] = useState(() => savedProfile().phone || '');
-  const [branch, setBranch] = useState(() => savedProfile().branch || '');
+  const [name, setName] = useState(() => profileSettings?.name || '');
+  const [role, setRole] = useState(() => profileSettings?.role || '');
+  const [phone, setPhone] = useState(() => profileSettings?.phone || '');
+  const [branch, setBranch] = useState(() => profileSettings?.branch || '');
   const [paymentAlerts, setPaymentAlerts] = useState(true);
   const [overdueAlerts, setOverdueAlerts] = useState(false);
   const [commissionAlerts, setCommissionAlerts] = useState(false);
@@ -71,6 +61,13 @@ export function SettingsScreen({
   useEffect(() => {
     setHelpOpen(false);
   }, []);
+
+  useEffect(() => {
+    setName(profileSettings?.name || '');
+    setRole(profileSettings?.role || '');
+    setPhone(profileSettings?.phone || '');
+    setBranch(profileSettings?.branch || '');
+  }, [profileSettings]);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(passwordEmail.trim());
   const otpValid = /^\d{6}$/.test(otpCode.trim());
@@ -101,32 +98,45 @@ export function SettingsScreen({
     setSettingsNotice(message);
   }
 
-  function saveProfile() {
-    const nextProfile = { name, role, phone, branch };
-    window.sessionStorage.setItem(
-      'bumu-profile-settings',
-      JSON.stringify(nextProfile)
-    );
-    onProfileSettingsChange?.(nextProfile);
-    onStatusMessage?.('Profile details saved.');
-    showMessage('Profile saved successfully.');
+  async function saveProfile() {
+    try {
+      const updated = await authService.updateProfile({ name, phone, branch });
+      const nextProfile = {
+        name: updated.name || updated.fullName || name,
+        role: updated.role || role,
+        phone: updated.phone || '',
+        branch: updated.branch || ''
+      };
+      onProfileSettingsChange?.(nextProfile);
+      onStatusMessage?.('Profile details saved.');
+      showMessage('Profile saved successfully.');
+    } catch (error) {
+      showMessage(error.message);
+    }
   }
 
   function deleteProfile() {
-    window.sessionStorage.removeItem('bumu-profile-settings');
     window.sessionStorage.removeItem('bumu-profile-photo');
-    setName('');
-    setRole('');
-    setPhone('');
-    setBranch('');
-    onProfileSettingsChange?.({
-      name: '',
-      role: '',
+    const nextProfile = {
+      name: profileSettings?.name || '',
+      role: profileSettings?.role || '',
       phone: '',
       branch: ''
-    });
+    };
+    setName(nextProfile.name);
+    setRole(nextProfile.role);
+    setPhone('');
+    setBranch('');
+    authService.updateProfile(nextProfile).then((updated) => {
+      onProfileSettingsChange?.({
+        name: updated.name || updated.fullName || nextProfile.name,
+        role: updated.role || nextProfile.role,
+        phone: updated.phone || '',
+        branch: updated.branch || ''
+      });
+    }).catch((error) => showMessage(error.message));
     onProfilePhotoChange('');
-    showMessage('Profile deleted.');
+    showMessage('Profile details cleared.');
   }
 
   async function sendOtp() {
@@ -264,7 +274,7 @@ export function SettingsScreen({
           onChangeText={setName}
           tone="teal"
         />
-        <EditableSettingRow icon={UserRound} label="Role" value={role} onChangeText={setRole} tone="violet" />
+        <EditableSettingRow icon={UserRound} label="Role" value={role} onChangeText={setRole} tone="violet" editable={false} />
         <EditableSettingRow icon={Smartphone} label="Phone" value={phone} onChangeText={setPhone} tone="green" />
         <EditableSettingRow icon={FileText} label="Branch" value={branch} onChangeText={setBranch} tone="blue" />
         <View style={styles.saveRow}>

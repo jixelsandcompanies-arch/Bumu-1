@@ -25,17 +25,6 @@ import { paymentService } from './services/paymentService.js';
 import { formatKes } from './utils/currency.js';
 import { formatDate } from './utils/dates.js';
 
-function readProfileSettings() {
-  try {
-    const profile = JSON.parse(window.sessionStorage.getItem('bumu-profile-settings') || '{}');
-    const { userCode, ...visibleProfile } = profile;
-
-    return visibleProfile;
-  } catch {
-    return {};
-  }
-}
-
 function isAuthRoute() {
   return ['#/login', '#/register', '#/forgot-password'].includes(window.location.hash);
 }
@@ -256,8 +245,7 @@ export function App() {
     name: '',
     role: '',
     phone: '',
-    branch: '',
-    ...readProfileSettings()
+    branch: ''
   }));
   const [themeMode, setThemeMode] = useState('light');
   const [appLayout, setAppLayout] = useState('App view');
@@ -349,6 +337,12 @@ export function App() {
     authService.currentUser()
       .then((user) => {
         setAuthenticated(user.role === 'finance' || user.role === 'admin');
+        setProfileSettings({
+          name: user.fullName || user.email || '',
+          role: user.role || '',
+          phone: user.phone || '',
+          branch: user.branch || ''
+        });
       })
       .catch(() => {
         authService.logout();
@@ -375,7 +369,13 @@ export function App() {
     setActiveScreen('dashboard');
   }
 
-  function handleLogin() {
+  function handleLogin(user = {}) {
+    setProfileSettings({
+      name: user.fullName || user.email || '',
+      role: user.role || '',
+      phone: user.phone || '',
+      branch: user.branch || ''
+    });
     setAuthenticated(true);
   }
 
@@ -456,6 +456,7 @@ export function App() {
           <SettingsScreen
             profilePhoto={profilePhoto}
             onProfilePhotoChange={setProfilePhoto}
+            profileSettings={profileSettings}
             onProfileSettingsChange={setProfileSettings}
             onStatusMessage={setToastMessage}
             themeMode={themeMode}

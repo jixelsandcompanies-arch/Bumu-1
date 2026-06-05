@@ -98,6 +98,19 @@ export const authService = {
     return data.user;
   },
 
+  async currentProfile() {
+    const data = await apiRequest('/api/auth/profile');
+    return data.profile;
+  },
+
+  async updateProfile(profile) {
+    const data = await apiRequest('/api/auth/profile', {
+      method: 'PATCH',
+      body: profile
+    });
+    return data.profile;
+  },
+
   async requestPasswordReset(request) {
     const payload = typeof request === 'string'
       ? { identifier: request.trim() }
