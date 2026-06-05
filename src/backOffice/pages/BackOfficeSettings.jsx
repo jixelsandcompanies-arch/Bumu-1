@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
 import { StatCard } from "../../uploadedAdmin/components/ui/StatCard.jsx";
-import { FloppyDisk, Bell, ShieldCheck, RefreshCw } from "lucide-react";
+import { Save, Bell, ShieldCheck, RefreshCw } from "lucide-react";
 
 const storageKey = "bumu-backoffice-settings";
 const defaultSettings = {
@@ -56,7 +56,7 @@ export default function BackOfficeSettings() {
         <StatCard icon={ShieldCheck} label="Screening safety" value={settings.showCompletedCases ? "Full" : "Focused"} detail="Case view mode" />
         <StatCard icon={Bell} label="Notifications" value={settings.inAppAlerts ? "Active" : "Muted"} detail="In-app alerts" />
         <StatCard icon={RefreshCw} label="Auto refresh" value={settings.autoRefresh ? "On" : "Off"} detail="Queue refresh" />
-        <StatCard icon={FloppyDisk} label="Save state" value="Local" detail="Browser preferences" />
+        <StatCard icon={Save} label="Save state" value="Local" detail="Browser preferences" />
       </div>
 
       <article className="panel settings-page">

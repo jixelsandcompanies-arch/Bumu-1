@@ -1,3 +1,3 @@
-import bumuLogo from "../BumuLogo.jpeg";
+import bumuLogo from "../../BumuLogo.jpeg";
 
 export { bumuLogo };

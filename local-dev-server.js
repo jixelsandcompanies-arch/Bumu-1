@@ -112,6 +112,7 @@ const server = http.createServer(async (req, res) => {
       const mod = await import(moduleUrl);
       await mod.default(req, res);
     } catch (error) {
+      if (res.writableEnded) return;
       if (!res.headersSent) {
         res.statusCode = error.statusCode || 500;
         res.setHeader('Content-Type', 'application/json');
