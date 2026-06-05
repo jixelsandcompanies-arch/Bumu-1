@@ -1,6 +1,6 @@
 import { sendJson, readJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, genericAuthMessage } from '../../_lib/security.js';
-import { getSupabase, getSupabaseAuth, portalRole } from '../../_lib/supabase.js';
+import { getSupabase, getSupabaseAuth, hasActiveAdminProfile, portalRole } from '../../_lib/supabase.js';
 
 const ADMIN_FAILED_LOGIN_LIMIT = 8;
 const ADMIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
@@ -80,28 +80,18 @@ export default async function handler(req, res) {
     }
 
     const role = portalRole(data.user);
-    if (role !== 'admin') {
-      await recordAdminLogin(email, 'admin_login_failed', { reason: 'invalid_role' });
-      sendJson(res, 403, { message: 'Admin access is required.' });
-      return;
-    }
-
-    const profile = await getSupabase()
-      .from('admin_profiles')
-      .select('id,status')
-      .eq('auth_user_id', data.user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (profile.error) throw profile.error;
-
-    if (!profile.data) {
+    const activeAdmin = await hasActiveAdminProfile(data.user);
+    if (!activeAdmin) {
       await recordAdminLogin(email, 'admin_login_failed', { reason: 'inactive_profile' });
       sendJson(res, 403, { message: 'Admin account is not active.' });
       return;
     }
 
-    await recordAdminLogin(email, 'admin_login_success', { userId: data.user.id });
+    if (role !== 'admin') {
+      await recordAdminLogin(email, 'admin_login_success', { userId: data.user.id, roleFallback: 'admin_profile' });
+    } else {
+      await recordAdminLogin(email, 'admin_login_success', { userId: data.user.id });
+    }
 
     sendJson(res, 200, {
       token: data.session.access_token,
@@ -109,7 +99,7 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         fullName: data.user.user_metadata?.full_name || data.user.email,
-        role
+        role: 'admin'
       }
     });
   } catch (error) {

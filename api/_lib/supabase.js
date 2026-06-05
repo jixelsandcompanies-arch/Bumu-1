@@ -51,6 +51,24 @@ export function portalRole(user) {
   return role;
 }
 
+export async function hasActiveAdminProfile(user) {
+  if (!user?.id && !user?.email) return false;
+
+  let query = getSupabase()
+    .from('admin_profiles')
+    .select('id')
+    .eq('status', 'active')
+    .limit(1);
+
+  query = user.id
+    ? query.eq('auth_user_id', user.id)
+    : query.eq('email', user.email);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
 export async function requireFinanceUser(req) {
   if (process.env.SUPABASE_AUTH_REQUIRED === 'false') {
     return null;
@@ -117,6 +135,10 @@ export async function requirePortalUser(req, allowedRoles = []) {
   const role = portalRole(user);
 
   if (!allowedRoles.includes(role) && role !== 'admin') {
+    if (allowedRoles.includes('admin') && await hasActiveAdminProfile(user)) {
+      return user;
+    }
+
     const roleError = new Error('Portal access is required.');
     roleError.statusCode = 403;
     throw roleError;
