@@ -2,7 +2,6 @@ import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import UploadedAdminApp from '../uploadedAdmin/app/App.jsx';
 import { AppProviders as UploadedAdminProviders } from '../uploadedAdmin/app/providers.jsx';
-import '../uploadedAdmin/styles/global.css';
 
 function getInitialAdminPath() {
   if (window.location.hash.startsWith('#/admin')) {

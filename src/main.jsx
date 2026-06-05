@@ -4,6 +4,7 @@ import { AppRegistry } from 'react-native';
 import { App } from './App.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import './styles.css';
+import './uploadedAdmin/styles/global.css';
 
 AppRegistry.registerComponent('BumuPaygoFinance', () => App);
 

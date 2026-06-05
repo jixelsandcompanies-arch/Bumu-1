@@ -211,6 +211,7 @@ export default function BackOfficeAuth() {
 
 const authStyles = {
   screen: {
+    boxSizing: "border-box",
     minHeight: "100dvh",
     width: "100%",
     display: "grid",
@@ -221,7 +222,9 @@ const authStyles = {
     color: "#0f172a"
   },
   panel: {
+    boxSizing: "border-box",
     width: "min(100%, 540px)",
+    maxWidth: "calc(100vw - 32px)",
     display: "grid",
     gap: 10,
     border: "1px solid #d8e2f0",
@@ -286,11 +289,13 @@ const authStyles = {
     lineHeight: "20px"
   },
   form: {
+    boxSizing: "border-box",
     display: "grid",
     gap: 10,
     marginTop: 4
   },
   label: {
+    boxSizing: "border-box",
     display: "grid",
     gap: 6,
     color: "#64748b",
@@ -298,7 +303,9 @@ const authStyles = {
     fontWeight: 600
   },
   input: {
+    boxSizing: "border-box",
     width: "100%",
+    maxWidth: "100%",
     minHeight: 40,
     border: "1px solid #d8e2f0",
     borderRadius: 8,
