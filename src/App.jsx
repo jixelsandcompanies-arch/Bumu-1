@@ -108,7 +108,7 @@ function portalMetaForRoute() {
       title: 'Bumu Paygo Customer Portal',
       manifest: '/manifest-customer.webmanifest',
       appleTitle: 'Bumu Customer',
-      description: 'Customer app for Bumu Paygo balances, M-Pesa payments, payment history, and account alerts.'
+      description: 'Customer app for Bumu Paygo balances, mobile money payments, payment history, and account alerts.'
     };
   }
 

@@ -27,16 +27,21 @@ CRON_SECRET=generate-a-long-random-secret
 OTP_PEPPER=generate-a-long-random-secret
 PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
-PAYMENT_PROVIDER=daraja
-COMMISSION_PAYOUT_PROVIDER=daraja
+PAYMENT_PROVIDER=africastalking
+COMMISSION_PAYOUT_PROVIDER=africastalking
 AFRICASTALKING_USERNAME=
 AFRICASTALKING_API_KEY=
 AFRICASTALKING_SENDER_ID=
 AFRICASTALKING_SANDBOX=false
 AFRICASTALKING_INBOUND_SECRET=
+AFRICASTALKING_PAYMENT_PRODUCT=
+AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL=
+AFRICASTALKING_PAYMENT_CURRENCY=KES
+AFRICASTALKING_PAYMENTS_SANDBOX=false
+AFRICASTALKING_B2C_REASON=BusinessPayment
 ```
 
-Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking.
+Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking. For payments and payouts, create an Africa's Talking Payment Product and set `AFRICASTALKING_PAYMENT_PRODUCT`; set `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL` to your payment channel/paybill if Africa's Talking gives you one.
 
 ## Supabase Setup
 
@@ -92,14 +97,13 @@ where email = 'name@bumupaygo.co.ke';
 
 If a separate backend is later deployed, set `BACKEND_API_URL` and the Vercel routes will proxy to that backend instead of using Supabase directly.
 
-For M-Pesa/Daraja payments and payouts, configure these callback URLs:
+For Africa's Talking payments and payouts, configure this callback URL on the Africa's Talking payment product:
 
 ```text
-Customer payment callback: https://your-vercel-domain.vercel.app/api/payments/callback
-Commission payout callback: https://your-vercel-domain.vercel.app/api/commissions/payout-callback
+https://your-vercel-domain.vercel.app/api/africastalking/payments-callback?secret=YOUR_PAYMENT_CALLBACK_SECRET
 ```
 
-Set the matching callback secrets in Vercel. Payment callbacks require `PAYMENT_CALLBACK_SECRET` or `WEBHOOK_SECRET`; payout callbacks require `PAYOUT_CALLBACK_SECRET` or `WEBHOOK_SECRET`. The callback sender must include the secret as `Authorization: Bearer ...`, `x-callback-secret`, `x-webhook-secret`, or `?secret=...`. If no callback secret is configured, callback routes reject requests.
+Set `PAYMENT_CALLBACK_SECRET` in Vercel and put the same value in the callback URL query string as shown above. If no callback secret is configured, callback routes reject requests.
 
 ## Automated Follow-Ups
 
@@ -107,7 +111,7 @@ Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The 
 
 ## Payments
 
-Bumu Paygo uses Africa's Talking for SMS only: OTPs, approval messages, next-of-kin links, reminders, payment confirmations, and commission notifications. Customer deposits, customer portal payments, Paybill/STK callbacks, and finance commission payouts must use M-Pesa/Daraja or a separate secure backend.
+Bumu Paygo uses Africa's Talking for SMS and payment movement: OTPs, approval messages, next-of-kin links, reminders, payment confirmations, commission notifications, customer C2B mobile checkout, and finance B2C commission payouts.
 
 For next-of-kin SMS acceptance, set your Africa's Talking incoming SMS callback URL to:
 
@@ -129,7 +133,7 @@ Recommended backend flow:
 7. Finance portal refreshes `/api/payments`, `/api/reconciliation`, and `/api/notifications`.
 ```
 
-New provider records should use generic fields such as `provider_reference`, `provider_transaction_id`, `provider_account_reference`, `provider_payer_phone`, and `provider_paid_at`. The common Paybill number, callbacks, and transaction validation must remain in the backend.
+New provider records should use generic fields such as `provider_reference`, `provider_transaction_id`, `provider_account_reference`, `provider_payer_phone`, and `provider_paid_at`. Payment product configuration, callbacks, and transaction validation must remain in the backend.
 
 ## Agent Commission Payments
 

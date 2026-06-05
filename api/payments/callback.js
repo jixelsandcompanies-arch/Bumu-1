@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         providerTransactionId: transactionId,
         providerResponse: body,
         paidAt: new Date().toISOString(),
-        method: 'mpesa'
+        method: 'africastalking_mobile_checkout'
       });
 
       await sendPaymentConfirmedSms({

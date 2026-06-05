@@ -605,10 +605,10 @@ function RegisterTab({ portal, onRefresh }) {
       const result = await agentWorkspaceService.createCustomer(form);
       const promptStatus = result.paymentRequest?.status;
       const promptMessage = promptStatus === 'failed'
-        ? 'Deposit request was saved but the M-Pesa prompt failed. Check payment provider settings.'
+        ? 'Deposit request was saved but the mobile money prompt failed. Check Africa\'s Talking payment settings.'
         : promptStatus === 'queued'
-          ? 'Deposit request was queued. Configure payment provider settings to send the M-Pesa PIN prompt.'
-          : 'Customer M-Pesa PIN prompt was sent for the deposit.';
+          ? 'Deposit request was queued. Configure Africa\'s Talking payment settings to send the mobile money prompt.'
+          : 'Customer mobile money prompt was sent for the deposit.';
       if (result.nextOfKinOtpRequired && result.customer?.id) {
         setPendingCustomerId('');
         setNextOfKinOtp('');
@@ -993,7 +993,7 @@ function CustomersTab({ portal, onRefresh }) {
             {activeCustomerId === customer.id && (
               <View style={styles.depositBox}>
                 <Field fieldStyle={styles.gridField} label="Deposit amount" value={depositAmount} onChangeText={setDepositAmount} placeholder="KES amount" />
-                <Field fieldStyle={styles.gridField} label="Customer M-Pesa phone" value={depositPhone} onChangeText={setDepositPhone} placeholder="+254..." />
+                <Field fieldStyle={styles.gridField} label="Customer payment phone" value={depositPhone} onChangeText={setDepositPhone} placeholder="+254..." />
                 <Button icon={CreditCard} onPress={() => requestDeposit(customer)} disabled={submitting} style={styles.depositButton}>
                   {submitting ? 'Sending...' : 'Send deposit prompt'}
                 </Button>

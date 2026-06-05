@@ -1,7 +1,7 @@
 {
   "name": "Bumu Paygo Customer Portal",
   "short_name": "Bumu Customer",
-  "description": "Customer app for Bumu Paygo balances, M-Pesa payments, payment history, and account alerts.",
+  "description": "Customer app for Bumu Paygo balances, mobile money payments, payment history, and account alerts.",
   "id": "/customer-bumu",
   "start_url": "/customer-bumu",
   "scope": "/",

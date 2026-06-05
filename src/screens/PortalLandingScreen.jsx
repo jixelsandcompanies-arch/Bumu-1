@@ -59,7 +59,7 @@ const portals = [
 ];
 
 const heroPhoto = '/landing/boda-paygo.jpg';
-const paymentPhoto = '/landing/mpesa-agent.jpg';
+const paymentPhoto = '/landing/mobile-money-agent.jpg';
 const cookerPhoto = '/landing/gas-cooker.jpg';
 const solarPhoto = '/landing/solar-lamp.jpg';
 
@@ -92,8 +92,8 @@ const serviceHighlights = [
     text: 'Customers can start with an approved deposit, receive the product, and continue with a repayment plan that fits daily life.'
   },
   {
-    title: 'M-Pesa payment convenience',
-    text: 'Payments are designed around familiar Kenyan mobile money habits, including paybill-led repayment journeys.'
+    title: 'Mobile money convenience',
+    text: 'Payments are designed around familiar Kenyan mobile money habits through Africa\'s Talking payment flows.'
   },
   {
     title: 'Agent and dealer support',
@@ -491,7 +491,7 @@ function ServicesPage({ onOpenPortals }) {
           ['PAYGO applications', 'Customers and agents can begin the application journey for approved products with the details needed for screening.'],
           ['Customer support', 'Customers receive guidance on repayments, product status, balances, and next steps after approval.'],
           ['Dealer coordination', 'Dealers and field agents can support onboarding and after-sale follow-up as coverage expands across Kenya.'],
-          ['Mobile money readiness', 'The customer journey is designed for paybill-led M-Pesa repayment flows owned by the backend and payment provider.'],
+          ['Mobile money readiness', 'The customer journey is designed for Africa\'s Talking mobile checkout repayment flows owned by the backend and payment provider.'],
           ['Payment visibility', 'Approved teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
           ['After-sale follow-up', 'Customers can be contacted about missed payments, product needs, and service updates without losing the relationship history.']
         ].map(([title, text]) => (

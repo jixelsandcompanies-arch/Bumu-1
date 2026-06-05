@@ -10,7 +10,7 @@ import {
   sendScreeningSms
 } from './africastalking.js';
 import { getSupabase } from './supabase.js';
-import { initiateB2CPayout, initiateStkPush } from './daraja.js';
+import { initiateB2CPayout, initiateStkPush } from './africastalking-payments.js';
 import { validateStrongPassword } from './security.js';
 
 function todayDate() {
@@ -360,15 +360,15 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   let payoutError = null;
 
   try {
-    const daraja = await initiateB2CPayout({
+    const payout = await initiateB2CPayout({
       amount: payoutRecord.amount,
       phone: payoutRecord.agent_phone,
       remarks: `Commission ${commission.id}`,
       occasion: approvalReference
     });
-    payoutStatus = daraja.status;
-    providerResponse = daraja.providerResponse || {};
-    backendReference = daraja.conversationId || daraja.originatorConversationId || null;
+    payoutStatus = payout.status;
+    providerResponse = payout.providerResponse || {};
+    backendReference = payout.conversationId || payout.originatorConversationId || null;
   } catch (error) {
     payoutStatus = 'failed';
     providerResponse = error.providerResponse || {};
@@ -451,7 +451,7 @@ export async function completePaymentRequest(paymentRequest, {
   providerTransactionId,
   providerResponse = {},
   paidAt,
-  method = 'mpesa'
+  method = 'africastalking_mobile_checkout'
 } = {}) {
   const customer = paymentRequest.customers || {};
   const transactionId = providerTransactionId || receipt || providerReference;
@@ -2425,7 +2425,7 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
       title,
       message: `${customer.customer_name}: ${customerMessage}`,
       issue: overdueDays > 0 ? 'Customer has missed expected repayment.' : 'Customer has repayment due today.',
-      followUp: 'Agent should confirm payment prompt, Paybill payment, or customer support action.',
+      followUp: 'Agent should confirm payment prompt, mobile checkout payment, or customer support action.',
       severity: overdueDays >= 3 ? 'critical' : overdueDays > 0 ? 'warning' : 'info',
       amount,
       overdueDays,
