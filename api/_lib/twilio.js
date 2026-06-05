@@ -275,11 +275,13 @@ export async function sendOtpSms({ phone, otp }) {
 
 export async function sendNextOfKinAcceptanceSms({ phone, otp, customerName, acceptUrl }) {
   const actionText = acceptUrl
-    ? `Accept here: ${acceptUrl} or reply 1/YES to accept.`
+    ? `Accept here: ${acceptUrl}`
     : `Reply 1/YES to accept, or give OTP ${otp} to the agent.`;
   return sendSms({
     to: phone,
-    message: `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} OTP ${otp}. Valid for 10 minutes.`
+    message: acceptUrl
+      ? `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText}. This link expires in 10 minutes.`
+      : `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} OTP ${otp}. Valid for 10 minutes.`
   });
 }
 

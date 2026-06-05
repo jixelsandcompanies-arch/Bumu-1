@@ -545,8 +545,11 @@ function RegisterTab({ portal, onRefresh }) {
           ? 'Deposit request was queued. Configure payment provider settings to send the M-Pesa PIN prompt.'
           : 'Customer M-Pesa PIN prompt was sent for the deposit.';
       if (result.nextOfKinOtpRequired && result.customer?.id) {
-        setPendingCustomerId(result.customer.id);
-        setMessage(`Next-of-kin OTP was sent. ${promptMessage} Enter the OTP to start automatic screening and customer activation.`);
+        setPendingCustomerId('');
+        setNextOfKinOtp('');
+        setMessage(`Next-of-kin acceptance link was sent by SMS. ${promptMessage} Screening will continue when the next-of-kin opens the link and accepts.`);
+        resetForm();
+        await onRefresh();
         return;
       }
 
@@ -584,7 +587,7 @@ function RegisterTab({ portal, onRefresh }) {
           <Bell size={22} color={colors.success} />
           <View>
             <Text style={styles.panelTitle}>Next-of-kin acceptance</Text>
-            <Text style={styles.panelText}>Enter the OTP sent to the next-of-kin phone to run automatic screening and send the customer activation OTP.</Text>
+            <Text style={styles.panelText}>Use this only if support gives you the manual next-of-kin OTP. The normal flow is for next-of-kin to accept through the SMS link.</Text>
           </View>
         </View>
         <Field label="Next-of-kin OTP" value={nextOfKinOtp} onChangeText={setNextOfKinOtp} placeholder="Enter 6-digit OTP" />
