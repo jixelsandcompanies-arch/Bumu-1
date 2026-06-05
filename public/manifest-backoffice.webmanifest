@@ -1,0 +1,19 @@
+{
+  "name": "Bumu Back Office",
+  "short_name": "Bumu Back Office",
+  "description": "Back Office screening workspace for Bumu Paygo customer applications.",
+  "id": "/backoffice/overview",
+  "start_url": "/backoffice/overview",
+  "scope": "/backoffice/",
+  "display": "standalone",
+  "background_color": "#f6f9fc",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/bumu-logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

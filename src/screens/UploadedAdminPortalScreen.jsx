@@ -9,13 +9,6 @@ function getInitialAdminPath() {
     return window.location.hash.slice(1) || '/admin/overview';
   }
 
-  const cleanPath = window.location.pathname.replace(/\/+$/, '');
-  if (cleanPath === '/backoffice') return '/admin/overview';
-
-  if (cleanPath.toLowerCase().startsWith('/backoffice/')) {
-    return `/admin${cleanPath.slice('/backoffice'.length)}`;
-  }
-
   return '/admin/overview';
 }
 

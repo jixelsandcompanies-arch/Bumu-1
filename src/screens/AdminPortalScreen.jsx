@@ -19,7 +19,7 @@ import { Button } from '../components/ui/Button.jsx';
 import { Text } from '../components/ui/Text.jsx';
 import { adminPortalService } from '../services/adminPortalService.js';
 import { colors } from '../theme/colors.js';
-import bumuLogo from '../../BumuLogo.jpeg';
+import { bumuLogo } from '@/assets/index.js';
 
 const emptyPortal = {
   admin: null,
