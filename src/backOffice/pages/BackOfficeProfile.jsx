@@ -77,7 +77,7 @@ export default function BackOfficeProfile() {
         </FinanceGroup>
 
         <FinanceGroup title="Account">
-          <FinanceLinkRow icon={KeyRound} label="Password and OTP" value="Change password" to="/reset-password" />
+          <FinanceLinkRow icon={KeyRound} label="Password and OTP" value="Change password" to="/backoffice/reset-password" />
           <FinanceStaticRow icon={LockKeyhole} label="App access" value="Back Office only" />
         </FinanceGroup>
       </div>

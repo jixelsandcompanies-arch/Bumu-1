@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext.jsx";
 import { bumuLogo } from "@/assets/index.js";
 
 export default function ResetPassword() {
+  const location = useLocation();
   const { requestPasswordReset } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const loginPath = location.pathname.startsWith("/backoffice") ? "/backoffice/login" : "/login";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -46,7 +48,7 @@ export default function ResetPassword() {
           </button>
         </form>
         <div className="auth-links">
-          <Link to="/login">Back to login</Link>
+          <Link to={loginPath}>Back to login</Link>
         </div>
       </section>
     </main>

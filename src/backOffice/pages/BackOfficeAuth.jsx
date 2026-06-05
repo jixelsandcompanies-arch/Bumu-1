@@ -182,7 +182,7 @@ export default function BackOfficeAuth() {
         <div className="auth-links auth-links-center">
           {mode === "login" ? (
             <>
-              <Link to="/reset-password">Reset password</Link>
+              <Link to="/backoffice/reset-password">Reset password</Link>
               <button type="button" className="link-button" onClick={() => { setError(""); setMessage(""); setMode("register"); }}>
                 Create Back Office account
               </button>

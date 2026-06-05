@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { BackOfficeLayout } from "../components/layout/BackOfficeLayout.jsx";
 import BackOfficeApplicationDetail from "../pages/BackOfficeApplicationDetail.jsx";
 import BackOfficeAuth from "../pages/BackOfficeAuth.jsx";
@@ -8,23 +9,23 @@ import BackOfficeOverview from "../pages/BackOfficeOverview.jsx";
 import BackOfficeProfile from "../pages/BackOfficeProfile.jsx";
 import BackOfficeSettings from "../pages/BackOfficeSettings.jsx";
 import BackOfficeScreening from "../pages/BackOfficeScreening.jsx";
-import { ProtectedRoute } from "../../uploadedAdmin/features/auth/ProtectedRoute.jsx";
+import { getPortalPathForRole, useAuth } from "../../uploadedAdmin/features/auth/AuthContext.jsx";
 import ResetPassword from "../../uploadedAdmin/pages/auth/ResetPassword.jsx";
 
 export default function BackOfficeApp() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/backoffice/overview" replace />} />
-      <Route path="/login" element={<BackOfficeAuth />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/backoffice/login" element={<BackOfficeAuth />} />
+      <Route path="/backoffice/reset-password" element={<ResetPassword />} />
       <Route path="/admin/*" element={<Navigate to="/backoffice/overview" replace />} />
 
       <Route
         path="/backoffice"
         element={
-          <ProtectedRoute allowedRoles={["super_admin", "back_office_officer"]}>
+          <BackOfficeProtectedRoute allowedRoles={["super_admin", "back_office_officer"]}>
             <BackOfficeLayout />
-          </ProtectedRoute>
+          </BackOfficeProtectedRoute>
         }
       >
         <Route index element={<Navigate to="/backoffice/overview" replace />} />
@@ -40,4 +41,23 @@ export default function BackOfficeApp() {
       <Route path="*" element={<Navigate to="/backoffice/overview" replace />} />
     </Routes>
   );
+}
+
+function BackOfficeProtectedRoute({ allowedRoles, children }) {
+  const location = useLocation();
+  const { authStatus, isAuthenticated, user } = useAuth();
+
+  if (authStatus === "loading") {
+    return <main className="auth-screen"><section className="auth-panel">Loading secure session...</section></main>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/backoffice/login" replace state={{ from: location }} />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to={getPortalPathForRole(user.role)} replace />;
+  }
+
+  return children;
 }
