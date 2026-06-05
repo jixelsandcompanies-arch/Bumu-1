@@ -149,7 +149,7 @@ export default function Notifications() {
         <StatCard icon={Bell} label="Total notifications" value={notifications.length} detail="All channels" />
         <StatCard icon={BellDot} label="Unread alerts" value={unread} detail="Needs attention" />
         <StatCard icon={Send} label="Priority flags" value={urgent} detail="Risk or rejection alerts" tone="warning" />
-        <StatCard icon={Smartphone} label="SMS records" value={sms} detail="Africa's Talking channel" />
+        <StatCard icon={Smartphone} label="SMS records" value={sms} detail="Twilio channel" />
         <StatCard icon={MessageSquareText} label="In-app records" value={inApp} detail="Portal notification feed" />
       </div>
 

@@ -866,7 +866,7 @@ export async function requestPasswordResetOtp(body) {
     request: data,
     message: delivered
       ? 'OTP sent. If it does not arrive, go back and resend it.'
-      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL, AFRICASTALKING_*, or TWILIO_* variables to send OTP automatically.'
+      : 'OTP request saved. Configure RESEND_API_KEY/OTP_FROM_EMAIL or TWILIO_* variables to send OTP automatically.'
   };
 }
 
