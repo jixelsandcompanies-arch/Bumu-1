@@ -6,6 +6,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  ShieldCheck,
   Smartphone,
   UsersRound
 } from 'lucide-react';
@@ -18,18 +19,42 @@ const portals = [
   {
     key: 'agent',
     title: 'Agent',
+    searchName: 'Agent Bumu',
     label: 'Sales, customers, follow-up',
     icon: UsersRound,
     tone: colors.success,
-    status: 'Ready'
+    status: 'Ready',
+    path: '/agent-bumu'
   },
   {
     key: 'customer',
     title: 'Customer',
+    searchName: 'Customer Bumu',
     label: 'Payments, balance, account',
     icon: Smartphone,
     tone: colors.orange,
-    status: 'Ready'
+    status: 'Ready',
+    path: '/customer-bumu'
+  },
+  {
+    key: 'finance',
+    title: 'Finance',
+    searchName: 'Finance Bumu',
+    label: 'Collections, reports, commissions',
+    icon: Building2,
+    tone: colors.primary,
+    status: 'Secure',
+    path: '/finance-bumu'
+  },
+  {
+    key: 'admin',
+    title: 'Admin',
+    searchName: 'Admin Bumu',
+    label: 'Approvals, users, screening',
+    icon: ShieldCheck,
+    tone: '#1d4ed8',
+    status: 'Secure',
+    path: '/admin-bumu'
   }
 ];
 
@@ -105,18 +130,7 @@ export function PortalLandingScreen() {
   }
 
   function openPortal(portal) {
-    if (portal.key === 'customer') {
-      window.history.pushState(null, '', '#/customer');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      return;
-    }
-
-    if (portal.key === 'agent') {
-      window.history.pushState(null, '', '#/agent');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      return;
-    }
-
+    window.location.assign(portal.path);
   }
 
   return (
@@ -366,7 +380,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Customer and Agent portals use the same shared PAYGO database.
+            Agent Bumu, Customer Bumu, Finance Bumu, and Admin Bumu portals use the same shared PAYGO database with role-based access.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
@@ -385,15 +399,13 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
 
 function PortalCard({ portal, onPress }) {
   const Icon = portal.icon;
-  const canOpen = ['customer', 'agent'].includes(portal.key);
 
   return (
     <Pressable
-      onPress={canOpen ? onPress : undefined}
+      onPress={onPress}
       style={({ pressed }) => [
         styles.portalCard,
-        pressed && canOpen && styles.portalPressed,
-        !canOpen && styles.portalDisabled
+        pressed && styles.portalPressed
       ]}
     >
       <View style={[styles.cardBanner, { backgroundColor: `${portal.tone}12` }]}>
@@ -407,18 +419,17 @@ function PortalCard({ portal, onPress }) {
         </View>
         <View style={styles.portalRight}>
           <Text style={[styles.portalStatus, { color: portal.tone }]}>{portal.status}</Text>
-          <ArrowRight size={18} color={canOpen ? portal.tone : colors.muted} />
+          <ArrowRight size={18} color={portal.tone} />
         </View>
       </View>
       <View style={styles.portalText}>
         <Text style={styles.portalTitle}>{portal.title}</Text>
+        <Text style={styles.portalStatus}>{portal.searchName}</Text>
         <Text style={styles.portalLabel}>{portal.label}</Text>
       </View>
       <View style={styles.portalCardFooter}>
-        <Text style={[styles.openText, { color: portal.tone }]}>
-          {canOpen ? 'Open portal' : 'Awaiting link'}
-        </Text>
-        <ArrowRight size={17} color={canOpen ? portal.tone : colors.muted} />
+        <Text style={[styles.openText, { color: portal.tone }]}>Open portal</Text>
+        <ArrowRight size={17} color={portal.tone} />
       </View>
     </Pressable>
   );

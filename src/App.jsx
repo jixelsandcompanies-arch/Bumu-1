@@ -40,6 +40,22 @@ function isAuthRoute() {
   return ['#/login', '#/register', '#/forgot-password'].includes(window.location.hash);
 }
 
+function applyCleanPortalRoute() {
+  if (window.location.hash) return;
+
+  const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+  const routeByPath = {
+    '/admin-bumu': '#/admin',
+    '/finance-bumu': '#/login',
+    '/customer-bumu': '#/customer',
+    '/agent-bumu': '#/agent'
+  };
+  const hashRoute = routeByPath[path];
+  if (hashRoute) {
+    window.history.replaceState(null, '', `${window.location.pathname}${hashRoute}`);
+  }
+}
+
 function isCustomerRoute() {
   return window.location.hash === '#/customer';
 }
@@ -176,6 +192,8 @@ function buildDailyPaymentNotifications(payments) {
 }
 
 export function App() {
+  applyCleanPortalRoute();
+
   const [authenticated, setAuthenticated] = useState(() => Boolean(getAuthToken()));
   const [authChecked, setAuthChecked] = useState(false);
   const [authRouteActive, setAuthRouteActive] = useState(isAuthRoute);
