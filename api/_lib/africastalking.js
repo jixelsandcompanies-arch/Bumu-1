@@ -94,23 +94,18 @@ function deliveryFromResponse(data) {
   });
 }
 
-export async function sendSms({ to, message }) {
-  if (!hasAfricasTalkingSmsConfig()) {
-    return { configured: false, delivered: false, provider: 'africastalking' };
-  }
+function senderRejected(data) {
+  return String(data?.SMSMessageData?.Message || data?.message || '').toLowerCase().includes('invalidsenderid');
+}
 
-  const phone = normalizePhone(to);
-  if (!phone) {
-    return { configured: true, delivered: false, provider: 'africastalking', reason: 'missing_phone' };
-  }
-
+async function sendSmsRequest({ phone, message, useSender = true }) {
   const body = new URLSearchParams({
     username: username(),
     to: phone,
     message: String(message || '')
   });
 
-  if (senderId()) body.set('from', senderId());
+  if (useSender && senderId()) body.set('from', senderId());
 
   const response = await fetch(useSandbox() ? AFRICAS_TALKING_SANDBOX_URL : AFRICAS_TALKING_LIVE_URL, {
     method: 'POST',
@@ -123,6 +118,28 @@ export async function sendSms({ to, message }) {
   });
   const data = await response.json().catch(() => ({}));
 
+  return { response, data };
+}
+
+export async function sendSms({ to, message }) {
+  if (!hasAfricasTalkingSmsConfig()) {
+    return { configured: false, delivered: false, provider: 'africastalking' };
+  }
+
+  const phone = normalizePhone(to);
+  if (!phone) {
+    return { configured: true, delivered: false, provider: 'africastalking', reason: 'missing_phone' };
+  }
+
+  let { response, data } = await sendSmsRequest({ phone, message, useSender: true });
+  let fallbackUsed = false;
+  if (senderId() && senderRejected(data)) {
+    const fallback = await sendSmsRequest({ phone, message, useSender: false });
+    response = fallback.response;
+    data = fallback.data;
+    fallbackUsed = true;
+  }
+
   if (!response.ok) {
     const error = new Error(data.message || data.errorMessage || 'Africa\'s Talking SMS request failed.');
     error.statusCode = 502;
@@ -134,6 +151,7 @@ export async function sendSms({ to, message }) {
     configured: true,
     delivered: deliveryFromResponse(data),
     provider: 'africastalking',
+    fallbackUsed,
     response: data,
     sid: data?.SMSMessageData?.Recipients?.[0]?.messageId || null
   };
