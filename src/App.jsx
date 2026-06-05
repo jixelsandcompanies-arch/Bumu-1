@@ -79,7 +79,7 @@ function portalMetaForRoute() {
     title: 'Bumu Paygo',
     manifest: '/manifest.webmanifest',
     appleTitle: 'Bumu Paygo',
-    description: 'Bumu Paygo portals for customers, agents, admin, and finance.'
+    description: 'Bumu Paygo customer and agent PAYGO product portals.'
   };
 }
 

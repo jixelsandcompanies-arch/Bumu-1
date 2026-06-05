@@ -3,11 +3,9 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
-  CreditCard,
   Mail,
   MapPin,
   Phone,
-  ShieldCheck,
   Smartphone,
   UsersRound
 } from 'lucide-react';
@@ -17,22 +15,6 @@ import { colors } from '../theme/colors.js';
 import bumuLogo from '../../BumuLogo.jpeg';
 
 const portals = [
-  {
-    key: 'finance',
-    title: 'Finance',
-    label: 'Collections, reports, commissions',
-    icon: CreditCard,
-    tone: colors.primary,
-    status: 'Ready'
-  },
-  {
-    key: 'admin',
-    title: 'Admin',
-    label: 'Users, products, branches',
-    icon: ShieldCheck,
-    tone: colors.violet,
-    status: 'Ready'
-  },
   {
     key: 'agent',
     title: 'Agent',
@@ -98,7 +80,7 @@ const locationDetails = [
   ['Base', 'Nairobi, Kenya'],
   ['Coverage', 'Dealer network planned across Kenya'],
   ['Products', 'Motorbikes, phones, cookers, solar lamps, and approved assets'],
-  ['Support', 'Customer, agent, dealer, and finance support channels']
+  ['Support', 'Customer, agent, and dealer support channels']
 ];
 
 const operatingSteps = [
@@ -123,12 +105,6 @@ export function PortalLandingScreen() {
   }
 
   function openPortal(portal) {
-    if (portal.key === 'finance') {
-      window.history.pushState(null, '', '#/login');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      return;
-    }
-
     if (portal.key === 'customer') {
       window.history.pushState(null, '', '#/customer');
       window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -141,10 +117,6 @@ export function PortalLandingScreen() {
       return;
     }
 
-    if (portal.key === 'admin') {
-      window.history.pushState(null, '', '#/admin');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-    }
   }
 
   return (
@@ -394,7 +366,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Finance, Admin, Agent, and Customer portals use the same shared CRM database.
+            Customer and Agent portals use the same shared PAYGO database.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
@@ -413,7 +385,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
 
 function PortalCard({ portal, onPress }) {
   const Icon = portal.icon;
-  const canOpen = ['finance', 'admin', 'customer', 'agent'].includes(portal.key);
+  const canOpen = ['customer', 'agent'].includes(portal.key);
 
   return (
     <Pressable
@@ -509,7 +481,7 @@ function ServicesPage({ onOpenPortals }) {
           ['Customer support', 'Customers receive guidance on repayments, product status, balances, and next steps after approval.'],
           ['Dealer coordination', 'Dealers and field agents can support onboarding and after-sale follow-up as coverage expands across Kenya.'],
           ['Mobile money readiness', 'The customer journey is designed for paybill-led M-Pesa repayment flows owned by the backend and payment provider.'],
-          ['Finance visibility', 'Finance teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
+          ['Payment visibility', 'Approved teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
           ['After-sale follow-up', 'Customers can be contacted about missed payments, product needs, and service updates without losing the relationship history.']
         ].map(([title, text]) => (
           <View key={title} style={styles.serviceDetailCard}>
@@ -563,7 +535,7 @@ function AboutPage({ onOpenPortals }) {
         {[
           ['Practical', 'Products are selected for real daily use, not only appearance.'],
           ['Accessible', 'Customers can begin with a deposit and continue with manageable payments.'],
-          ['Professional', 'Agents, dealers, customers, and finance teams use controlled portal journeys.'],
+          ['Professional', 'Agents, dealers, and customers use controlled portal journeys.'],
           ['Kenyan', 'Nairobi-based operations with dealer coverage planned across the country.']
         ].map(([title, text]) => (
           <View key={title} style={styles.valueCard}>
@@ -639,7 +611,7 @@ function ContactPage({ onOpenPortals }) {
         <View>
           <Text style={styles.statementTitle}>Customers and agents can start from the portals.</Text>
           <Text style={styles.statementText}>
-            Customer, agent, finance, and admin access stays separated by role while the public website stays open for visitors.
+            Customer and agent access stays separated by role while internal team portals stay private by direct link.
           </Text>
         </View>
         <Pressable onPress={onOpenPortals} style={styles.primaryInlineAction}>

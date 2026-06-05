@@ -1,7 +1,7 @@
 {
-  "name": "Bumu Paygo Finance",
+  "name": "Bumu Paygo",
   "short_name": "Bumu Paygo",
-  "description": "Finance, riders, payments, alerts, and commission approvals for Bumu Paygo.",
+  "description": "Customer and agent PAYGO product portals for Bumu Paygo.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -10,7 +10,7 @@
   "orientation": "any",
   "background_color": "#eefaf4",
   "theme_color": "#0757c8",
-  "categories": ["finance", "business", "productivity"],
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
