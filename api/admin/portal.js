@@ -79,7 +79,12 @@ export default async function handler(req, res) {
       getSupabase().from('payments').select('*').order('date', { ascending: false }).limit(100),
       getSupabase().from('commissions').select('*').order('earned_at', { ascending: false }).limit(100),
       getSupabase().from('customer_applications').select('*, customers(*)').order('created_at', { ascending: false }).limit(100),
-      getSupabase().from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+      getSupabase()
+        .from('admin_audit_logs')
+        .select('*')
+        .eq('actor_email', user.email)
+        .order('created_at', { ascending: false })
+        .limit(100),
       getSupabase().auth.admin.listUsers({ page: 1, perPage: 200 }),
       getSupabase().from('finance_notifications').select('*').order('created_at', { ascending: false }).limit(100),
       getSupabase().from('agent_notifications').select('*').order('created_at', { ascending: false }).limit(100)

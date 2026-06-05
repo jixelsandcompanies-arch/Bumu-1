@@ -58,8 +58,8 @@ export default function AuditLogs() {
     <section className="page-stack">
       <PageHeader
         eyebrow="Compliance"
-        title="Audit logs"
-        description="Trace admin actions, application changes, duplicate ID flags, and operational events."
+        title="My audit logs"
+        description="Trace actions and security events recorded for the currently signed-in admin account."
         actions={
           <div className="page-actions">
             <button
@@ -110,7 +110,7 @@ export default function AuditLogs() {
       <DataTable
         columns={columns}
         rows={filteredLogs}
-        emptyMessage={showArchived ? "No archived audit records." : "No audit records match this view."}
+        emptyMessage={showArchived ? "No archived audit records for this admin." : "No audit records match this admin view."}
       />
     </section>
   );
