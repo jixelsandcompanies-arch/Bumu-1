@@ -1,8 +1,10 @@
 import {
+  Bell,
   CheckCircle2,
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Settings2,
   UserRound
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -10,8 +12,10 @@ import { useAuth } from "../../../uploadedAdmin/features/auth/AuthContext.jsx";
 
 const navItems = [
   { label: "Overview", shortLabel: "O", icon: LayoutDashboard, to: "/backoffice/overview", end: true },
-  { label: "Screening Queue", shortLabel: "SQ", icon: ClipboardList, to: "/backoffice/screening" },
+  { label: "Screening queue", shortLabel: "SQ", icon: ClipboardList, to: "/backoffice/screening" },
   { label: "Completed", shortLabel: "CO", icon: CheckCircle2, to: "/backoffice/completed" },
+  { label: "Notifications", shortLabel: "NO", icon: Bell, to: "/backoffice/notifications" },
+  { label: "Settings", shortLabel: "SE", icon: Settings2, to: "/backoffice/settings" },
   { label: "Profile", shortLabel: "PR", icon: UserRound, to: "/backoffice/profile" }
 ];
 

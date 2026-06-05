@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ClipboardList, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, Settings2, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../uploadedAdmin/features/auth/AuthContext.jsx";
 
@@ -22,7 +22,7 @@ export function BackOfficeTopbar({ onToggleSidebar }) {
         </button>
         <div>
           <p className="eyebrow">Back Office</p>
-          <h1>Bumu PAYGO Screening</h1>
+          <h1>Screening workspace</h1>
         </div>
       </div>
       <div className="topbar-actions">
@@ -36,11 +36,20 @@ export function BackOfficeTopbar({ onToggleSidebar }) {
           <button
             className="icon-button compact"
             type="button"
-            onClick={() => navigate("/backoffice/screening")}
-            aria-label="Open screening queue"
-            title="Screening queue"
+            onClick={() => navigate("/backoffice/notifications")}
+            aria-label="Open notifications"
+            title="Notifications"
           >
-            <ClipboardList size={18} strokeWidth={2.6} />
+            <Bell size={18} strokeWidth={2.6} />
+          </button>
+          <button
+            className="icon-button compact"
+            type="button"
+            onClick={() => navigate("/backoffice/settings")}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <Settings2 size={18} strokeWidth={2.6} />
           </button>
         </div>
         <Link className="user-chip" to="/backoffice/profile">
