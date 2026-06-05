@@ -45,6 +45,12 @@ export function getSupabaseAuth() {
   return authClient;
 }
 
+export function portalRole(user) {
+  const role = user?.app_metadata?.role || user?.user_metadata?.role || '';
+  if (['admin', 'super_admin', 'back_office_officer'].includes(role)) return 'admin';
+  return role;
+}
+
 export async function requireFinanceUser(req) {
   if (process.env.SUPABASE_AUTH_REQUIRED === 'false') {
     return null;
@@ -67,7 +73,7 @@ export async function requireFinanceUser(req) {
     throw authError;
   }
 
-  const role = data.user.app_metadata?.role || data.user.user_metadata?.role;
+  const role = portalRole(data.user);
 
   if (role !== 'finance' && role !== 'admin') {
     const roleError = new Error('Finance access is required.');
@@ -108,7 +114,7 @@ export async function requireAuthenticatedUser(req) {
 
 export async function requirePortalUser(req, allowedRoles = []) {
   const user = await requireAuthenticatedUser(req);
-  const role = user.app_metadata?.role || user.user_metadata?.role;
+  const role = portalRole(user);
 
   if (!allowedRoles.includes(role) && role !== 'admin') {
     const roleError = new Error('Portal access is required.');

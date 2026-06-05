@@ -1,6 +1,6 @@
 import { sendJson, readJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, genericAuthMessage } from '../../_lib/security.js';
-import { getSupabase, getSupabaseAuth } from '../../_lib/supabase.js';
+import { getSupabase, getSupabaseAuth, portalRole } from '../../_lib/supabase.js';
 
 const ADMIN_FAILED_LOGIN_LIMIT = 8;
 const ADMIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const role = data.user.app_metadata?.role || data.user.user_metadata?.role;
+    const role = portalRole(data.user);
     if (role !== 'admin') {
       await recordAdminLogin(email, 'admin_login_failed', { reason: 'invalid_role' });
       sendJson(res, 403, { message: 'Admin access is required.' });
