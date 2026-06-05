@@ -52,7 +52,7 @@ export default function BackOfficeSettings() {
 
       {message ? <div className="alert soft">{message}</div> : null}
 
-      <div className="stats-grid">
+      <div className="stat-grid compact">
         <StatCard icon={ShieldCheck} label="Screening safety" value={settings.showCompletedCases ? "Full" : "Focused"} detail="Case view mode" />
         <StatCard icon={Bell} label="Notifications" value={settings.inAppAlerts ? "Active" : "Muted"} detail="In-app alerts" />
         <StatCard icon={RefreshCw} label="Auto refresh" value={settings.autoRefresh ? "On" : "Off"} detail="Queue refresh" />

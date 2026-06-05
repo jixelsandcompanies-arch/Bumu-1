@@ -92,7 +92,7 @@ export default function BackOfficeProfile() {
 
           <div className="settings-form">
             <p className="text-muted">Password changes are handled through the reset flow for security. If you need a new password, request a reset link.</p>
-            <Link className="button secondary" to="/backoffice/reset-password">
+            <Link className="button secondary" to="/reset-password">
               Request password reset
             </Link>
           </div>

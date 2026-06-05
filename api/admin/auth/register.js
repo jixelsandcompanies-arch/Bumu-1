@@ -38,6 +38,8 @@ export default async function handler(req, res) {
     const fullName = String(body.fullName || '').trim();
     const phone = String(body.phone || '').trim();
     const setupCode = String(body.setupCode || '').trim();
+    const requestedRole = String(body.role || '').trim();
+    const profileRole = requestedRole === 'back_office_officer' ? 'back_office_officer' : 'admin';
 
     if (!fullName || !email.includes('@') || !phone || !validateStrongPassword(password)) {
       sendJson(res, 400, { message: 'Enter full name, email, phone number, and a strong password.' });
@@ -69,10 +71,10 @@ export default async function handler(req, res) {
       user_metadata: {
         full_name: fullName,
         phone,
-        role: 'admin'
+        role: profileRole
       },
       app_metadata: {
-        role: 'admin'
+        role: profileRole
       }
     });
 
@@ -88,7 +90,7 @@ export default async function handler(req, res) {
         full_name: fullName,
         email,
         phone,
-        role: 'admin',
+        role: profileRole,
         status: 'active'
       }, { onConflict: 'auth_user_id' })
       .select()
@@ -102,7 +104,7 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         fullName,
-        role: 'admin'
+        role: profileRole
       }
     });
   } catch (error) {

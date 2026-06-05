@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../uploadedAdmin/features/auth/AuthContext.jsx";
 import { adminPortalService } from "../../services/adminPortalService.js";
@@ -64,7 +65,8 @@ export default function BackOfficeAuth() {
         email: form.email.trim(),
         phone: form.phone.trim(),
         password: form.password,
-        setupCode: form.setupCode.trim()
+        setupCode: form.setupCode.trim(),
+        role: "back_office_officer"
       });
       setMessage("Registration complete. Sign in with your new Back Office credentials.");
       setMode("login");
@@ -83,19 +85,23 @@ export default function BackOfficeAuth() {
   return (
     <main className="auth-screen">
       <section className="auth-panel auth-panel-stacked">
+        <button type="button" className="auth-back-link" onClick={() => { window.location.href = "/"; }}>
+          <ArrowLeft size={16} />
+          Back to site
+        </button>
         <div className="brand auth-brand">
           <img className="auth-logo" src={bumuLogo} alt="Bumu Paygo logo" />
           <div>
             <strong>Bumu PAYGO</strong>
-            <span>Back Office screening</span>
+            <span>Back Office account access</span>
           </div>
         </div>
 
         <h1>{mode === "login" ? "Back Office sign in" : "Back Office registration"}</h1>
         <p>
           {mode === "login"
-            ? "Sign in with your Back Office officer credentials to access screening workflows, notifications, and settings."
-            : "Create a Back Office officer account with your official credentials. Use the setup code if provided by your supervisor."}
+            ? "Use your approved Back Office email to access screening workflows."
+            : "Create a Back Office profile linked to Supabase Auth and the shared CRM."}
         </p>
 
         <form className="form-grid" onSubmit={mode === "login" ? handleLogin : handleRegister}>
@@ -162,6 +168,7 @@ export default function BackOfficeAuth() {
           {message ? <div className="alert soft">{message}</div> : null}
 
           <button className="button primary" type="submit" disabled={submitting}>
+            {mode === "login" ? <LogIn size={18} /> : <UserPlus size={18} />}
             {submitting
               ? mode === "login"
                 ? "Signing in..."

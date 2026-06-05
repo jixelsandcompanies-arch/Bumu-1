@@ -112,7 +112,7 @@ export default function BackOfficeNotifications() {
 
       {message ? <div className="alert soft">{message}</div> : null}
 
-      <div className="stats-grid">
+      <div className="stat-grid compact">
         <StatCard icon={Bell} label="Total notifications" value={notifications.length} detail="All channels" />
         <StatCard icon={BellDot} label="Unread" value={unread} detail="Needs review" tone="warning" />
         <StatCard icon={Smartphone} label="In-app" value={inApp} detail="Portal alerts" />

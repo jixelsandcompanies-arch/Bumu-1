@@ -1,19 +1,44 @@
-import { AlertTriangle, CheckCircle2, ClipboardList, FileWarning, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  Bike,
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardList,
+  FileWarning,
+  ShieldAlert,
+  UserRoundCheck,
+  Users,
+  WalletCards
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { DataTable } from "../../uploadedAdmin/components/ui/DataTable.jsx";
 import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
 import { StatCard } from "../../uploadedAdmin/components/ui/StatCard.jsx";
 import { StatusBadge } from "../../uploadedAdmin/components/ui/StatusBadge.jsx";
 import { useAdminData } from "../../uploadedAdmin/features/admin/AdminDataContext.jsx";
+import { formatKes } from "../../uploadedAdmin/lib/formatting/currency.js";
 import { activeScreeningStatuses, completedScreeningStatuses, getScreeningRows } from "./backOfficeHelpers.js";
 
 export default function BackOfficeOverview() {
-  const { agents, applications, bikes, customers } = useAdminData();
+  const { agents, applications, bikes, customers, notifications = [], payments = [] } = useAdminData();
   const activeRows = getScreeningRows({ agents, applications, bikes, customers, statuses: activeScreeningStatuses });
   const completedRows = getScreeningRows({ agents, applications, bikes, customers, statuses: completedScreeningStatuses });
+  const pending = applications.filter((item) => item.status === "pending_screening").length;
   const infoRequired = activeRows.filter((row) => row.status === "info_required").length;
   const pendingKyc = activeRows.filter((row) => row.status === "next_of_kin_pending").length;
   const duplicateFlags = activeRows.filter((row) => row.duplicateNationalId).length;
+  const unclearDocuments = applications.filter((item) =>
+    (item.documents || []).some((document) => ["unclear", "missing"].includes(document.status))
+  ).length;
+  const failedKinOtp = applications.filter((item) => !item.nextOfKinOtpVerified).length;
+  const activeAgents = agents.filter((item) => item.status === "active").length;
+  const assignedBikes = bikes.filter((item) => item.status === "assigned").length;
+  const availableBikes = bikes.filter((item) => item.status === "available").length;
+  const unreadNotifications = notifications.filter((notification) => notification.status === "unread").length;
+  const totalCollected = payments
+    .filter((payment) => payment.status === "success")
+    .reduce((sum, payment) => sum + payment.amount, 0);
 
   const columns = [
     { key: "id", label: "Case ID" },
@@ -24,51 +49,107 @@ export default function BackOfficeOverview() {
   ];
 
   return (
-    <section className="page-stack">
-      <PageHeader
-        eyebrow="Back Office overview"
-        title="Screening workload"
-        description="Track the screening queue, resolve requests for information, and keep approvals moving through the workflow."
-      />
-
-      <div className="stats-grid">
-        <StatCard icon={ClipboardList} label="Open screening" value={activeRows.length} detail="Cases awaiting review" tone="warning" to="/backoffice/screening" />
-        <StatCard icon={FileWarning} label="Info requested" value={infoRequired} detail="Waiting on more details" to="/backoffice/screening" />
-        <StatCard icon={AlertTriangle} label="Pending KYC" value={pendingKyc} detail="Next-of-kin or identity checks" tone="danger" to="/backoffice/screening" />
-        <StatCard icon={CheckCircle2} label="Completed" value={completedRows.length} detail="Processed cases" tone="success" to="/backoffice/completed" />
-        <StatCard icon={Users} label="Total cases" value={applications.length} detail="All screened cases" />
+    <section className="page-stack dashboard-page">
+      <div className="dashboard-header-band">
+        <PageHeader
+          eyebrow="Back Office overview"
+          title="Operational screening desk"
+          description="Control customer screening, document checks, next-of-kin verification, and approval handoff from the shared Bumu PAYGO database."
+        />
       </div>
 
-      <div className="detail-grid">
-        <article className="panel">
+      <section className="dashboard-section">
+        <div className="section-title">
+          <p className="eyebrow">Overview</p>
+          <h3>Control summary</h3>
+        </div>
+        <div className="stat-grid dashboard-summary-grid">
+          <StatCard icon={ClipboardList} label="Pending screening" value={pending} detail="Needs review" tone="warning" to="/backoffice/screening" />
+          <StatCard icon={FileWarning} label="Info required" value={infoRequired} detail="Returned to agent" to="/backoffice/screening" />
+          <StatCard icon={ClipboardCheck} label="Approved" value={completedRows.filter((row) => row.status === "approved").length} detail="Activated cases" tone="success" to="/backoffice/completed" />
+          <StatCard icon={ShieldAlert} label="Duplicate IDs" value={duplicateFlags} detail="Risk flags" tone="danger" to="/backoffice/screening" />
+          <StatCard icon={Users} label="Active agents" value={activeAgents} detail={`${agents.length} agent records`} />
+          <StatCard icon={WalletCards} label="Collected" value={formatKes(totalCollected)} detail="Finance visibility" />
+          <StatCard icon={Bell} label="Unread alerts" value={unreadNotifications} detail="Notifications" to="/backoffice/notifications" />
+        </div>
+      </section>
+
+      <section className="dashboard-section">
+        <article className="panel priority-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Queue snapshot</p>
-              <h3>Latest screening cases</h3>
+              <p className="eyebrow">Screening operations</p>
+              <h3>KYC approval queue</h3>
             </div>
             <Link to="/backoffice/screening">View queue</Link>
           </div>
+
+          <div className="operations-strip">
+            <div>
+              <strong>{pending}</strong>
+              <span>Pending back-office review</span>
+            </div>
+            <div>
+              <strong>{duplicateFlags}</strong>
+              <span>Duplicate national ID flags</span>
+            </div>
+            <div>
+              <strong>{unclearDocuments}</strong>
+              <span>Document clarity issues</span>
+            </div>
+            <div>
+              <strong>{failedKinOtp}</strong>
+              <span>Next-of-kin OTP issues</span>
+            </div>
+          </div>
+
           <DataTable columns={columns} rows={activeRows.slice(0, 6)} emptyMessage="No active screening cases are waiting right now." />
+        </article>
+      </section>
+
+      <div className="dashboard-grid">
+        <article className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Field handoff</p>
+              <h3>Agents and assigned bikes</h3>
+            </div>
+            <Link to="/backoffice/screening">Review cases</Link>
+          </div>
+          <div className="metric-list">
+            <MetricRow icon={UserRoundCheck} label="Active agents" value={activeAgents} />
+            <MetricRow icon={Bike} label="Assigned bikes" value={assignedBikes} />
+            <MetricRow icon={Bike} label="Available bikes" value={availableBikes} />
+            <MetricRow icon={Users} label="Customer records" value={customers.length} />
+          </div>
         </article>
 
         <article className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Team workload</p>
-              <h3>Screening activity</h3>
+              <p className="eyebrow">Approval readiness</p>
+              <h3>Risk and completion</h3>
             </div>
-            <Link to="/backoffice/notifications">View notifications</Link>
+            <Link to="/backoffice/completed">Completed cases</Link>
           </div>
-          <div className="panel-block">
-            <p className="text-muted">Use this page to stay on top of cases, duplicate flags, and info requests.</p>
-            <ul className="bullet-list">
-              <li>{pendingKyc} case(s) require identity or next-of-kin verification.</li>
-              <li>{infoRequired} case(s) are awaiting additional customer information.</li>
-              <li>{duplicateFlags} case(s) have duplicate national ID alerts.</li>
-            </ul>
+          <div className="metric-list">
+            <MetricRow icon={AlertTriangle} label="Pending KYC" value={pendingKyc} tone="danger" />
+            <MetricRow icon={FileWarning} label="Info requested" value={infoRequired} />
+            <MetricRow icon={ShieldAlert} label="Duplicate ID flags" value={duplicateFlags} tone="danger" />
+            <MetricRow icon={CheckCircle2} label="Completed decisions" value={completedRows.length} />
           </div>
         </article>
       </div>
     </section>
+  );
+}
+
+function MetricRow({ icon: Icon, label, value, tone = "default" }) {
+  return (
+    <div className={`metric-row metric-${tone}`}>
+      <Icon size={21} strokeWidth={2.4} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }

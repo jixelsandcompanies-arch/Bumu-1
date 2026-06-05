@@ -47,7 +47,9 @@ async function apiRequest(path, { method = "GET", body } = {}) {
 }
 
 export function getPortalPathForRole(role) {
-  if (["super_admin", "back_office_officer", "admin"].includes(role)) {
+  if (role === "back_office_officer") return "/backoffice/overview";
+
+  if (["super_admin", "admin"].includes(role)) {
     return "/admin/overview";
   }
 
