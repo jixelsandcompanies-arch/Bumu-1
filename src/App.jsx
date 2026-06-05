@@ -14,6 +14,7 @@ import { PortalLandingScreen } from './screens/PortalLandingScreen.jsx';
 import { CustomerPortalScreen } from './screens/CustomerPortalScreen.jsx';
 import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
 import { UploadedAdminPortalScreen } from './screens/UploadedAdminPortalScreen.jsx';
+import { BackOfficePortalScreen } from './screens/BackOfficePortalScreen.jsx';
 import { NextOfKinAcceptScreen } from './screens/NextOfKinAcceptScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
@@ -78,7 +79,7 @@ function isAgentRoute() {
 }
 
 function isAdminRoute() {
-  return window.location.hash.startsWith('#/admin') || isBackOfficePath();
+  return window.location.hash.startsWith('#/admin');
 }
 
 function isFinanceRoute() {
@@ -90,6 +91,15 @@ function isNextOfKinRoute() {
 }
 
 function portalMetaForRoute() {
+  if (isBackOfficePath()) {
+    return {
+      title: 'Bumu Paygo Back Office',
+      manifest: '/manifest-backoffice.webmanifest',
+      appleTitle: 'Bumu Back Office',
+      description: 'Back Office screening workspace for Bumu Paygo customer applications.'
+    };
+  }
+
   if (isAdminRoute()) {
     return {
       title: 'Bumu Paygo Admin Portal',
@@ -236,6 +246,7 @@ export function App() {
   const [customerRouteActive, setCustomerRouteActive] = useState(isCustomerRoute);
   const [agentRouteActive, setAgentRouteActive] = useState(isAgentRoute);
   const [adminRouteActive, setAdminRouteActive] = useState(isAdminRoute);
+  const [backOfficeRouteActive, setBackOfficeRouteActive] = useState(isBackOfficePath);
   const [nextOfKinRouteActive, setNextOfKinRouteActive] = useState(isNextOfKinRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.sessionStorage.getItem('bumu-active-screen') || 'dashboard'
@@ -295,6 +306,7 @@ export function App() {
       setCustomerRouteActive(isCustomerRoute());
       setAgentRouteActive(isAgentRoute());
       setAdminRouteActive(isAdminRoute());
+      setBackOfficeRouteActive(isBackOfficePath());
       setNextOfKinRouteActive(isNextOfKinRoute());
     }
 
@@ -312,7 +324,7 @@ export function App() {
     manifestLink?.setAttribute('href', meta.manifest);
     appleTitle?.setAttribute('content', meta.appleTitle);
     description?.setAttribute('content', meta.description);
-  }, [customerRouteActive, agentRouteActive, adminRouteActive, nextOfKinRouteActive, authRouteActive]);
+  }, [customerRouteActive, agentRouteActive, adminRouteActive, backOfficeRouteActive, nextOfKinRouteActive, authRouteActive]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -402,6 +414,10 @@ export function App() {
 
   if (agentRouteActive) {
     return <AgentPortalScreen canInstall={canInstall} onInstall={install} />;
+  }
+
+  if (backOfficeRouteActive) {
+    return <BackOfficePortalScreen />;
   }
 
   if (adminRouteActive) {
