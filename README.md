@@ -112,7 +112,7 @@ AFRICASTALKING_API_KEY=your_api_key
 AFRICASTALKING_SENDER_ID=BUMUPAYGO
 ```
 
-Use the Africa's Talking dashboard to register/approve the `BUMUPAYGO` sender ID for Kenya before relying on production delivery.
+Use the Africa's Talking dashboard to register/approve the `BUMUPAYGO` sender ID for Kenya before relying on branded production delivery. If the sender ID is not approved yet, leave `AFRICASTALKING_SENDER_ID` blank or let the backend retry with Africa's Talking's default sender.
 
 For next-of-kin SMS acceptance, set your Twilio phone number or Messaging Service inbound webhook to:
 

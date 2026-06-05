@@ -138,6 +138,30 @@ async function sendAfricasTalkingSms({ to, message }) {
   const senderId = envValue('AFRICASTALKING_SENDER_ID');
   if (senderId) body.set('from', senderId);
 
+  const data = await postAfricasTalkingSms(url, body);
+  const invalidSender = senderId && data.SMSMessageData?.Message === 'InvalidSenderId';
+  const finalData = invalidSender
+    ? await postAfricasTalkingSms(url, new URLSearchParams({
+        username: envValue('AFRICASTALKING_USERNAME'),
+        to: phone,
+        message: String(message || '')
+      }))
+    : data;
+
+  const recipients = finalData.SMSMessageData?.Recipients || [];
+  const delivered = recipients.length > 0 && recipients.every((item) => String(item.status || '').toLowerCase() === 'success');
+
+  return {
+    configured: true,
+    delivered,
+    provider: 'africastalking',
+    response: finalData,
+    senderFallbackUsed: Boolean(invalidSender),
+    sid: recipients[0]?.messageId || null
+  };
+}
+
+async function postAfricasTalkingSms(url, body) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -156,16 +180,7 @@ async function sendAfricasTalkingSms({ to, message }) {
     throw error;
   }
 
-  const recipients = data.SMSMessageData?.Recipients || [];
-  const delivered = recipients.length > 0 && recipients.every((item) => String(item.status || '').toLowerCase() === 'success');
-
-  return {
-    configured: true,
-    delivered,
-    provider: 'africastalking',
-    response: data,
-    sid: recipients[0]?.messageId || null
-  };
+  return data;
 }
 
 async function sendTwilioSms({ to, message }) {
