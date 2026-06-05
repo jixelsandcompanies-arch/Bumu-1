@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Make Payment | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a class="active" href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Make Payment</h1>
+        <p id="paymentWelcome">Pay your motorcycle installment using M-Pesa STK Push.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="payment-layout">
+      <article class="payment-panel">
+        <div class="payment-panel-heading">
+          <div>
+            <span class="card-label">M-Pesa STK Push</span>
+            <h2>Payment Details</h2>
+            <p>Enter the amount you want to pay, then confirm the phone number for the STK Push.</p>
+          </div>
+          <span class="status-badge">Secure</span>
+        </div>
+
+        <form id="paymentForm" class="payment-form" novalidate>
+          <div class="field-group">
+            <label for="paymentAmount">Amount in KES</label>
+            <input id="paymentAmount" name="paymentAmount" type="number" min="100" step="50" placeholder="300" required>
+            <small class="field-error" id="paymentAmountError"></small>
+          </div>
+
+          <div>
+            <span class="metric-label">Suggested amounts</span>
+            <div class="suggested-amounts" aria-label="Suggested payment amounts">
+              <button type="button" data-amount="300">KES 300</button>
+              <button type="button" data-amount="1000">KES 1,000</button>
+              <button type="button" data-amount="2000">KES 2,000</button>
+              <button type="button" data-amount="5000">KES 5,000</button>
+            </div>
+          </div>
+
+          <div class="payment-confirm">
+            <div>
+              <span class="metric-label">Phone receiving STK Push</span>
+              <strong id="paymentPhone">0702224731</strong>
+            </div>
+            <div>
+              <span class="metric-label">Amount to send</span>
+              <strong id="confirmAmount">KES 0</strong>
+            </div>
+          </div>
+
+          <div class="payment-note">
+            Check your phone after clicking send and enter your M-Pesa PIN to finish the payment.
+          </div>
+
+          <p id="paymentMessage" class="form-message" role="status" aria-live="polite"></p>
+          <button id="sendPaymentButton" class="primary-button wide-button" type="submit">Send STK Push</button>
+        </form>
+      </article>
+
+      <aside class="payment-summary-panel">
+        <span class="card-label">Payment Summary</span>
+        <div class="summary-line">
+          <span>Account balance</span>
+          <strong>KES 116,000</strong>
+        </div>
+        <div class="summary-line">
+          <span>Next due amount</span>
+          <strong>KES 300</strong>
+        </div>
+        <div class="summary-line">
+          <span>Due date</span>
+          <strong>15 Jun 2026</strong>
+        </div>
+        <div class="summary-line">
+          <span>Rider account</span>
+          <strong>Boxer 150</strong>
+        </div>
+        <div class="payment-status-box">
+          <span class="card-label">Payment Status</span>
+          <h2 id="paymentStatusTitle">Ready</h2>
+          <p id="paymentStatusText">No payment has been sent yet.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="../js/payment.js"></script>
+</body>
+</html>

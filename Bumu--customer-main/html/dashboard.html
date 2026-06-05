@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Dashboard | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <section class="dashboard-top-strip">
+      <div class="dashboard-payment-notice" aria-label="Customer payment reminder">
+        <div class="notice-track">
+          <p id="dashboardNoticeText">
+            <span class="notice-green">You have paid <strong>KES 84,000</strong>.</span>
+            <span class="notice-blue">Your remaining balance is <strong>KES 116,000</strong>.</span>
+            <span class="notice-white">Make sure you pay <strong>KES 300 every day</strong>.</span>
+            <span class="notice-green">Expected final payment date: <strong>31 Dec 2028</strong>.</span>
+            <span class="notice-blue">Your latest payment covers <strong>Sunday, Monday, and Tuesday</strong>.</span>
+            <span class="notice-green">Your next payment should start on <strong>Wednesday</strong>.</span>
+          </p>
+        </div>
+      </div>
+      <button id="logoutButton" class="secondary-button top-logout-button" type="button">Log Out</button>
+    </section>
+
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a class="active" href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Customer Dashboard</h1>
+        <p id="welcomeText">Welcome back.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="dashboard-layout" aria-label="Customer account summary">
+      <article class="bike-card">
+        <div class="bike-card-header">
+          <div>
+            <span class="card-label">Bike Account</span>
+            <h2 id="bikeModel">Boxer 150</h2>
+            <p id="bikeSerial">Serial: BPG-2026-001</p>
+          </div>
+          <span id="accountStatus" class="status-badge">Active</span>
+        </div>
+
+        <div class="progress-ring" aria-label="42 percent paid">
+          <span id="progressPercent">42%</span>
+          <small>paid</small>
+        </div>
+
+        <div class="money-grid">
+          <div>
+            <span class="metric-label">Paid</span>
+            <strong id="paidAmount">KES 84,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Balance</span>
+            <strong id="balanceAmount">KES 116,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Total Price</span>
+            <strong id="totalPrice">KES 200,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Next Due</span>
+            <strong id="nextDueDate">15 Jun 2026</strong>
+          </div>
+        </div>
+
+        <a class="primary-button wide-button button-link" href="./payment.html">Pay Now</a>
+      </article>
+
+      <section class="side-stack">
+        <article class="summary-card customer-card">
+          <span class="card-label">Customer</span>
+          <h2 id="customerName">Customer</h2>
+          <p id="customerContact">Signed in</p>
+          <p class="muted-line">National ID: ****4731</p>
+        </article>
+
+        <article class="summary-card">
+          <span class="card-label">Installment Plan</span>
+          <h2>Daily KES 300</h2>
+          <p>Keep payments current to avoid overdue alerts.</p>
+        </article>
+
+        <article class="summary-card">
+          <span class="card-label">Last Payment</span>
+          <h2>KES 2,000</h2>
+          <p>M-Pesa receipt QH72X91 on 28 May 2026.</p>
+        </article>
+      </section>
+    </section>
+
+    <section class="dashboard-grid lower-grid" aria-label="Customer quick views">
+      <article class="summary-card">
+        <div class="section-title-row">
+          <div>
+            <span class="card-label">Payment History</span>
+            <h2>Recent Payments</h2>
+          </div>
+          <a href="./payment-history.html">View All</a>
+        </div>
+        <div class="table-list" role="table" aria-label="Recent payments">
+          <div role="row">
+            <span role="cell">28 May 2026</span>
+            <strong role="cell">KES 2,000</strong>
+            <em role="cell">Completed</em>
+          </div>
+          <div role="row">
+            <span role="cell">21 May 2026</span>
+            <strong role="cell">KES 1,500</strong>
+            <em role="cell">Completed</em>
+          </div>
+          <div role="row">
+            <span role="cell">14 May 2026</span>
+            <strong role="cell">KES 2,000</strong>
+            <em role="cell">Completed</em>
+          </div>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="section-title-row">
+          <div>
+            <span class="card-label">Notifications</span>
+            <h2>Account Alerts</h2>
+          </div>
+          <a href="#">Open</a>
+        </div>
+        <ul class="notification-list">
+          <li>Payment reminder: KES 300 due on 15 Jun 2026.</li>
+          <li>Payment of KES 2,000 received successfully.</li>
+          <li>Your rider account is active and in good standing.</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>

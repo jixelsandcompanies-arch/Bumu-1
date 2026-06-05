@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a class="active" href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Notifications</h1>
+        <p id="notificationsWelcome">View your payment reminders and account alerts.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="notifications-panel">
+      <div class="section-title-row">
+        <div>
+          <span class="card-label">Account Alerts</span>
+          <h2>Payment Notifications</h2>
+        </div>
+        <a class="secondary-button button-link" href="./payment.html">Make Payment</a>
+      </div>
+
+      <div id="notificationTimeline" class="notification-timeline"></div>
+    </section>
+  </main>
+
+  <script src="../js/notifications.js"></script>
+</body>
+</html>

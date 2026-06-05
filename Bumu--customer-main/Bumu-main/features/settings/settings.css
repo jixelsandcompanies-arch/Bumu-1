@@ -1,0 +1,46 @@
+.settings-layout .install-panel {
+  align-items: center;
+}
+
+.settings-layout .form-grid,
+.settings-layout .profile-grid,
+.settings-layout .template-list,
+.settings-layout .privacy-grid {
+  grid-template-columns: 1fr;
+}
+
+.settings-layout .span-2 {
+  grid-column: auto;
+}
+
+.settings-layout .section-head,
+.settings-layout .install-panel,
+.settings-layout .danger-zone,
+.settings-layout .toggle-row {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.settings-layout .segmented {
+  width: 100%;
+  grid-template-columns: 1fr;
+}
+
+.settings-layout .field {
+  margin-bottom: 12px;
+}
+
+.settings-layout .install-panel .btn,
+.settings-layout .danger-zone .btn {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .settings-layout .section {
+    padding: 14px;
+  }
+
+  .settings-layout .toggle-row {
+    gap: 10px;
+  }
+}

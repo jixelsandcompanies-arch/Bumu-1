@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment History | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a class="active" href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Payment History</h1>
+        <p id="historyWelcome">Review your payment dates, receipts, and status.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="history-panel">
+      <div class="section-title-row">
+        <div>
+          <span class="card-label">Payment Records</span>
+          <h2>All Payments</h2>
+        </div>
+        <a class="secondary-button button-link" href="./payment.html">Make Payment</a>
+      </div>
+
+      <div class="payment-history-table" role="table" aria-label="Customer payment history">
+        <div class="history-table-head" role="row">
+          <span role="columnheader">Payment Date</span>
+          <span role="columnheader">Month</span>
+          <span role="columnheader">Phone Number Used</span>
+          <span role="columnheader">Amount Paid</span>
+          <span role="columnheader">Remaining Balance</span>
+          <span role="columnheader">M-Pesa Receipt</span>
+          <span role="columnheader">Receipt</span>
+        </div>
+        <div class="history-table-row" role="row">
+          <span role="cell">28 May 2026</span>
+          <span role="cell">May</span>
+          <span role="cell">0702224731</span>
+          <strong role="cell">KES 2,000</strong>
+          <strong role="cell">KES 116,000</strong>
+          <span role="cell">QH72X91</span>
+          <button class="small-button receipt-button" type="button" data-receipt="QH72X91">Download Receipt</button>
+        </div>
+        <div class="history-table-row" role="row">
+          <span role="cell">21 May 2026</span>
+          <span role="cell">May</span>
+          <span role="cell">0714558890</span>
+          <strong role="cell">KES 1,500</strong>
+          <strong role="cell">KES 118,000</strong>
+          <span role="cell">QG88L24</span>
+          <button class="small-button receipt-button" type="button" data-receipt="QG88L24">Download Receipt</button>
+        </div>
+        <div class="history-table-row" role="row">
+          <span role="cell">14 May 2026</span>
+          <span role="cell">May</span>
+          <span role="cell">0702224731</span>
+          <strong role="cell">KES 2,000</strong>
+          <strong role="cell">KES 119,500</strong>
+          <span role="cell">QF45P19</span>
+          <button class="small-button receipt-button" type="button" data-receipt="QF45P19">Download Receipt</button>
+        </div>
+        <div class="history-table-row" role="row">
+          <span role="cell">07 May 2026</span>
+          <span role="cell">May</span>
+          <span role="cell">0799001122</span>
+          <strong role="cell">KES 80</strong>
+          <strong role="cell">KES 121,500</strong>
+          <span role="cell">Pending</span>
+          <button class="small-button" type="button" disabled>Download Receipt</button>
+        </div>
+      </div>
+
+      <div class="account-payment-status">
+        <span class="card-label">Payment Status</span>
+        <div id="completePaymentStatus" class="payment-status-row"></div>
+        <p id="completePaymentText">This status becomes complete only when the customer has finished paying the full rider account balance.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/payment-history.js"></script>
+</body>
+</html>

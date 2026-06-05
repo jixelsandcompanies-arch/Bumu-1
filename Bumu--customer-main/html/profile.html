@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a class="active" href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Profile</h1>
+        <p id="profileWelcome">View your customer profile information.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="profile-layout">
+      <article class="profile-panel">
+        <div class="profile-photo-row">
+          <div class="profile-avatar profile-avatar-large" id="profileAvatar" aria-label="Customer profile photo">
+            <span>M</span>
+          </div>
+          <div>
+            <span class="card-label">Customer Profile</span>
+            <h2 id="profileName">Customer</h2>
+            <p>Profile photo and login details are created by the sales agent.</p>
+          </div>
+        </div>
+
+        <div class="rider-detail-grid">
+          <div>
+            <span class="metric-label">Full Name</span>
+            <strong id="profileFullName">Customer</strong>
+          </div>
+          <div>
+            <span class="metric-label">Email</span>
+            <strong id="profileEmail">Signed in</strong>
+          </div>
+          <div>
+            <span class="metric-label">Phone Number</span>
+            <strong id="profilePhone">Signed in</strong>
+          </div>
+          <div>
+            <span class="metric-label">National ID</span>
+            <strong>****4731</strong>
+          </div>
+          <div>
+            <span class="metric-label">Customer Password</span>
+            <strong id="profilePassword">Mustapha123494@</strong>
+          </div>
+          <div>
+            <span class="metric-label">Account Role</span>
+            <strong>Customer</strong>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="../js/profile.js"></script>
+</body>
+</html>

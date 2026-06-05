@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a class="active" href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Settings</h1>
+        <p id="settingsWelcome">Manage your password and account preferences.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="settings-layout">
+      <article class="settings-panel">
+        <span class="card-label">Security</span>
+        <h2>Change Password</h2>
+        <form id="passwordForm" class="payment-form" novalidate>
+          <div class="field-group">
+            <label for="currentPassword">Current password</label>
+            <input id="currentPassword" type="password" autocomplete="current-password">
+          </div>
+          <div class="field-group">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" autocomplete="new-password">
+          </div>
+          <div class="field-group">
+            <label for="confirmPassword">Confirm new password</label>
+            <input id="confirmPassword" type="password" autocomplete="new-password">
+          </div>
+          <p id="passwordMessage" class="form-message" role="status"></p>
+          <button class="primary-button" type="submit">Save Password</button>
+        </form>
+      </article>
+    </section>
+  </main>
+
+  <script src="../js/settings.js"></script>
+</body>
+</html>

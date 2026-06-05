@@ -1,0 +1,52 @@
+.wizard .section {
+  min-width: 0;
+}
+
+.checklist {
+  align-items: center;
+}
+
+.security-alert {
+  border: 1px solid #f0c0bc;
+  background: #fff6f5;
+  color: #9b1f1f;
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+
+.security-alert span {
+  color: #7d4b4b;
+}
+
+.security-alert small {
+  color: #7d4b4b;
+  font-weight: 800;
+}
+
+.security-alert .btn {
+  justify-self: start;
+  margin-top: 6px;
+}
+
+.duplicate-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.duplicate-card {
+  border: 1px solid #f0c0bc;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+  display: grid;
+  gap: 3px;
+}
+
+.duplicate-card span,
+.duplicate-card small {
+  color: #7d4b4b;
+}

@@ -1,0 +1,20 @@
+.profile-grid .review-box {
+  min-height: 78px;
+  width: 100%;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.profile-grid + .inline-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.profile-grid + .inline-actions .btn {
+  width: 100%;
+}

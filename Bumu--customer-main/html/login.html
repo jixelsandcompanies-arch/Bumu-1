@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Login | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="auth-page">
+    <section class="auth-panel" aria-labelledby="loginTitle">
+      <div class="brand-block">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1 id="loginTitle">Customer Portal</h1>
+        <p>Log in to view your repayment account, bike details, and payment history.</p>
+      </div>
+
+      <form id="loginForm" class="login-form" novalidate>
+        <div class="field-group">
+          <label for="identifier">Phone number or email</label>
+          <input
+            id="identifier"
+            name="identifier"
+            type="text"
+            autocomplete="username"
+            placeholder="0712345678 or name@example.com"
+            required
+          >
+          <small class="field-error" id="identifierError"></small>
+        </div>
+
+        <div class="field-group">
+          <label for="password">Password</label>
+          <div class="password-row">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter your password"
+              required
+              minlength="6"
+            >
+            <button id="togglePassword" class="small-button" type="button">Show</button>
+          </div>
+          <small class="field-error" id="passwordError"></small>
+        </div>
+
+        <div class="form-row">
+          <label class="check-label">
+            <input id="rememberMe" name="rememberMe" type="checkbox">
+            Remember me
+          </label>
+          <a href="#" aria-label="Reset password">Forgot password?</a>
+        </div>
+
+        <p id="formMessage" class="form-message" role="status" aria-live="polite"></p>
+
+        <button class="primary-button" type="submit">Log In</button>
+      </form>
+
+      <div class="demo-note">
+        <strong>Customer login:</strong>
+        <span>Phone: 0702224731</span>
+        <span>Email: mustaphaforay444@gamil.com</span>
+        <span>Password: Mustapha123494@</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+.table-tools .filters .btn {
+  min-height: 36px;
+}
+
+.doc-thumb span {
+  padding: 8px;
+  text-align: center;
+}
+
+.card-id-pill {
+  display: inline-flex;
+  border: 1px solid #b9dfcc;
+  background: #edf9f2;
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.customer-id-card {
+  border: 1px solid #b9dfcc;
+  background: #edf9f2;
+  color: var(--brand-dark);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.8fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.customer-id-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.customer-id-card span,
+.customer-id-card small {
+  color: #416455;
+}
+
+.customer-id-card strong {
+  font-size: 20px;
+  word-break: break-word;
+}
+
+.payment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.payment-summary div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel);
+  display: grid;
+  gap: 5px;
+}
+
+.payment-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payment-summary strong {
+  font-size: 17px;
+}
+
+.payment-progress {
+  margin-top: 12px;
+}
+
+.risk-card span {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+.risk-card small,
+.doc-meta small {
+  color: var(--muted);
+}
+
+.risk-card.low {
+  border-color: #b9dfcc;
+}
+
+.risk-card.medium {
+  border-color: #f0d19a;
+}
+
+.risk-card.high {
+  border-color: #f0c0bc;
+}
+
+.doc-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.doc-meta {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+  background: var(--panel);
+}
+
+.doc-meta span {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  color: var(--brand-dark);
+  word-break: break-word;
+}
+
+@media (max-width: 520px) {
+  .payment-summary,
+  .doc-meta-grid,
+  .customer-id-card {
+    grid-template-columns: 1fr;
+  }
+}

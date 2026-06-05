@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rider | Bumu PayGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <main class="dashboard-page">
+    <header class="app-header">
+      <div class="menu-column">
+        <button class="menu-toggle" type="button" aria-label="Open customer menu" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="portal-nav menu-hidden" aria-label="Customer portal navigation">
+          <a href="./dashboard.html">Home</a>
+          <a href="./payment.html">Make Payment</a>
+          <a href="./payment-history.html">Payment History</a>
+          <a class="active" href="./rider.html">Rider</a>
+          <a href="./notifications.html">Notifications</a>
+          <a href="./profile.html">Profile</a>
+          <a href="./settings.html">Settings</a>
+        </nav>
+      </div>
+      <div class="header-title">
+        <p class="brand-kicker">Bumu PayGo</p>
+        <h1>Rider</h1>
+        <p id="riderWelcome">View your motorcycle account and ownership progress.</p>
+      </div>
+      <div class="header-actions">
+        <button class="notification-button" type="button" aria-label="Notifications">
+          <span aria-hidden="true">!</span>
+          <strong>3</strong>
+        </button>
+      </div>
+    </header>
+
+    <section class="rider-layout">
+      <article class="rider-panel">
+        <div class="bike-card-header">
+          <div>
+            <span class="card-label">Rider Account</span>
+            <h2>BPG-2026-001</h2>
+            <p id="riderOwner">Active repayment account.</p>
+          </div>
+          <span class="status-badge">Active</span>
+        </div>
+
+        <div class="rider-detail-grid">
+          <div>
+            <span class="metric-label">Motorcycle Model</span>
+            <strong>Boxer 150</strong>
+          </div>
+          <div>
+            <span class="metric-label">Serial / Chassis Number</span>
+            <strong>BPG-2026-001</strong>
+          </div>
+          <div>
+            <span class="metric-label">Assigned Date</span>
+            <strong>02 Mar 2026</strong>
+          </div>
+          <div>
+            <span class="metric-label">Installment Plan</span>
+            <strong>Daily KES 300</strong>
+          </div>
+          <div>
+            <span class="metric-label">Total Price</span>
+            <strong>KES 200,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Amount Paid</span>
+            <strong>KES 84,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Remaining Balance</span>
+            <strong>KES 116,000</strong>
+          </div>
+          <div>
+            <span class="metric-label">Account Status</span>
+            <strong>Active</strong>
+          </div>
+        </div>
+      </article>
+
+      <aside class="rider-progress-panel">
+        <span class="card-label">Ownership Progress</span>
+        <div class="progress-ring" aria-label="42 percent ownership progress">
+          <span>42%</span>
+          <small>paid</small>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <span style="width: 42%;"></span>
+        </div>
+        <p>KES 84,000 paid out of KES 200,000. Complete the remaining KES 116,000 to finish ownership.</p>
+        <a class="primary-button wide-button button-link" href="./payment.html">Make Payment</a>
+      </aside>
+    </section>
+  </main>
+
+  <script src="../js/rider.js"></script>
+</body>
+</html>
