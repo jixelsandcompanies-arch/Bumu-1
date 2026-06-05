@@ -121,6 +121,34 @@ export async function sendSms({ to, message }) {
   };
 }
 
+export async function getSmsStatus(sid) {
+  const accountSid = envValue('TWILIO_ACCOUNT_SID');
+  const authToken = envValue('TWILIO_AUTH_TOKEN');
+  const messageSid = String(sid || '').trim();
+
+  if (!accountSid.startsWith('AC') || !messageSid) {
+    return null;
+  }
+
+  const response = await fetch(`${TWILIO_MESSAGES_URL}/${encodeURIComponent(accountSid)}/Messages/${encodeURIComponent(messageSid)}.json`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+      Accept: 'application/json'
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.message || 'Twilio message status request failed.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
+  }
+
+  return data;
+}
+
 export async function sendOtpSms({ phone, otp }) {
   return sendSms({
     to: phone,
