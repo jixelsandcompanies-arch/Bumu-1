@@ -47,6 +47,16 @@ const portals = [
     path: '/finance-bumu'
   },
   {
+    key: 'backoffice',
+    title: 'Back Office',
+    searchName: 'Back Office Bumu',
+    label: 'Screening, approvals, users',
+    icon: ShieldCheck,
+    tone: '#0f766e',
+    status: 'Secure',
+    path: '/backoffice/overview'
+  },
+  {
     key: 'admin',
     title: 'Admin',
     searchName: 'Admin Bumu',

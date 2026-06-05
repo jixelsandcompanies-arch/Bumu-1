@@ -33,6 +33,11 @@ function cleanPortalPath() {
   return window.location.pathname.replace(/\/+$/, '').toLowerCase();
 }
 
+function isBackOfficePath() {
+  const path = cleanPortalPath();
+  return path === '/backoffice' || path.startsWith('/backoffice/');
+}
+
 function applyCleanPortalRoute() {
   if (window.location.hash) return;
 
@@ -73,7 +78,7 @@ function isAgentRoute() {
 }
 
 function isAdminRoute() {
-  return window.location.hash.startsWith('#/admin');
+  return window.location.hash.startsWith('#/admin') || isBackOfficePath();
 }
 
 function isFinanceRoute() {
