@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../uploadedAdmin/features/auth/AuthContext.jsx";
 import { adminPortalService } from "../../services/adminPortalService.js";
-import bumuLogo from "../../BumuLogo.jpeg";
+import bumuLogo from "../../../BumuLogo.jpeg";
 
 export default function BackOfficeAuth() {
   const navigate = useNavigate();
