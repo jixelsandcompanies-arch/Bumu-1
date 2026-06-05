@@ -56,6 +56,24 @@ function applyCleanPortalRoute() {
   }
 }
 
+let freshLoginEnforced = false;
+
+function requireFreshPortalLogin() {
+  if (freshLoginEnforced) return;
+  freshLoginEnforced = true;
+
+  [
+    'bumu-auth-token',
+    'bumu-customer-token',
+    'bumu-customer-user',
+    'bumu-agent-token',
+    'bumu-agent-user',
+    'bumu-admin-token',
+    'bumu-admin-user',
+    'bumu-uploaded-admin-session'
+  ].forEach((key) => window.sessionStorage.removeItem(key));
+}
+
 function isCustomerRoute() {
   return window.location.hash === '#/customer';
 }
@@ -193,6 +211,7 @@ function buildDailyPaymentNotifications(payments) {
 
 export function App() {
   applyCleanPortalRoute();
+  requireFreshPortalLogin();
 
   const [authenticated, setAuthenticated] = useState(() => Boolean(getAuthToken()));
   const [authChecked, setAuthChecked] = useState(false);
