@@ -1,6 +1,6 @@
 import { sendJson, readJson, sendOptions } from '../../_lib/http.js';
 import { assertBodySize, assertRateLimit, genericAuthMessage } from '../../_lib/security.js';
-import { getSupabase, getSupabaseAuth, hasActiveAdminProfile, portalRole } from '../../_lib/supabase.js';
+import { getActiveAdminProfile, getSupabase, getSupabaseAuth, portalRole } from '../../_lib/supabase.js';
 
 const ADMIN_FAILED_LOGIN_LIMIT = 8;
 const ADMIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
@@ -81,8 +81,8 @@ export default async function handler(req, res) {
     }
 
     const role = portalRole(data.user);
-    const activeAdmin = await hasActiveAdminProfile(data.user);
-    if (!activeAdmin) {
+    const activeAdminProfile = await getActiveAdminProfile(data.user);
+    if (!activeAdminProfile) {
       await recordAdminLogin(email, 'admin_login_failed', { reason: 'inactive_profile' });
       sendJson(res, 403, { message: 'Admin account is not active.' });
       return;
@@ -99,9 +99,9 @@ export default async function handler(req, res) {
       user: {
         id: data.user.id,
         email: data.user.email,
-        fullName: data.user.user_metadata?.full_name || data.user.email,
-        role: 'admin',
-        phone: data.user.user_metadata?.phone || '',
+        fullName: activeAdminProfile.full_name || data.user.user_metadata?.full_name || data.user.email,
+        role: activeAdminProfile.role || 'admin',
+        phone: activeAdminProfile.phone || data.user.user_metadata?.phone || '',
         photoUrl: data.user.user_metadata?.photo_url || ''
       }
     });

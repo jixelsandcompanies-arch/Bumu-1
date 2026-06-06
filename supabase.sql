@@ -25,7 +25,7 @@ create table if not exists public.admin_profiles (
   full_name text not null,
   email text not null unique,
   phone text,
-  role text not null default 'admin' check (role in ('admin', 'super_admin')),
+  role text not null default 'admin' check (role in ('admin', 'super_admin', 'back_office_officer')),
   status text not null default 'active' check (status in ('active', 'suspended', 'inactive')),
   source_portal text not null default 'admin',
   created_at timestamptz not null default now(),
@@ -40,119 +40,9 @@ create table if not exists public.system_settings (
   updated_by text
 );
 
-do $$
-declare
-  bootstrap_admin_id uuid;
-  bootstrap_admin_email text := 'jixelsandcompanies@gmail.com';
-  bootstrap_admin_password text := 'admin@bumu@2026';
-begin
-  select id into bootstrap_admin_id
-  from auth.users
-  where lower(email) = lower(bootstrap_admin_email)
-  limit 1;
-
-  if bootstrap_admin_id is null then
-    bootstrap_admin_id := gen_random_uuid();
-
-    insert into auth.users (
-      id,
-      instance_id,
-      aud,
-      role,
-      email,
-      encrypted_password,
-      email_confirmed_at,
-      raw_app_meta_data,
-      raw_user_meta_data,
-      created_at,
-      updated_at,
-      confirmation_token,
-      email_change,
-      email_change_token_new,
-      recovery_token
-    )
-    values (
-      bootstrap_admin_id,
-      '00000000-0000-0000-0000-000000000000',
-      'authenticated',
-      'authenticated',
-      bootstrap_admin_email,
-      crypt(bootstrap_admin_password, gen_salt('bf')),
-      now(),
-      jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', 'admin'),
-      jsonb_build_object('full_name', 'Jixels and Companies', 'role', 'admin'),
-      now(),
-      now(),
-      '',
-      '',
-      '',
-      ''
-    );
-  else
-    update auth.users
-    set
-      encrypted_password = crypt(bootstrap_admin_password, gen_salt('bf')),
-      email_confirmed_at = coalesce(email_confirmed_at, now()),
-      raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
-        || jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', 'admin'),
-      raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb)
-        || jsonb_build_object('full_name', 'Jixels and Companies', 'role', 'admin'),
-      updated_at = now()
-    where id = bootstrap_admin_id;
-  end if;
-
-  insert into auth.identities (
-    id,
-    user_id,
-    provider_id,
-    identity_data,
-    provider,
-    last_sign_in_at,
-    created_at,
-    updated_at
-  )
-  values (
-    gen_random_uuid(),
-    bootstrap_admin_id,
-    bootstrap_admin_email,
-    jsonb_build_object('sub', bootstrap_admin_id::text, 'email', bootstrap_admin_email),
-    'email',
-    now(),
-    now(),
-    now()
-  )
-  on conflict (provider, provider_id) do update
-  set
-    user_id = excluded.user_id,
-    identity_data = excluded.identity_data,
-    updated_at = now();
-
-  insert into public.admin_profiles (
-    auth_user_id,
-    full_name,
-    email,
-    phone,
-    role,
-    status,
-    source_portal
-  )
-  values (
-    bootstrap_admin_id,
-    'Jixels and Companies',
-    bootstrap_admin_email,
-    '',
-    'super_admin',
-    'active',
-    'admin'
-  )
-  on conflict (email) do update
-  set
-    auth_user_id = excluded.auth_user_id,
-    full_name = excluded.full_name,
-    role = 'super_admin',
-    status = 'active',
-    updated_at = now();
-end $$;
+-- Admin accounts are created through /api/admin/auth/register with
+-- ADMIN_REGISTRATION_CODE set in the server environment. Do not create default
+-- admin passwords in this setup script.
 
 create table if not exists public.branches (
   id text primary key default ('BRN-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10))),
@@ -572,6 +462,9 @@ alter table public.admin_profiles add constraint admin_profiles_required_fields
     nullif(trim(full_name), '') is not null
     and nullif(trim(email), '') is not null
   ) not valid;
+alter table public.admin_profiles drop constraint if exists admin_profiles_role_check;
+alter table public.admin_profiles add constraint admin_profiles_role_check
+  check (role in ('admin', 'super_admin', 'back_office_officer'));
 alter table public.agents drop constraint if exists agents_required_fields;
 alter table public.agents add constraint agents_required_fields
   check (

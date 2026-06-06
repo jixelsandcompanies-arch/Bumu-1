@@ -81,6 +81,16 @@ function mapPortal(portal = {}) {
     location: customer.location || "",
     occupation: customer.occupation || "",
     agentId: customer.agentId || "",
+    agentName: customer.agentName || "",
+    nextOfKin: customer.nextOfKin || {
+      name: "",
+      phone: "",
+      relationship: "",
+      nationalId: "",
+      gender: "",
+      location: "",
+      occupation: ""
+    },
     applicationStatus: customer.applicationStatus || customer.status || "active",
     repaymentStatus: customer.repaymentStatus || customer.status || "active",
     balance: Number(customer.balance || 0),
@@ -113,7 +123,15 @@ function mapPortal(portal = {}) {
       reviewedBy: application.reviewedBy || "",
       customerOtpVerified: Boolean(application.customerOtpVerified),
       nextOfKinOtpVerified: Boolean(application.nextOfKinOtpVerified),
-      nextOfKin: application.nextOfKin || customer?.nextOfKin || "",
+      nextOfKin: application.nextOfKin || customer?.nextOfKin || {
+        name: "",
+        phone: "",
+        relationship: "",
+        nationalId: "",
+        gender: "",
+        location: "",
+        occupation: ""
+      },
       status: application.status || "pending_screening",
       screeningNotes: application.reason || application.screeningNotes || "",
       rejectionReason: application.rejectionReason || "",

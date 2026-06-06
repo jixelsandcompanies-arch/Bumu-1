@@ -1,5 +1,5 @@
 import { readJson, sendJson, sendOptions } from '../../_lib/http.js';
-import { getSupabase, hasActiveAdminProfile, portalRole, requirePortalUser } from '../../_lib/supabase.js';
+import { getActiveAdminProfile, getSupabase, portalRole, requirePortalUser } from '../../_lib/supabase.js';
 
 function adminProfileFromUser(user, role = 'admin') {
   return {
@@ -28,10 +28,18 @@ export default async function handler(req, res) {
   try {
     const user = await requirePortalUser(req, ['admin']);
     const role = portalRole(user);
-    const normalizedRole = role === 'admin' || await hasActiveAdminProfile(user) ? 'admin' : role;
+    const activeAdminProfile = await getActiveAdminProfile(user);
+    const normalizedRole = activeAdminProfile?.role || role;
 
     if (req.method === 'GET') {
-      sendJson(res, 200, { user: adminProfileFromUser(user, normalizedRole) });
+      sendJson(res, 200, {
+        user: {
+          ...adminProfileFromUser(user, normalizedRole),
+          fullName: activeAdminProfile?.full_name || user.user_metadata?.full_name || user.email,
+          name: activeAdminProfile?.full_name || user.user_metadata?.full_name || user.email,
+          phone: activeAdminProfile?.phone || user.user_metadata?.phone || ''
+        }
+      });
       return;
     }
 

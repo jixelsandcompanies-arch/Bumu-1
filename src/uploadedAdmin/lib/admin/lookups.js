@@ -1,5 +1,5 @@
 export function findAgent(agents, agentId) {
-  return agents.find((agent) => agent.id === agentId);
+  return agents.find((agent) => agent.id === agentId || agent.code === agentId);
 }
 
 export function findBike(bikes, bikeId) {

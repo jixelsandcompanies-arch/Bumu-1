@@ -1,5 +1,5 @@
 import { sendJson } from '../_lib/http.js';
-import { getSupabase, requirePortalUser } from '../_lib/supabase.js';
+import { getActiveAdminProfile, getSupabase, requirePortalUser } from '../_lib/supabase.js';
 
 function formatDate(value) {
   if (!value) return '';
@@ -63,6 +63,7 @@ export default async function handler(req, res) {
 
   try {
     const user = await requirePortalUser(req, ['admin']);
+    const adminProfile = await getActiveAdminProfile(user);
     const today = new Date().toISOString().slice(0, 10);
     const [
       agents,
@@ -119,7 +120,15 @@ export default async function handler(req, res) {
         installmentPlan: item.customers?.daily_installment
           ? `Daily KES ${Number(item.customers.daily_installment || 0).toLocaleString('en-KE')}`
           : 'Daily repayment',
-        nextOfKin: item.customers?.next_of_kin_name || '',
+        nextOfKin: {
+          name: item.customers?.next_of_kin_name || '',
+          phone: item.customers?.next_of_kin_phone || '',
+          relationship: item.customers?.next_of_kin_relationship || '',
+          nationalId: item.customers?.next_of_kin_national_id || '',
+          gender: item.customers?.next_of_kin_gender || '',
+          location: item.customers?.next_of_kin_location || '',
+          occupation: item.customers?.next_of_kin_occupation || ''
+        },
         nextOfKinPhone: item.customers?.next_of_kin_phone || '',
         nextOfKinNationalId: item.customers?.next_of_kin_national_id || '',
         nextOfKinGender: item.customers?.next_of_kin_gender || '',
@@ -144,8 +153,8 @@ export default async function handler(req, res) {
         admin: {
           id: user.id,
           email: user.email,
-          fullName: user.user_metadata?.full_name || user.email,
-          role: 'admin'
+          fullName: adminProfile?.full_name || user.user_metadata?.full_name || user.email,
+          role: adminProfile?.role || 'admin'
         },
         summary: {
           agents: (agents.data || []).length,
@@ -183,6 +192,15 @@ export default async function handler(req, res) {
           occupation: item.occupation || '',
           agentId: item.agent_id || '',
           agentName: item.agent_name || '',
+          nextOfKin: {
+            name: item.next_of_kin_name || '',
+            phone: item.next_of_kin_phone || '',
+            relationship: item.next_of_kin_relationship || '',
+            nationalId: item.next_of_kin_national_id || '',
+            gender: item.next_of_kin_gender || '',
+            location: item.next_of_kin_location || '',
+            occupation: item.next_of_kin_occupation || ''
+          },
           productType: item.product_type || 'product',
           productModel: item.product_model || item.bike_model || '',
           balance: Number(item.balance || 0),
@@ -224,7 +242,7 @@ export default async function handler(req, res) {
           status: item.status || ''
         })),
         financeUsers: (financeAuthUsers.data?.users || [])
-          .filter((item) => ['admin', 'finance', 'agent', 'customer'].includes(item.app_metadata?.role || item.user_metadata?.role))
+          .filter((item) => ['admin', 'super_admin', 'back_office_officer', 'finance', 'agent', 'customer'].includes(item.app_metadata?.role || item.user_metadata?.role))
           .map((item) => ({
             id: item.id,
             email: item.email || '',

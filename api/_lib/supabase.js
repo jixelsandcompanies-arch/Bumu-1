@@ -52,11 +52,15 @@ export function portalRole(user) {
 }
 
 export async function hasActiveAdminProfile(user) {
+  return Boolean(await getActiveAdminProfile(user));
+}
+
+export async function getActiveAdminProfile(user) {
   if (!user?.id && !user?.email) return false;
 
   let query = getSupabase()
     .from('admin_profiles')
-    .select('id')
+    .select('*')
     .eq('status', 'active')
     .limit(1);
 
@@ -66,7 +70,7 @@ export async function hasActiveAdminProfile(user) {
 
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  return Boolean(data);
+  return data || null;
 }
 
 export async function requireFinanceUser(req) {

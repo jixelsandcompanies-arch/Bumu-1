@@ -51,7 +51,8 @@ Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Ta
 2. Open the Supabase SQL Editor.
 3. Run `supabase.sql` once.
 4. Keep `SUPABASE_SERVICE_ROLE_KEY` only in server environments such as Vercel. Do not expose it as a `VITE_*` variable.
-5. Set `ADMIN_MAX_ACCOUNTS=10` in Vercel. Admin registration locks after this number of active admin profiles exists; existing active admins can still sign in. Admin login is also locked for 15 minutes after 8 failed attempts for the same email.
+5. Set `ADMIN_REGISTRATION_CODE` to a private setup code before creating admin accounts. Create the first admin through the admin registration screen/API, then rotate the setup code or remove it when registration should be closed.
+6. Set `ADMIN_MAX_ACCOUNTS=10` in Vercel. Admin registration locks after this number of active admin profiles exists; existing active admins can still sign in. Admin login is also locked for 15 minutes after 8 failed attempts for the same email.
 
 The schema creates shared CRM tables:
 

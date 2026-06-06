@@ -37,16 +37,6 @@ const portals = [
     path: '/customer-bumu'
   },
   {
-    key: 'finance',
-    title: 'Finance',
-    searchName: 'Finance Bumu',
-    label: 'Collections, reports, commissions',
-    icon: Building2,
-    tone: colors.primary,
-    status: 'Secure',
-    path: '/finance-bumu'
-  },
-  {
     key: 'backoffice',
     title: 'Back Office',
     searchName: 'Back Office Bumu',
@@ -55,16 +45,6 @@ const portals = [
     tone: '#0f766e',
     status: 'Secure',
     path: '/backoffice/overview'
-  },
-  {
-    key: 'admin',
-    title: 'Admin',
-    searchName: 'Admin Bumu',
-    label: 'Approvals, users, screening',
-    icon: ShieldCheck,
-    tone: '#1d4ed8',
-    status: 'Secure',
-    path: '/admin-bumu'
   }
 ];
 
@@ -390,7 +370,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Agent Bumu, Customer Bumu, Finance Bumu, and Admin Bumu portals use the same shared PAYGO database with role-based access.
+            Agent Bumu, Customer Bumu, and Back Office Bumu use the same shared PAYGO database with role-based access.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
