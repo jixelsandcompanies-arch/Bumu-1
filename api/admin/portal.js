@@ -54,6 +54,54 @@ async function buildApplicationDocuments(customer = {}) {
   }))).then((items) => items.filter((item) => item.url));
 }
 
+function customerNeedsBackOfficeCase(customer = {}) {
+  const status = String(customer.status || '').toLowerCase();
+  const applicationStatus = String(customer.application_status || '').toLowerCase();
+  return [
+    status,
+    applicationStatus
+  ].some((value) => [
+    'next_of_kin_pending',
+    'pending_screening',
+    'info_required',
+    'rejected',
+    'approved'
+  ].includes(value));
+}
+
+async function ensureCustomerApplicationRows({ customers = [], applications = [] } = {}) {
+  const existingCustomerIds = new Set((applications || []).map((item) => item.customer_id).filter(Boolean));
+  const missingCustomers = (customers || [])
+    .filter((customer) => customer?.id && !existingCustomerIds.has(customer.id))
+    .filter(customerNeedsBackOfficeCase);
+
+  if (missingCustomers.length === 0) return applications || [];
+
+  const records = missingCustomers.map((customer) => ({
+    customer_id: customer.id,
+    national_id: customer.national_id || '',
+    agent_name: customer.agent_name || null,
+    agent_id: customer.agent_id || null,
+    product_id: null,
+    status: customer.application_status && customer.application_status !== 'active'
+      ? customer.application_status
+      : customer.status === 'active'
+        ? 'approved'
+        : customer.status || 'pending_screening',
+    review_reason: customer.screening_reason || null,
+    created_at: customer.created_at || new Date().toISOString(),
+    verification: {}
+  }));
+
+  const inserted = await getSupabase()
+    .from('customer_applications')
+    .insert(records)
+    .select('*, customers(*)');
+
+  if (inserted.error) throw inserted.error;
+  return [...(applications || []), ...(inserted.data || [])];
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -102,8 +150,12 @@ export default async function handler(req, res) {
     const customerRows = customers.data || [];
     const paymentRows = payments.data || [];
     const commissionRows = commissions.data || [];
+    const normalizedApplicationRows = await ensureCustomerApplicationRows({
+      customers: customerRows,
+      applications: applications.data || []
+    });
 
-    const applicationRows = await Promise.all((applications.data || []).map(async (item) => {
+    const applicationRows = await Promise.all(normalizedApplicationRows.map(async (item) => {
       const assignedProduct = (products.data || []).find((product) => product.assigned_customer_id === item.customer_id);
       return {
         id: item.id,
@@ -159,7 +211,7 @@ export default async function handler(req, res) {
         summary: {
           agents: (agents.data || []).length,
           customers: customerRows.length,
-          pendingApplications: (applications.data || []).filter((item) => item.status === 'pending_screening').length,
+          pendingApplications: normalizedApplicationRows.filter((item) => item.status === 'pending_screening').length,
           activeProducts: (products.data || []).filter((item) => item.status !== 'sold').length,
           totalBalance: customerRows.reduce((total, item) => total + Number(item.balance || 0), 0),
           todayCollections: paymentRows.filter((item) => String(item.date || '').startsWith(today)).reduce((total, item) => total + amount(item), 0),
