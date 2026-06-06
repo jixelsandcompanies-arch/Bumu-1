@@ -55,6 +55,57 @@ function isoDate(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString().slice(0, 10);
 }
 
+function backOfficeStatusForCustomer(customer = {}) {
+  const applicationStatus = String(customer.applicationStatus || "").toLowerCase();
+  const repaymentStatus = String(customer.repaymentStatus || "").toLowerCase();
+
+  if (["next_of_kin_pending", "pending_screening", "info_required", "approved", "rejected"].includes(applicationStatus)) {
+    return applicationStatus;
+  }
+
+  if (["next_of_kin_pending", "pending_screening", "rejected"].includes(repaymentStatus)) {
+    return repaymentStatus;
+  }
+
+  if (["active", "paid", "defaulted"].includes(repaymentStatus) || applicationStatus === "active") {
+    return "approved";
+  }
+
+  return "pending_screening";
+}
+
+function fallbackApplicationForCustomer(customer = {}) {
+  return {
+    id: `CASE-${customer.id}`,
+    customerId: customer.id,
+    agentId: customer.agentId || "",
+    bikeId: "",
+    depositAmount: 0,
+    installmentPlan: "Daily repayment",
+    submittedAt: customer.createdAt || "",
+    reviewedAt: "",
+    reviewedBy: "",
+    customerOtpVerified: backOfficeStatusForCustomer(customer) === "approved",
+    nextOfKinOtpVerified: backOfficeStatusForCustomer(customer) === "approved",
+    nextOfKin: customer.nextOfKin || {
+      name: "",
+      phone: "",
+      relationship: "",
+      nationalId: "",
+      gender: "",
+      location: "",
+      occupation: ""
+    },
+    status: backOfficeStatusForCustomer(customer),
+    screeningNotes: "",
+    rejectionReason: "",
+    infoRequiredMessage: "",
+    duplicateNationalId: false,
+    documents: [],
+    verification: {}
+  };
+}
+
 function mapPortal(portal = {}) {
   const agents = (portal.agents || []).map((agent) => ({
     id: agent.id,
@@ -109,7 +160,7 @@ function mapPortal(portal = {}) {
     createdAt: product.createdAt || ""
   }));
 
-  const applications = (portal.applications || []).map((application) => {
+  const mappedApplications = (portal.applications || []).map((application) => {
     const customer = customers.find((item) => item.id === application.customerId);
     return {
       id: application.id,
@@ -141,6 +192,11 @@ function mapPortal(portal = {}) {
       verification: application.verification || {}
     };
   });
+  const applicationCustomerIds = new Set(mappedApplications.map((application) => application.customerId).filter(Boolean));
+  const fallbackApplications = customers
+    .filter((customer) => customer.id && !applicationCustomerIds.has(customer.id))
+    .map(fallbackApplicationForCustomer);
+  const applications = [...mappedApplications, ...fallbackApplications];
 
   const payments = (portal.payments || []).map((payment) => ({
     id: payment.id,
