@@ -126,17 +126,23 @@ b {
   padding-right: 2px;
 }
 
-.nav-item {
+.sidebar .nav-item,
+.sidebar .nav-item:link,
+.sidebar .nav-item:visited,
+.sidebar .nav-item:hover,
+.sidebar .nav-item:focus,
+.sidebar .nav-item:active {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   border-radius: 8px;
-  color: #eef6ff;
+  color: #ffffff !important;
   min-height: 44px;
   padding: 0 14px;
   font-weight: 600;
   opacity: 1;
+  text-decoration: none;
 }
 
 .nav-item svg,
@@ -148,8 +154,13 @@ b {
 
 .nav-item span,
 .sidebar-logout span {
-  color: inherit;
+  color: #ffffff !important;
   opacity: 1;
+}
+
+.nav-item svg,
+.sidebar-logout svg {
+  color: #ffffff !important;
 }
 
 .nav-group {
