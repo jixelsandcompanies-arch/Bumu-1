@@ -54,26 +54,35 @@ async function buildApplicationDocuments(customer = {}) {
   }))).then((items) => items.filter((item) => item.url));
 }
 
-function customerNeedsBackOfficeCase(customer = {}) {
+function backOfficeStatusForCustomer(customer = {}) {
   const status = String(customer.status || '').toLowerCase();
   const applicationStatus = String(customer.application_status || '').toLowerCase();
-  return [
-    status,
-    applicationStatus
-  ].some((value) => [
+
+  if ([
     'next_of_kin_pending',
     'pending_screening',
     'info_required',
     'rejected',
     'approved'
-  ].includes(value));
+  ].includes(applicationStatus)) {
+    return applicationStatus;
+  }
+
+  if (['next_of_kin_pending', 'pending_screening', 'rejected'].includes(status)) {
+    return status;
+  }
+
+  if (['active', 'paid', 'defaulted'].includes(status) || applicationStatus === 'active') {
+    return 'approved';
+  }
+
+  return 'pending_screening';
 }
 
 async function ensureCustomerApplicationRows({ customers = [], applications = [] } = {}) {
   const existingCustomerIds = new Set((applications || []).map((item) => item.customer_id).filter(Boolean));
   const missingCustomers = (customers || [])
-    .filter((customer) => customer?.id && !existingCustomerIds.has(customer.id))
-    .filter(customerNeedsBackOfficeCase);
+    .filter((customer) => customer?.id && !existingCustomerIds.has(customer.id));
 
   if (missingCustomers.length === 0) return applications || [];
 
@@ -83,11 +92,7 @@ async function ensureCustomerApplicationRows({ customers = [], applications = []
     agent_name: customer.agent_name || null,
     agent_id: customer.agent_id || null,
     product_id: null,
-    status: customer.application_status && customer.application_status !== 'active'
-      ? customer.application_status
-      : customer.status === 'active'
-        ? 'approved'
-        : customer.status || 'pending_screening',
+    status: backOfficeStatusForCustomer(customer),
     review_reason: customer.screening_reason || null,
     created_at: customer.created_at || new Date().toISOString(),
     verification: {}
