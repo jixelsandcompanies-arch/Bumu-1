@@ -10,7 +10,7 @@ import { formatKes } from "../../uploadedAdmin/lib/formatting/currency.js";
 import { activeScreeningStatuses, getScreeningRows, matchesScreeningQuery } from "./backOfficeHelpers.js";
 
 export default function BackOfficeScreening() {
-  const { agents, applications, bikes, customers, updateApplicationStatus } = useAdminData();
+  const { agents, applications, bikes, customers, dataStatus, updateApplicationStatus } = useAdminData();
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
@@ -76,6 +76,15 @@ export default function BackOfficeScreening() {
     }
   ];
 
+  const openCaseCount = getScreeningRows({ agents, applications, bikes, customers, statuses: activeScreeningStatuses }).length;
+  const emptyMessage = dataStatus === "loading"
+    ? "Loading screening cases..."
+    : applications.length === 0
+      ? "No customer applications were returned from the back-office API."
+      : openCaseCount === 0
+        ? `Loaded ${applications.length} application${applications.length === 1 ? "" : "s"}, but none are in an open screening state. Check Completed cases for approved or rejected records.`
+        : "No screening cases match this search or state filter.";
+
   return (
     <section className="page-stack">
       <PageHeader
@@ -103,7 +112,7 @@ export default function BackOfficeScreening() {
           <strong>{rows.length}</strong>
         </div>
       </div>
-      <DataTable columns={columns} rows={rows} emptyMessage="No screening cases match this view." />
+      <DataTable columns={columns} rows={rows} emptyMessage={emptyMessage} />
     </section>
   );
 }

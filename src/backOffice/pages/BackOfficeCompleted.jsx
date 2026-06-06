@@ -7,7 +7,7 @@ import { useAdminData } from "../../uploadedAdmin/features/admin/AdminDataContex
 import { completedScreeningStatuses, getScreeningRows, matchesScreeningQuery } from "./backOfficeHelpers.js";
 
 export default function BackOfficeCompleted() {
-  const { agents, applications, bikes, customers } = useAdminData();
+  const { agents, applications, bikes, customers, dataStatus } = useAdminData();
   const [query, setQuery] = useState("");
 
   const rows = useMemo(() => {
@@ -23,6 +23,15 @@ export default function BackOfficeCompleted() {
     { key: "status", label: "Screening result", render: (row) => <StatusBadge status={row.status} /> },
     { key: "open", label: "Open", render: (row) => <Link to={`/backoffice/applications/${row.id}`}>View</Link> }
   ];
+
+  const completedCaseCount = getScreeningRows({ agents, applications, bikes, customers, statuses: completedScreeningStatuses }).length;
+  const emptyMessage = dataStatus === "loading"
+    ? "Loading completed cases..."
+    : applications.length === 0
+      ? "No customer applications were returned from the back-office API."
+      : completedCaseCount === 0
+        ? `Loaded ${applications.length} application${applications.length === 1 ? "" : "s"}, but none are approved or rejected yet. Check the Screening queue for open records.`
+        : "No completed screening cases match this search.";
 
   return (
     <section className="page-stack">
@@ -41,7 +50,7 @@ export default function BackOfficeCompleted() {
           <strong>{rows.length}</strong>
         </div>
       </div>
-      <DataTable columns={columns} rows={rows} emptyMessage="No completed screening cases match this view." />
+      <DataTable columns={columns} rows={rows} emptyMessage={emptyMessage} />
     </section>
   );
 }
