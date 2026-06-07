@@ -18,6 +18,7 @@ export default function Applications() {
   const [submittingId, setSubmittingId] = useState("");
   const [selectedCardIds, setSelectedCardIds] = useState([]);
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [cardTemplateMode, setCardTemplateMode] = useState("auto");
 
   const visibleApplications = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -103,7 +104,8 @@ export default function Applications() {
     const studentClass = customer.className || customer.studentClass || application.className || application.studentClass || "Class not set";
     const stream = customer.stream || application.stream || "Stream not set";
     const productType = application.productType || customer.productType || bike.productType || "product";
-    const cardKind = isStudentCard({ customer, application, productType, studentClass, stream }) ? "student" : "organization";
+    const detectedCardKind = isStudentCard({ customer, application, productType, studentClass, stream }) ? "student" : "organization";
+    const cardKind = cardTemplateMode === "school" ? "student" : cardTemplateMode === "organization" ? "organization" : detectedCardKind;
     const token = [
       cardKind === "student" ? "BUMU-STUDENT" : "BUMU-MASTER",
       application.id,
@@ -177,8 +179,8 @@ export default function Applications() {
   }
 
   function buildCardsHtml(records) {
-    const schoolTemplateImage = `${window.location.origin}/card-templates/school-card-bg.svg`;
-    const organizationTemplateImage = `${window.location.origin}/card-templates/organization-card-bg.svg`;
+    const schoolTemplateImage = `${window.location.origin}/card-templates/school-card-bg.png`;
+    const organizationTemplateImage = `${window.location.origin}/card-templates/organization-card-bg.png`;
     const cards = records
       .map((record) => {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
@@ -499,6 +501,14 @@ export default function Applications() {
               onChange={toggleAllVisibleApproved}
             />
             Select approved visible
+          </label>
+          <label>
+            Card template
+            <select value={cardTemplateMode} onChange={(event) => setCardTemplateMode(event.target.value)}>
+              <option value="auto">Auto choose</option>
+              <option value="school">School image card</option>
+              <option value="organization">Organization image card</option>
+            </select>
           </label>
           <label>
             Organization scanner WhatsApp
