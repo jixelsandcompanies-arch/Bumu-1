@@ -15,6 +15,8 @@ create table if not exists public.student_gate_events (
   created_at timestamptz not null default now()
 );
 
+alter table public.student_gate_events enable row level security;
+
 create index if not exists student_gate_events_card_token_idx
   on public.student_gate_events (card_token);
 
@@ -38,3 +40,24 @@ alter table public.student_gate_events
 
 create index if not exists student_gate_events_class_stream_idx
   on public.student_gate_events (student_class, stream);
+
+alter table public.student_gate_events
+  drop constraint if exists student_gate_events_school_type_check;
+
+alter table public.student_gate_events
+  add constraint student_gate_events_school_type_check
+  check (school_type is null or school_type in ('boarding', 'day'));
+
+alter table public.student_gate_events
+  drop constraint if exists student_gate_events_grade_update_by_check;
+
+alter table public.student_gate_events
+  add constraint student_gate_events_grade_update_by_check
+  check (grade_update_by is null or grade_update_by in ('class_teacher', 'parent'));
+
+alter table public.student_gate_events
+  drop constraint if exists student_gate_events_token_length_check;
+
+alter table public.student_gate_events
+  add constraint student_gate_events_token_length_check
+  check (length(card_token) between 1 and 180);

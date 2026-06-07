@@ -4,13 +4,26 @@ import { getSupabase, hasSupabaseConfig } from '../_lib/supabase.js';
 
 const VALID_DIRECTIONS = new Set(['entry', 'exit']);
 
-function normalizeText(value) {
-  return String(value || '').trim();
+function normalizeText(value, maxLength = 160) {
+  return String(value || '').trim().slice(0, maxLength);
 }
 
 function normalizeDirection(value) {
   const direction = normalizeText(value).toLowerCase();
   return VALID_DIRECTIONS.has(direction) ? direction : 'entry';
+}
+
+function normalizeSchoolType(value) {
+  const schoolType = normalizeText(value, 32).toLowerCase().replaceAll('_', ' ');
+  if (schoolType.includes('boarding')) return 'boarding';
+  if (schoolType.includes('day')) return 'day';
+  return '';
+}
+
+function gradeUpdateOwner(schoolType) {
+  if (schoolType === 'boarding') return 'class_teacher';
+  if (schoolType === 'day') return 'parent';
+  return '';
 }
 
 export default async function handler(req, res) {
@@ -30,14 +43,14 @@ export default async function handler(req, res) {
     await assertRateLimit(req, { scope: 'school-scan', limit: 80, windowMs: 60_000 });
 
     const body = await readJson(req);
-    const token = normalizeText(body.token);
-    const schoolLocation = normalizeText(body.schoolLocation) || 'School Location';
-    const scanPoint = normalizeText(body.scanPoint) || 'Main gate';
+    const token = normalizeText(body.token, 180);
+    const schoolLocation = normalizeText(body.schoolLocation, 120) || 'School Location';
+    const scanPoint = normalizeText(body.scanPoint, 80) || 'Main gate';
     const direction = normalizeDirection(body.direction);
-    const studentClass = normalizeText(body.studentClass);
-    const stream = normalizeText(body.stream);
-    const schoolType = normalizeText(body.schoolType);
-    const gradeUpdateBy = normalizeText(body.gradeUpdateBy);
+    const studentClass = normalizeText(body.studentClass, 80);
+    const stream = normalizeText(body.stream, 80);
+    const schoolType = normalizeSchoolType(body.schoolType);
+    const gradeUpdateBy = gradeUpdateOwner(schoolType);
 
     if (!token) {
       sendJson(res, 400, { message: 'Student card QR token is required.' });
@@ -46,7 +59,7 @@ export default async function handler(req, res) {
 
     const event = {
       card_token: token,
-      scanned_url: normalizeText(body.scannedUrl),
+      scanned_url: normalizeText(body.scannedUrl, 300),
       direction,
       student_class: studentClass,
       stream,
@@ -54,7 +67,7 @@ export default async function handler(req, res) {
       grade_update_by: gradeUpdateBy,
       school_location: schoolLocation,
       scan_point: scanPoint,
-      scanner_name: normalizeText(body.scannerName),
+      scanner_name: normalizeText(body.scannerName, 120),
       scanned_at: new Date().toISOString(),
       source: 'school_qr_scan'
     };
@@ -71,7 +84,7 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (error) {
-        storageError = error.message;
+        storageError = 'Scan could not be stored yet.';
       } else {
         stored = true;
         storedEvent = data;
