@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Bot, MessageCircle, Send, X, RotateCcw } from 'lucide-react';
+import { Bot, MessageCircle, Send, X, Trash2 } from 'lucide-react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from './Text.jsx';
 import { colors } from '../../theme/colors.js';
@@ -55,6 +55,11 @@ export function SupportChatWidget() {
     setMessages([{ ...starterMessage, id: `welcome-${Date.now()}` }]);
   }
 
+  function closeChat() {
+    startNewChat();
+    setOpen(false);
+  }
+
   function sendMessage() {
     const text = draft.trim();
     if (!text) return;
@@ -99,10 +104,11 @@ export function SupportChatWidget() {
           </View>
         </View>
         <View style={styles.headerActions}>
-          <Pressable onPress={startNewChat} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Start new chat">
-            <RotateCcw size={17} color={colors.primary} />
+          <Pressable onPress={startNewChat} style={styles.clearButton} accessibilityRole="button" accessibilityLabel="Clear help chat">
+            <Trash2 size={15} color={colors.primary} />
+            <Text style={styles.clearText}>Clear</Text>
           </Pressable>
-          <Pressable onPress={() => setOpen(false)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Close help chat">
+          <Pressable onPress={closeChat} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Close help chat">
             <X size={18} color={colors.primary} />
           </Pressable>
         </View>
@@ -232,6 +238,24 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 6
+  },
+  clearButton: {
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cfe0fb',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    cursor: 'pointer'
+  },
+  clearText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700'
   },
   iconButton: {
     width: 34,
