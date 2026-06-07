@@ -180,55 +180,89 @@ export default function Applications() {
     const cards = records
       .map((record) => {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
-        return `
-          <article class="card">
-            <section class="card-face card-front">
-              <div class="card-top">
+        return record.cardKind === "student"
+          ? `
+            <article class="card student-template">
+              <section class="student-front">
+                <div class="school-band">
+                  <div class="crest">BP</div>
+                  <div>
+                    <span>School gate pass</span>
+                    <strong>Bumu PAYGO Student</strong>
+                  </div>
+                  <b>ACTIVE</b>
+                </div>
+                <div class="student-main">
+                  <div class="student-photo">${escapeHtml((record.customer.name || "S").slice(0, 1).toUpperCase())}</div>
+                  <div class="student-copy">
+                    <p class="label">Student / holder</p>
+                    <h2>${escapeHtml(record.customer.name || "Approved student")}</h2>
+                    <div class="school-grid">
+                      <span><b>Class</b>${escapeHtml(record.studentClass)}</span>
+                      <span><b>Stream</b>${escapeHtml(record.stream)}</span>
+                      <span><b>Parent</b>${escapeHtml(recordRecipientLabel(record))}</span>
+                      <span><b>Card no.</b>${escapeHtml(record.application.id)}</span>
+                    </div>
+                  </div>
+                  <div class="student-qr">
+                    <img src="${qrUrl}" alt="Student QR code" />
+                    <small>Gate scan</small>
+                  </div>
+                </div>
+                <div class="student-strip">
+                  <span>${escapeHtml(record.token)}</span>
+                  <em>Entry and exit notification card</em>
+                </div>
+              </section>
+              <section class="student-back">
                 <div>
-                  <span class="eyebrow">${record.cardKind === "student" ? "Student gate card" : "Organization master card"}</span>
-                  <h2>${escapeHtml(record.customer.name || "Approved customer")}</h2>
+                  <span class="eyebrow">Parent notification</span>
+                  <h3>School gate scan instructions</h3>
                 </div>
-                <strong>${escapeHtml(record.application.id)}</strong>
-              </div>
-              <div class="card-body">
-                <div class="details">
-                  <p><span>Card type</span>${record.cardKind === "student" ? "Student parent card" : "Organization scan card"}</p>
-                  <p><span>National ID</span>${escapeHtml(record.customer.nationalId || "Not captured")}</p>
-                  <p><span>Phone</span>${escapeHtml(record.customer.phone || "Not captured")}</p>
-                  <p><span>Class</span>${escapeHtml(record.studentClass)}</p>
-                  <p><span>Stream</span>${escapeHtml(record.stream)}</p>
-                  <p><span>Agent</span>${escapeHtml(record.agent.name || "Not assigned")}</p>
-                </div>
-                <div class="qr-box">
-                  <img src="${qrUrl}" alt="QR code for ${escapeHtml(record.customer.name || record.application.id)}" />
-                  <small>${record.cardKind === "student" ? "Parent / school scan" : "Master scanner link"}</small>
-                </div>
-              </div>
-              <footer>
-                <span>${escapeHtml(record.token)}</span>
+                <ol>
+                  <li>Open the WhatsApp link sent to the parent.</li>
+                  <li>At the gate, scan the student QR using the camera.</li>
+                  <li>Select coming in or going out, then save the scan.</li>
+                  <li>The record stores GPS accuracy when location is allowed.</li>
+                </ol>
                 <a href="${escapeHtml(record.scanUrl)}">${escapeHtml(record.scanUrl)}</a>
-              </footer>
-            </section>
-            <section class="card-face card-back">
-              <div>
-                <span class="eyebrow">Back of card</span>
-                <h3>Scan instructions</h3>
-              </div>
-              <ol>
-                <li>Open the WhatsApp link or scan the QR code.</li>
-                <li>The school scanner page opens the camera.</li>
-                <li>Scan the master/card QR and save entry or exit.</li>
-                <li>${record.cardKind === "student" ? "Parent receives the student card link on WhatsApp." : "Organization scanner uses the number entered by admin."}</li>
-              </ol>
-              <div class="back-grid">
-                <p><span>Recipient</span>${escapeHtml(recordRecipientLabel(record))}</p>
-                <p><span>Bike / asset</span>${escapeHtml(record.bike.serialNumber || record.productType || "Not assigned")}</p>
-                <p><span>Plan</span>${escapeHtml(record.application.installmentPlan || "Daily repayment")}</p>
-                <p><span>Status</span>Approved</p>
-              </div>
-            </section>
-          </article>
-        `;
+              </section>
+            </article>
+          `
+          : `
+            <article class="card organization-template">
+              <section class="org-front">
+                <div class="org-glass">
+                  <div class="org-topline">
+                    <span>MASTER ACCESS</span>
+                    <b>${escapeHtml(record.application.id)}</b>
+                  </div>
+                  <h2>${escapeHtml(record.customer.name || "Organization account")}</h2>
+                  <p>${escapeHtml(record.productType || "Organization")} scanner credential</p>
+                  <div class="org-details">
+                    <span><b>Scanner</b>${escapeHtml(recordRecipientLabel(record))}</span>
+                    <span><b>Asset</b>${escapeHtml(record.bike.serialNumber || record.productType || "Not assigned")}</span>
+                    <span><b>Phone</b>${escapeHtml(record.customer.phone || "Not captured")}</span>
+                    <span><b>Status</b>Approved</span>
+                  </div>
+                </div>
+                <div class="org-qr-panel">
+                  <img src="${qrUrl}" alt="Organization master QR code" />
+                  <strong>SCAN</strong>
+                  <small>Opens camera scanner</small>
+                </div>
+              </section>
+              <section class="org-back">
+                <div class="org-back-code">${escapeHtml(record.token)}</div>
+                <div>
+                  <span class="eyebrow">Organization workflow</span>
+                  <h3>Master card use</h3>
+                  <p>Send this link to the scanner phone entered by admin. The user opens the link, the camera starts, then the card is scanned and saved.</p>
+                </div>
+                <a href="${escapeHtml(record.scanUrl)}">${escapeHtml(record.scanUrl)}</a>
+              </section>
+            </article>
+          `;
       })
       .join("");
 
@@ -240,33 +274,46 @@ export default function Applications() {
   <title>Bumu PAYGO approved cards</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 24px; background: #eef6ff; color: #10201d; font-family: Arial, sans-serif; }
-    .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 22px; }
+    body { margin: 0; padding: 24px; background: #edf4fb; color: #10201d; font-family: Arial, sans-serif; }
+    .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 26px; align-items: start; }
     .card { display: grid; gap: 12px; page-break-inside: avoid; }
-    .card-face { min-height: 250px; border: 1px solid #b9cff5; border-radius: 14px; background: white; padding: 18px; display: grid; gap: 14px; box-shadow: 0 18px 40px rgba(15, 59, 143, .12); overflow: hidden; }
-    .card-front { background: linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #eaf4ff 100%); }
-    .card-back { background: linear-gradient(135deg, #0f3b8f 0%, #1d4ed8 62%, #38bdf8 100%); color: white; }
-    .card-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 1px solid #dbe7f5; padding-bottom: 12px; }
-    .eyebrow { display: block; color: #0f4ed8; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .card-back .eyebrow { color: rgba(255,255,255,.78); }
-    h2, h3 { margin: 5px 0 0; line-height: 1.1; }
-    h2 { font-size: 22px; }
-    h3 { font-size: 21px; }
-    .card-top strong { color: #0f4ed8; white-space: nowrap; }
-    .card-body { display: grid; grid-template-columns: 1fr 132px; gap: 14px; align-items: center; }
-    .details, .back-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    p { margin: 0; border: 1px solid #dbe7f5; border-radius: 8px; padding: 8px; min-height: 52px; font-weight: 700; background: rgba(255,255,255,.68); }
-    p span { display: block; margin-bottom: 4px; color: #66736f; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .card-back p { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.12); color: white; }
-    .card-back p span { color: rgba(255,255,255,.76); }
-    .qr-box { display: grid; place-items: center; gap: 6px; border: 1px solid #dbe7f5; border-radius: 10px; padding: 8px; background: #ffffff; }
-    .qr-box img { width: 112px; height: 112px; display: block; }
-    .qr-box small { color: #66736f; font-weight: 700; text-align: center; }
-    footer { display: grid; gap: 5px; border-top: 1px solid #dbe7f5; padding-top: 10px; font-size: 12px; overflow-wrap: anywhere; }
-    footer span { font-weight: 700; color: #0f4ed8; }
-    footer a { color: #334155; text-decoration: none; }
-    ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; }
-    @media print { body { background: white; padding: 0; } .sheet { gap: 10px; } .card-face { box-shadow: none; } }
+    .student-front, .student-back, .org-front, .org-back { min-height: 268px; border-radius: 16px; overflow: hidden; box-shadow: 0 22px 46px rgba(15, 35, 65, .18); }
+    .school-band { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 16px 18px; background: #ffffff; border-bottom: 5px solid #16a34a; }
+    .crest { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #0f4ed8; color: white; font-weight: 800; }
+    .school-band span, .eyebrow { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #0f4ed8; }
+    .school-band strong { font-size: 18px; }
+    .school-band b { border-radius: 999px; background: #dcfce7; color: #166534; padding: 8px 12px; font-size: 12px; }
+    .student-main { display: grid; grid-template-columns: 96px 1fr 132px; gap: 14px; align-items: center; padding: 18px; background: linear-gradient(135deg, #f8fbff 0%, #ffffff 56%, #ecfdf5 100%); }
+    .student-photo { width: 96px; height: 116px; display: grid; place-items: center; border: 4px solid #ffffff; border-radius: 12px; background: linear-gradient(135deg, #0f4ed8, #38bdf8); color: white; font-size: 42px; font-weight: 800; box-shadow: 0 12px 28px rgba(15, 78, 216, .22); }
+    .label { margin: 0 0 4px; color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    h2, h3 { margin: 0; line-height: 1.1; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 22px; }
+    .school-grid, .org-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+    .school-grid span, .org-details span { display: grid; gap: 3px; border: 1px solid rgba(15, 78, 216, .16); border-radius: 10px; background: rgba(255,255,255,.78); padding: 8px; font-weight: 700; }
+    .school-grid b, .org-details b { color: #64748b; font-size: 10px; text-transform: uppercase; }
+    .student-qr, .org-qr-panel { display: grid; place-items: center; gap: 6px; border-radius: 14px; background: #ffffff; padding: 10px; border: 1px solid #dbe7f5; }
+    .student-qr img, .org-qr-panel img { width: 112px; height: 112px; display: block; }
+    .student-qr small, .org-qr-panel small { color: #64748b; font-weight: 800; text-align: center; }
+    .student-strip { display: flex; justify-content: space-between; gap: 12px; padding: 12px 18px; background: #0f172a; color: white; font-size: 12px; overflow-wrap: anywhere; }
+    .student-strip span { font-weight: 800; }
+    .student-back { display: grid; gap: 14px; padding: 18px; background: #ffffff; border: 1px solid #cfe0fb; }
+    .student-back ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; color: #334155; }
+    a { color: #0f4ed8; overflow-wrap: anywhere; font-size: 12px; text-decoration: none; }
+    .org-front { position: relative; display: grid; grid-template-columns: 1fr 160px; gap: 18px; align-items: stretch; padding: 20px; background: radial-gradient(circle at 20% 10%, rgba(56,189,248,.42), transparent 25%), linear-gradient(135deg, #08111f 0%, #0f3b8f 58%, #1d4ed8 100%); color: white; }
+    .org-glass { display: grid; align-content: space-between; border: 1px solid rgba(255,255,255,.24); border-radius: 16px; background: rgba(255,255,255,.1); padding: 18px; backdrop-filter: blur(6px); }
+    .org-topline { display: flex; justify-content: space-between; gap: 12px; color: #dbeafe; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+    .org-glass h2 { font-size: 30px; margin-top: 28px; }
+    .org-glass p { margin: 8px 0 0; color: #dbeafe; }
+    .org-details span { border-color: rgba(255,255,255,.24); background: rgba(255,255,255,.12); color: white; }
+    .org-details b { color: #dbeafe; }
+    .org-qr-panel { align-self: center; min-height: 210px; color: #0f172a; }
+    .org-qr-panel strong { font-size: 20px; letter-spacing: .18em; color: #0f4ed8; }
+    .org-back { display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: center; padding: 20px; background: #f8fafc; border: 1px solid #cbd5e1; }
+    .org-back-code { writing-mode: vertical-rl; transform: rotate(180deg); border-radius: 14px; background: #0f172a; color: white; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-align: center; }
+    .org-back p { color: #334155; line-height: 1.45; }
+    @media print { body { background: white; padding: 0; } .sheet { gap: 12px; } .student-front, .student-back, .org-front, .org-back { box-shadow: none; } }
+    @media (max-width: 520px) { body { padding: 12px; } .sheet { grid-template-columns: 1fr; } .student-main, .org-front, .org-back { grid-template-columns: 1fr; } .student-photo { width: 82px; height: 96px; } }
   </style>
 </head>
 <body>
