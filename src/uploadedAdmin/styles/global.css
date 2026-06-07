@@ -246,6 +246,25 @@ b {
   gap: 16px;
 }
 
+.topbar-logo {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.topbar-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
 .icon-button {
   display: inline-grid;
   width: 44px;
@@ -1633,6 +1652,12 @@ input[type="checkbox"] {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-photo-preview.logo-preview img {
+  object-fit: contain;
+  padding: 4px;
+  background: #ffffff;
 }
 
 .upload-control {

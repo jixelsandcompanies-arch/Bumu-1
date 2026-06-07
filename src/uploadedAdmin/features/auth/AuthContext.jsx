@@ -10,7 +10,8 @@ const defaultUser = {
   name: "",
   email: "",
   role: "super_admin",
-  photoUrl: ""
+  photoUrl: "",
+  logoUrl: ""
 };
 
 export function getAdminToken() {
@@ -105,7 +106,8 @@ function normalizeBackendUser(user = {}) {
     email: user.email || "",
     phone: user.phone || "",
     role: user.role === "admin" ? "super_admin" : user.role || "super_admin",
-    photoUrl: user.photoUrl || ""
+    photoUrl: user.photoUrl || "",
+    logoUrl: user.logoUrl || ""
   };
 }
 

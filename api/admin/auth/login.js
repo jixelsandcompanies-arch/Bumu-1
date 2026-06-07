@@ -102,7 +102,8 @@ export default async function handler(req, res) {
         fullName: activeAdminProfile.full_name || data.user.user_metadata?.full_name || data.user.email,
         role: activeAdminProfile.role || 'admin',
         phone: activeAdminProfile.phone || data.user.user_metadata?.phone || '',
-        photoUrl: data.user.user_metadata?.photo_url || ''
+        photoUrl: data.user.user_metadata?.photo_url || '',
+        logoUrl: data.user.user_metadata?.logo_url || ''
       }
     });
   } catch (error) {

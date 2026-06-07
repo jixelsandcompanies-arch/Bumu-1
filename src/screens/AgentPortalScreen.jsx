@@ -774,6 +774,54 @@ function MediaCapture({ field, label, captureKind = 'document', value, onUploade
   const [cameraVersion, setCameraVersion] = useState(0);
   const [message, setMessage] = useState('');
 
+  function analyzeCapture(canvas) {
+    const context = canvas.getContext('2d');
+    const sampleSize = 96;
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = sampleSize;
+    sampleCanvas.height = sampleSize;
+    const sampleContext = sampleCanvas.getContext('2d');
+    sampleContext.drawImage(canvas, 0, 0, sampleSize, sampleSize);
+    const data = sampleContext.getImageData(0, 0, sampleSize, sampleSize).data;
+    let brightness = 0;
+    let colorSpread = 0;
+    const luminance = [];
+
+    for (let index = 0; index < data.length; index += 4) {
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+      brightness += luma;
+      colorSpread += Math.max(r, g, b) - Math.min(r, g, b);
+      luminance.push(luma);
+    }
+
+    brightness /= luminance.length;
+    colorSpread /= luminance.length;
+
+    let edges = 0;
+    for (let y = 1; y < sampleSize - 1; y += 1) {
+      for (let x = 1; x < sampleSize - 1; x += 1) {
+        const current = luminance[y * sampleSize + x];
+        const right = luminance[y * sampleSize + x + 1];
+        const down = luminance[(y + 1) * sampleSize + x];
+        edges += Math.abs(current - right) + Math.abs(current - down);
+      }
+    }
+    const sharpness = edges / ((sampleSize - 2) * (sampleSize - 2));
+
+    return { brightness, colorSpread, sharpness };
+  }
+
+  function qualityMessage(metrics) {
+    if (metrics.brightness < 45) return 'Image is too dark. Move closer to light and capture again.';
+    if (metrics.brightness > 235) return 'Image is too bright. Reduce glare and capture again.';
+    if (metrics.sharpness < (captureKind.startsWith('id-') ? 8 : 5)) return 'Image is blurry. Hold steady and capture again.';
+    if (captureKind.startsWith('id-') && metrics.colorSpread < 10) return 'ID color detail is too weak. Use better light and avoid shadows.';
+    return '';
+  }
+
   function stopCamera() {
     streamRef.current?.getTracks?.().forEach((track) => track.stop());
     streamRef.current = null;
@@ -862,6 +910,12 @@ function MediaCapture({ field, label, captureKind = 'document', value, onUploade
     canvas.height = Math.round(video.videoHeight * scale);
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const metrics = analyzeCapture(canvas);
+    const qualityError = qualityMessage(metrics);
+    if (qualityError) {
+      setMessage(qualityError);
+      return;
+    }
     const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
 
     setUploading(true);
@@ -873,7 +927,7 @@ function MediaCapture({ field, label, captureKind = 'document', value, onUploade
         dataUrl
       });
       onUploaded(result.reference);
-      setMessage('Captured and uploaded.');
+      setMessage(`Captured and uploaded. Quality: ${Math.round(metrics.sharpness)} sharpness, ${Math.round(metrics.brightness)} light.`);
       setCameraOpen(false);
       stopCamera();
     } catch (error) {

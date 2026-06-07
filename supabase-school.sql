@@ -10,6 +10,10 @@ create table if not exists public.student_gate_events (
   school_location text not null default 'School Location',
   scan_point text not null default 'Main gate',
   scanner_name text,
+  latitude double precision,
+  longitude double precision,
+  gps_accuracy_m double precision,
+  gps_captured_at timestamptz,
   source text not null default 'school_qr_scan',
   scanned_at timestamptz not null default now(),
   created_at timestamptz not null default now()
@@ -38,8 +42,23 @@ alter table public.student_gate_events
 alter table public.student_gate_events
   add column if not exists grade_update_by text;
 
+alter table public.student_gate_events
+  add column if not exists latitude double precision;
+
+alter table public.student_gate_events
+  add column if not exists longitude double precision;
+
+alter table public.student_gate_events
+  add column if not exists gps_accuracy_m double precision;
+
+alter table public.student_gate_events
+  add column if not exists gps_captured_at timestamptz;
+
 create index if not exists student_gate_events_class_stream_idx
   on public.student_gate_events (student_class, stream);
+
+create index if not exists student_gate_events_gps_idx
+  on public.student_gate_events (latitude, longitude);
 
 alter table public.student_gate_events
   drop constraint if exists student_gate_events_school_type_check;

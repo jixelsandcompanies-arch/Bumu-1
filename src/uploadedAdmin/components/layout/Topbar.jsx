@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, LayoutDashboard, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, LayoutDashboard, ShieldCheck, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext.jsx";
 
@@ -20,6 +20,9 @@ export function Topbar({ onToggleSidebar }) {
           <span />
           <span />
         </button>
+        <span className="topbar-logo">
+          {user?.logoUrl ? <img src={user.logoUrl} alt="" /> : <ShieldCheck size={20} />}
+        </span>
         <div>
           <p className="eyebrow">Back Office</p>
           <h1>Bumu PAYGO Administration</h1>

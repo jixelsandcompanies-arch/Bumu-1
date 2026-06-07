@@ -20,6 +20,11 @@ function normalizeSchoolType(value) {
   return '';
 }
 
+function normalizeNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function gradeUpdateOwner(schoolType) {
   if (schoolType === 'boarding') return 'class_teacher';
   if (schoolType === 'day') return 'parent';
@@ -71,17 +76,41 @@ export default async function handler(req, res) {
       scanned_at: new Date().toISOString(),
       source: 'school_qr_scan'
     };
+    const latitude = normalizeNumber(body.latitude);
+    const longitude = normalizeNumber(body.longitude);
+    const gpsAccuracy = normalizeNumber(body.gpsAccuracy);
+    const gpsCapturedAt = normalizeText(body.gpsCapturedAt, 64);
+
+    if (latitude !== null && longitude !== null) {
+      event.latitude = latitude;
+      event.longitude = longitude;
+      event.gps_accuracy_m = gpsAccuracy;
+      event.gps_captured_at = gpsCapturedAt || null;
+    }
 
     let stored = false;
     let storedEvent = null;
     let storageError = null;
 
     if (hasSupabaseConfig()) {
-      const { data, error } = await getSupabase()
+      let insertPayload = event;
+      let { data, error } = await getSupabase()
         .from('student_gate_events')
-        .insert(event)
+        .insert(insertPayload)
         .select()
         .maybeSingle();
+
+      if (error && /latitude|longitude|gps_/i.test(error.message || '')) {
+        const { latitude: _latitude, longitude: _longitude, gps_accuracy_m: _accuracy, gps_captured_at: _capturedAt, ...eventWithoutGps } = event;
+        insertPayload = eventWithoutGps;
+        const retry = await getSupabase()
+          .from('student_gate_events')
+          .insert(insertPayload)
+          .select()
+          .maybeSingle();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         storageError = 'Scan could not be stored yet.';

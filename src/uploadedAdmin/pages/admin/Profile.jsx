@@ -4,6 +4,40 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../components/ui/PageHeader.jsx";
 import { useAuth } from "../../features/auth/AuthContext.jsx";
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+function compressImageFile(file, { maxSize = 720, quality = 0.82 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Choose a valid image file."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        if (dataUrl.length > MAX_IMAGE_BYTES * 1.4) {
+          reject(new Error("Image is too large. Use a smaller or clearer JPG/PNG."));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      image.onerror = () => reject(new Error("Could not read that image."));
+      image.src = String(reader.result || "");
+    };
+    reader.onerror = () => reject(new Error("Could not read that image."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const { updatePassword, updateProfile, user } = useAuth();
@@ -11,7 +45,8 @@ export default function Profile() {
     name: user?.name || "",
     email: user?.email || "",
     phone: user?.phone || "",
-    photoUrl: user?.photoUrl || ""
+    photoUrl: user?.photoUrl || "",
+    logoUrl: user?.logoUrl || ""
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -22,17 +57,24 @@ export default function Profile() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
 
-  function handlePhotoChange(event) {
+  async function handleImageChange(event, field, options) {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({ ...current, photoUrl: String(reader.result || "") }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      if (file.size > 8 * 1024 * 1024) {
+        throw new Error("Image is too large. Choose an image under 8 MB.");
+      }
+      const dataUrl = await compressImageFile(file, options);
+      setForm((current) => ({ ...current, [field]: dataUrl }));
+      setMessage(`${field === "logoUrl" ? "Logo" : "Profile photo"} ready. Save profile to apply it.`);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      event.target.value = "";
+    }
   }
 
   async function handleSave() {
@@ -84,8 +126,19 @@ export default function Profile() {
             </div>
             <label className="upload-control">
               Profile photo
-              <input type="file" accept="image/png,image/jpeg,image/jpg" onChange={handlePhotoChange} />
+              <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={(event) => handleImageChange(event, "photoUrl", { maxSize: 720, quality: 0.82 })} />
               <span>Upload JPG or PNG</span>
+            </label>
+          </div>
+
+          <div className="profile-photo-row">
+            <div className="profile-photo-preview logo-preview">
+              {form.logoUrl ? <img src={form.logoUrl} alt="Logo preview" /> : <UserRound size={30} />}
+            </div>
+            <label className="upload-control">
+              Company logo
+              <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={(event) => handleImageChange(event, "logoUrl", { maxSize: 420, quality: 0.86 })} />
+              <span>Upload logo image</span>
             </label>
           </div>
 

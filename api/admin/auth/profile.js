@@ -9,6 +9,7 @@ function adminProfileFromUser(user, role = 'admin') {
     name: user.user_metadata?.full_name || user.email,
     phone: user.user_metadata?.phone || '',
     photoUrl: user.user_metadata?.photo_url || '',
+    logoUrl: user.user_metadata?.logo_url || '',
     role
   };
 }
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
     const fullName = String(body.name || body.fullName || '').trim();
     const phone = String(body.phone || '').trim();
     const photoUrl = String(body.photoUrl || '').trim();
+    const logoUrl = String(body.logoUrl || '').trim();
 
     if (!fullName) {
       sendJson(res, 400, { message: 'Enter the admin name before saving.' });
@@ -59,7 +61,8 @@ export default async function handler(req, res) {
         ...currentMetadata,
         full_name: fullName,
         phone,
-        photo_url: photoUrl
+        photo_url: photoUrl,
+        logo_url: logoUrl
       }
     });
 

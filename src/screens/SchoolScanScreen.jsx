@@ -33,7 +33,7 @@ function parseCardPayload(value) {
     const json = JSON.parse(raw);
     if (json && typeof json === 'object') {
       return {
-        token: String(json.token || json.card || json.cardToken || json.studentId || raw).trim(),
+        token: String(json.token || json.card || json.cardToken || json.studentId || json.qr || json.id || raw).trim(),
         studentClass: String(json.class || json.studentClass || json.grade || '').trim(),
         stream: String(json.stream || json.classStream || '').trim(),
         schoolType: String(json.schoolType || json.type || '').trim()
@@ -44,7 +44,7 @@ function parseCardPayload(value) {
   try {
     const url = new URL(raw, window.location.origin);
     return {
-      token: url.searchParams.get('token') || url.searchParams.get('card') || raw,
+      token: url.searchParams.get('token') || url.searchParams.get('card') || url.searchParams.get('qr') || url.searchParams.get('id') || raw,
       studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || url.searchParams.get('grade') || '',
       stream: url.searchParams.get('stream') || url.searchParams.get('classStream') || '',
       schoolType: url.searchParams.get('schoolType') || url.searchParams.get('type') || ''
@@ -60,7 +60,7 @@ function parseCardPayload(value) {
     const parts = raw.split('|').map((part) => part.trim()).filter(Boolean);
 
     return {
-      token: pairs.token || pairs.card || pairs.cardtoken || parts[0] || raw,
+      token: pairs.token || pairs.card || pairs.cardtoken || pairs.qr || pairs.id || pairs.studentid || parts[0] || raw,
       studentClass: pairs.class || pairs.studentclass || pairs.grade || parts[1] || '',
       stream: pairs.stream || pairs.classstream || parts[2] || '',
       schoolType: pairs.schooltype || pairs.type || parts[3] || ''
@@ -106,6 +106,7 @@ export function SchoolScanScreen() {
   const [statusMessage, setStatusMessage] = useState('');
   const [lastResult, setLastResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [gps, setGps] = useState({ status: 'idle', latitude: null, longitude: null, accuracy: null, capturedAt: '' });
 
   const canDecodeQr = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
@@ -159,27 +160,34 @@ export function SchoolScanScreen() {
 
       const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
       setCameraState('scanning');
+      let scanning = true;
+      let lastScanAt = 0;
 
       const scanFrame = async () => {
-        if (!videoRef.current || cameraState === 'saved') return;
+        if (!videoRef.current || !scanning) return;
 
         try {
-          const codes = await detector.detect(videoRef.current);
-          const value = codes[0]?.rawValue;
-          if (value) {
-            const card = parseCardPayload(value);
-            setCardToken(card.token);
-            if (card.studentClass) setStudentClass(card.studentClass);
-            if (card.stream) setStream(card.stream);
-            if (card.schoolType) setSchoolType(card.schoolType);
-            setStatusMessage(
-              card.studentClass && card.stream
-                ? 'QR found with class and stream. Confirm the details and save the scan.'
-                : 'QR found. Enter the class and stream if they are not shown, then save the scan.'
-            );
-            stopCamera();
-            setCameraState('detected');
-            return;
+          const now = performance.now();
+          if (now - lastScanAt > 140) {
+            lastScanAt = now;
+            const codes = await detector.detect(videoRef.current);
+            const value = codes[0]?.rawValue;
+            if (value) {
+              scanning = false;
+              const card = parseCardPayload(value);
+              setCardToken(card.token);
+              if (card.studentClass) setStudentClass(card.studentClass);
+              if (card.stream) setStream(card.stream);
+              if (card.schoolType) setSchoolType(card.schoolType);
+              setStatusMessage(
+                card.studentClass && card.stream
+                  ? 'QR found with class and stream. Confirm the details and save the scan.'
+                  : 'QR found. Enter the class and stream if they are not shown, then save the scan.'
+              );
+              stopCamera();
+              setCameraState('detected');
+              return;
+            }
           }
         } catch {
           setStatusMessage('Could not read the QR frame yet. Keep the card steady in the camera.');
@@ -194,6 +202,36 @@ export function SchoolScanScreen() {
       setCameraState('blocked');
       setStatusMessage(error.message || 'Camera permission was blocked. Allow camera access or enter the token manually.');
     }
+  }
+
+  function captureGps() {
+    if (!navigator.geolocation) {
+      setGps({ status: 'unsupported', latitude: null, longitude: null, accuracy: null, capturedAt: '' });
+      setStatusMessage('GPS is not supported on this browser. The scan can still be saved.');
+      return;
+    }
+
+    setGps((current) => ({ ...current, status: 'locating' }));
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGps({
+          status: 'ready',
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          capturedAt: new Date(position.timestamp || Date.now()).toISOString()
+        });
+      },
+      (error) => {
+        setGps({ status: 'blocked', latitude: null, longitude: null, accuracy: null, capturedAt: '' });
+        setStatusMessage(error.message || 'Allow location to save GPS accuracy with the scan.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 15000
+      }
+    );
   }
 
   async function saveScan() {
@@ -222,7 +260,11 @@ export function SchoolScanScreen() {
         gradeUpdateBy: schoolType.toLowerCase().includes('boarding') ? 'class_teacher' : schoolType.toLowerCase().includes('day') ? 'parent' : '',
         schoolLocation: schoolLocation.trim(),
         scanPoint: scanPoint.trim() || 'Main gate',
-        scannedUrl: window.location.href
+        scannedUrl: window.location.href,
+        latitude: gps.latitude,
+        longitude: gps.longitude,
+        gpsAccuracy: gps.accuracy,
+        gpsCapturedAt: gps.capturedAt
       });
       setLastResult(result);
       setStatusMessage(result.message || 'School gate scan saved.');
@@ -246,6 +288,7 @@ export function SchoolScanScreen() {
 
   useEffect(() => {
     startCamera();
+    captureGps();
     return stopCamera;
   }, []);
 
@@ -304,9 +347,29 @@ export function SchoolScanScreen() {
               <Button icon={Camera} onPress={startCamera} disabled={submitting}>
                 Open camera scanner
               </Button>
+              <Button icon={MapPin} variant="secondary" onPress={captureGps} disabled={submitting}>
+                Refresh GPS
+              </Button>
               <Button icon={RotateCcw} variant="secondary" onPress={clearScan}>
                 Clear
               </Button>
+            </View>
+            <View style={styles.gpsPanel}>
+              <Text style={styles.gpsLabel}>GPS accuracy</Text>
+              <Text style={styles.gpsValue}>
+                {gps.status === 'ready'
+                  ? `${Math.round(gps.accuracy || 0)}m accuracy`
+                  : gps.status === 'locating'
+                    ? 'Finding location...'
+                    : gps.status === 'blocked'
+                      ? 'Location blocked'
+                      : gps.status === 'unsupported'
+                        ? 'GPS unsupported'
+                        : 'Waiting for GPS'}
+              </Text>
+              {gps.latitude && gps.longitude ? (
+                <Text style={styles.gpsMeta}>{gps.latitude.toFixed(6)}, {gps.longitude.toFixed(6)}</Text>
+              ) : null}
             </View>
           </View>
 
@@ -636,6 +699,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10
+  },
+  gpsPanel: {
+    borderWidth: 1,
+    borderColor: '#cfe0fb',
+    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    padding: 12,
+    gap: 4
+  },
+  gpsLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase'
+  },
+  gpsValue: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  gpsMeta: {
+    color: colors.muted,
+    fontSize: 12
   },
   formHeader: {
     flexDirection: 'row',
