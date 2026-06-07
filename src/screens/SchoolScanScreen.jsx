@@ -30,15 +30,41 @@ function parseCardPayload(value) {
   }
 
   try {
+    const json = JSON.parse(raw);
+    if (json && typeof json === 'object') {
+      return {
+        token: String(json.token || json.card || json.cardToken || json.studentId || raw).trim(),
+        studentClass: String(json.class || json.studentClass || json.grade || '').trim(),
+        stream: String(json.stream || json.classStream || '').trim(),
+        schoolType: String(json.schoolType || json.type || '').trim()
+      };
+    }
+  } catch {}
+
+  try {
     const url = new URL(raw, window.location.origin);
     return {
       token: url.searchParams.get('token') || url.searchParams.get('card') || raw,
-      studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || '',
-      stream: url.searchParams.get('stream') || '',
+      studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || url.searchParams.get('grade') || '',
+      stream: url.searchParams.get('stream') || url.searchParams.get('classStream') || '',
       schoolType: url.searchParams.get('schoolType') || url.searchParams.get('type') || ''
     };
   } catch {
-    return { token: raw, studentClass: '', stream: '', schoolType: '' };
+    const pairs = Object.fromEntries(
+      raw
+        .split(/[|,;\n]/)
+        .map((part) => part.split(/[:=]/).map((item) => item.trim()))
+        .filter(([key, value]) => key && value)
+        .map(([key, value]) => [key.toLowerCase(), value])
+    );
+    const parts = raw.split('|').map((part) => part.trim()).filter(Boolean);
+
+    return {
+      token: pairs.token || pairs.card || pairs.cardtoken || parts[0] || raw,
+      studentClass: pairs.class || pairs.studentclass || pairs.grade || parts[1] || '',
+      stream: pairs.stream || pairs.classstream || parts[2] || '',
+      schoolType: pairs.schooltype || pairs.type || parts[3] || ''
+    };
   }
 }
 
@@ -146,7 +172,11 @@ export function SchoolScanScreen() {
             if (card.studentClass) setStudentClass(card.studentClass);
             if (card.stream) setStream(card.stream);
             if (card.schoolType) setSchoolType(card.schoolType);
-            setStatusMessage('QR token found. Confirm the school location and save the scan.');
+            setStatusMessage(
+              card.studentClass && card.stream
+                ? 'QR found with class and stream. Confirm the details and save the scan.'
+                : 'QR found. Enter the class and stream if they are not shown, then save the scan.'
+            );
             stopCamera();
             setCameraState('detected');
             return;
@@ -285,7 +315,21 @@ export function SchoolScanScreen() {
               <MapPin size={22} color={colors.primary} />
               <View>
                 <Text style={styles.cardTitle}>School scan details</Text>
-                <Text style={styles.cardText}>Confirm the location before saving the movement.</Text>
+                <Text style={styles.cardText}>Class and stream must show on the student card details before saving.</Text>
+              </View>
+            </View>
+
+            <View style={styles.cardDetailsPanel}>
+              <Text style={styles.cardDetailsTitle}>Student card details</Text>
+              <View style={styles.cardDetails}>
+                <View style={styles.cardDetailItem}>
+                  <Text style={styles.cardDetailLabel}>Class / grade</Text>
+                  <Text style={styles.cardDetailValue}>{studentClass || 'Enter class'}</Text>
+                </View>
+                <View style={styles.cardDetailItem}>
+                  <Text style={styles.cardDetailLabel}>Stream</Text>
+                  <Text style={styles.cardDetailValue}>{stream || 'Enter stream'}</Text>
+                </View>
               </View>
             </View>
 
@@ -332,14 +376,6 @@ export function SchoolScanScreen() {
             </View>
 
             <View style={styles.cardDetails}>
-              <View style={styles.cardDetailItem}>
-                <Text style={styles.cardDetailLabel}>Class</Text>
-                <Text style={styles.cardDetailValue}>{studentClass || 'Not set'}</Text>
-              </View>
-              <View style={styles.cardDetailItem}>
-                <Text style={styles.cardDetailLabel}>Stream</Text>
-                <Text style={styles.cardDetailValue}>{stream || 'Not set'}</Text>
-              </View>
               <View style={styles.cardDetailItem}>
                 <Text style={styles.cardDetailLabel}>School type</Text>
                 <Text style={styles.cardDetailValue}>{schoolType || 'Not set'}</Text>
@@ -682,6 +718,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     outlineStyle: 'none',
     fontSize: 16
+  },
+  cardDetailsPanel: {
+    borderWidth: 1,
+    borderColor: '#bcd7ff',
+    borderRadius: 8,
+    backgroundColor: '#eef6ff',
+    padding: 12,
+    gap: 10
+  },
+  cardDetailsTitle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase'
   },
   cardDetails: {
     flexDirection: 'row',
