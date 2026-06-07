@@ -150,6 +150,7 @@ function mapPortal(portal = {}) {
 
   const bikes = (portal.products || []).map((product) => ({
     id: product.id,
+    productType: product.productType || "product",
     model: product.productModel || product.model || "",
     serialNumber: product.serialNumber || "",
     chassisNumber: product.chassisNumber || "",
@@ -167,6 +168,11 @@ function mapPortal(portal = {}) {
       customerId: application.customerId,
       agentId: application.agentId || "",
       bikeId: application.bikeId || "",
+      productType: application.productType || customer?.productType || "product",
+      productModel: application.productModel || customer?.productModel || "",
+      studentClass: application.studentClass || application.className || customer?.studentClass || customer?.className || "",
+      className: application.className || application.studentClass || customer?.className || customer?.studentClass || "",
+      stream: application.stream || customer?.stream || "",
       depositAmount: Number(application.depositAmount || 0),
       installmentPlan: application.installmentPlan || "Daily repayment",
       submittedAt: application.submittedAt || application.createdAt || "",

@@ -61,6 +61,9 @@ export default function Applications() {
     try {
       await updateApplicationStatus(application.id, status, notes[status]);
       setMessage(`Application ${application.id} ${status.replaceAll("_", " ")}.`);
+      if (status === "approved") {
+        sendCardsToWhatsapp([makeCardRecord({ ...application, status: "approved" })], { allowMissingNumber: true });
+      }
     } catch (error) {
       setMessage(error.message || `Could not update application ${application.id}.`);
     } finally {
@@ -99,8 +102,10 @@ export default function Applications() {
     const bike = findBike(bikes, application.bikeId) || {};
     const studentClass = customer.className || customer.studentClass || application.className || application.studentClass || "Class not set";
     const stream = customer.stream || application.stream || "Stream not set";
+    const productType = application.productType || customer.productType || bike.productType || "product";
+    const cardKind = isStudentCard({ customer, application, productType, studentClass, stream }) ? "student" : "organization";
     const token = [
-      "BUMU",
+      cardKind === "student" ? "BUMU-STUDENT" : "BUMU-MASTER",
       application.id,
       customer.nationalId || customer.id || application.customerId
     ]
@@ -113,11 +118,53 @@ export default function Applications() {
       customer,
       agent,
       bike,
+      cardKind,
+      productType,
       token,
       scanUrl,
       studentClass,
       stream
     };
+  }
+
+  function isStudentCard({ customer, application, productType, studentClass, stream }) {
+    const text = [
+      productType,
+      customer.productType,
+      application.productType,
+      customer.occupation,
+      application.installmentPlan,
+      studentClass,
+      stream
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return /\bstudent\b|\bschool\b|\bclass\b|\bgrade\b|\bstream\b/.test(text);
+  }
+
+  function formatWhatsappPhone(value) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("0")) return `254${digits.slice(1)}`;
+    if (digits.startsWith("7") || digits.startsWith("1")) return `254${digits}`;
+    return digits;
+  }
+
+  function recordRecipientPhone(record) {
+    if (record.cardKind === "student") {
+      return formatWhatsappPhone(record.application.nextOfKin?.phone || record.customer.nextOfKin?.phone || whatsappNumber);
+    }
+
+    return formatWhatsappPhone(whatsappNumber || record.customer.phone);
+  }
+
+  function recordRecipientLabel(record) {
+    if (record.cardKind === "student") {
+      return record.application.nextOfKin?.name || record.customer.nextOfKin?.name || "parent";
+    }
+
+    return "organization scanner";
   }
 
   function escapeHtml(value) {
@@ -135,31 +182,51 @@ export default function Applications() {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
         return `
           <article class="card">
-            <div class="card-top">
+            <section class="card-face card-front">
+              <div class="card-top">
+                <div>
+                  <span class="eyebrow">${record.cardKind === "student" ? "Student gate card" : "Organization master card"}</span>
+                  <h2>${escapeHtml(record.customer.name || "Approved customer")}</h2>
+                </div>
+                <strong>${escapeHtml(record.application.id)}</strong>
+              </div>
+              <div class="card-body">
+                <div class="details">
+                  <p><span>Card type</span>${record.cardKind === "student" ? "Student parent card" : "Organization scan card"}</p>
+                  <p><span>National ID</span>${escapeHtml(record.customer.nationalId || "Not captured")}</p>
+                  <p><span>Phone</span>${escapeHtml(record.customer.phone || "Not captured")}</p>
+                  <p><span>Class</span>${escapeHtml(record.studentClass)}</p>
+                  <p><span>Stream</span>${escapeHtml(record.stream)}</p>
+                  <p><span>Agent</span>${escapeHtml(record.agent.name || "Not assigned")}</p>
+                </div>
+                <div class="qr-box">
+                  <img src="${qrUrl}" alt="QR code for ${escapeHtml(record.customer.name || record.application.id)}" />
+                  <small>${record.cardKind === "student" ? "Parent / school scan" : "Master scanner link"}</small>
+                </div>
+              </div>
+              <footer>
+                <span>${escapeHtml(record.token)}</span>
+                <a href="${escapeHtml(record.scanUrl)}">${escapeHtml(record.scanUrl)}</a>
+              </footer>
+            </section>
+            <section class="card-face card-back">
               <div>
-                <span class="eyebrow">Bumu PAYGO approved card</span>
-                <h2>${escapeHtml(record.customer.name || "Approved customer")}</h2>
+                <span class="eyebrow">Back of card</span>
+                <h3>Scan instructions</h3>
               </div>
-              <strong>${escapeHtml(record.application.id)}</strong>
-            </div>
-            <div class="card-body">
-              <div class="details">
-                <p><span>National ID</span>${escapeHtml(record.customer.nationalId || "Not captured")}</p>
-                <p><span>Phone</span>${escapeHtml(record.customer.phone || "Not captured")}</p>
-                <p><span>Class</span>${escapeHtml(record.studentClass)}</p>
-                <p><span>Stream</span>${escapeHtml(record.stream)}</p>
-                <p><span>Agent</span>${escapeHtml(record.agent.name || "Not assigned")}</p>
-                <p><span>Bike</span>${escapeHtml(record.bike.serialNumber || "Not assigned")}</p>
+              <ol>
+                <li>Open the WhatsApp link or scan the QR code.</li>
+                <li>The school scanner page opens the camera.</li>
+                <li>Scan the master/card QR and save entry or exit.</li>
+                <li>${record.cardKind === "student" ? "Parent receives the student card link on WhatsApp." : "Organization scanner uses the number entered by admin."}</li>
+              </ol>
+              <div class="back-grid">
+                <p><span>Recipient</span>${escapeHtml(recordRecipientLabel(record))}</p>
+                <p><span>Bike / asset</span>${escapeHtml(record.bike.serialNumber || record.productType || "Not assigned")}</p>
+                <p><span>Plan</span>${escapeHtml(record.application.installmentPlan || "Daily repayment")}</p>
+                <p><span>Status</span>Approved</p>
               </div>
-              <div class="qr-box">
-                <img src="${qrUrl}" alt="QR code for ${escapeHtml(record.customer.name || record.application.id)}" />
-                <small>Scan at school gate</small>
-              </div>
-            </div>
-            <footer>
-              <span>${escapeHtml(record.token)}</span>
-              <a href="${escapeHtml(record.scanUrl)}">${escapeHtml(record.scanUrl)}</a>
-            </footer>
+            </section>
           </article>
         `;
       })
@@ -174,23 +241,32 @@ export default function Applications() {
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 24px; background: #eef6ff; color: #10201d; font-family: Arial, sans-serif; }
-    .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; }
-    .card { min-height: 245px; border: 1px solid #b9cff5; border-radius: 12px; background: white; padding: 18px; display: grid; gap: 14px; box-shadow: 0 18px 40px rgba(15, 59, 143, .12); page-break-inside: avoid; }
+    .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 22px; }
+    .card { display: grid; gap: 12px; page-break-inside: avoid; }
+    .card-face { min-height: 250px; border: 1px solid #b9cff5; border-radius: 14px; background: white; padding: 18px; display: grid; gap: 14px; box-shadow: 0 18px 40px rgba(15, 59, 143, .12); overflow: hidden; }
+    .card-front { background: linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #eaf4ff 100%); }
+    .card-back { background: linear-gradient(135deg, #0f3b8f 0%, #1d4ed8 62%, #38bdf8 100%); color: white; }
     .card-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 1px solid #dbe7f5; padding-bottom: 12px; }
     .eyebrow { display: block; color: #0f4ed8; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    h2 { margin: 5px 0 0; font-size: 22px; line-height: 1.1; }
+    .card-back .eyebrow { color: rgba(255,255,255,.78); }
+    h2, h3 { margin: 5px 0 0; line-height: 1.1; }
+    h2 { font-size: 22px; }
+    h3 { font-size: 21px; }
     .card-top strong { color: #0f4ed8; white-space: nowrap; }
     .card-body { display: grid; grid-template-columns: 1fr 132px; gap: 14px; align-items: center; }
-    .details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    p { margin: 0; border: 1px solid #dbe7f5; border-radius: 8px; padding: 8px; min-height: 52px; font-weight: 700; }
+    .details, .back-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    p { margin: 0; border: 1px solid #dbe7f5; border-radius: 8px; padding: 8px; min-height: 52px; font-weight: 700; background: rgba(255,255,255,.68); }
     p span { display: block; margin-bottom: 4px; color: #66736f; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .qr-box { display: grid; place-items: center; gap: 6px; border: 1px solid #dbe7f5; border-radius: 10px; padding: 8px; background: #f8fbff; }
+    .card-back p { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.12); color: white; }
+    .card-back p span { color: rgba(255,255,255,.76); }
+    .qr-box { display: grid; place-items: center; gap: 6px; border: 1px solid #dbe7f5; border-radius: 10px; padding: 8px; background: #ffffff; }
     .qr-box img { width: 112px; height: 112px; display: block; }
-    .qr-box small { color: #66736f; font-weight: 700; }
+    .qr-box small { color: #66736f; font-weight: 700; text-align: center; }
     footer { display: grid; gap: 5px; border-top: 1px solid #dbe7f5; padding-top: 10px; font-size: 12px; overflow-wrap: anywhere; }
     footer span { font-weight: 700; color: #0f4ed8; }
     footer a { color: #334155; text-decoration: none; }
-    @media print { body { background: white; padding: 0; } .sheet { gap: 10px; } .card { box-shadow: none; } }
+    ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; }
+    @media print { body { background: white; padding: 0; } .sheet { gap: 10px; } .card-face { box-shadow: none; } }
   </style>
 </head>
 <body>
@@ -217,24 +293,48 @@ export default function Applications() {
     setMessage(`${records.length} approved card${records.length === 1 ? "" : "s"} downloaded as a printable file.`);
   }
 
+  function sendCardsToWhatsapp(records, { allowMissingNumber = false } = {}) {
+    if (!records.length) {
+      if (!allowMissingNumber) {
+        setMessage("Select at least one approved application before sending the WhatsApp link.");
+      }
+      return;
+    }
+
+    const grouped = records.reduce((groups, record) => {
+      const phone = recordRecipientPhone(record);
+      if (!phone) return groups;
+      return {
+        ...groups,
+        [phone]: [...(groups[phone] || []), record]
+      };
+    }, {});
+
+    const phones = Object.keys(grouped);
+    if (phones.length === 0) {
+      if (!allowMissingNumber) {
+        setMessage("Enter the organization scanner WhatsApp number. Student cards use the parent or next-of-kin phone.");
+      }
+      return;
+    }
+
+    phones.forEach((phone, phoneIndex) => {
+      const phoneRecords = grouped[phone];
+      const hasStudent = phoneRecords.some((record) => record.cardKind === "student");
+      const links = phoneRecords
+        .map((record, index) => `${index + 1}. ${record.customer.name || record.application.id}: ${record.scanUrl}`)
+        .join("\n");
+      const text = hasStudent
+        ? `Bumu PAYGO student card link:\n${links}\n\nOpen the link for the school gate card. The scanner page opens the camera.`
+        : `Bumu PAYGO organization master card link:\n${links}\n\nOpen the link on the scanner phone. It opens the camera for the master card scan.`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, phoneIndex === 0 ? "_blank" : `_blank${phoneIndex}`, "noopener,noreferrer");
+    });
+
+    setMessage(`${records.length} card link${records.length === 1 ? "" : "s"} prepared for WhatsApp.`);
+  }
+
   function openWhatsappForSelectedCards() {
-    if (selectedApprovedApplications.length === 0) {
-      setMessage("Select at least one approved application before sending the WhatsApp link.");
-      return;
-    }
-
-    const phone = whatsappNumber.replace(/\D/g, "");
-    if (!phone) {
-      setMessage("Enter the WhatsApp phone number that should receive the scan link.");
-      return;
-    }
-
-    const records = selectedApprovedApplications.map(makeCardRecord);
-    const links = records
-      .map((record, index) => `${index + 1}. ${record.customer.name || record.application.id}: ${record.scanUrl}`)
-      .join("\n");
-    const text = `Bumu PAYGO approved card scan link${records.length === 1 ? "" : "s"}:\n${links}\n\nOpen the link on the scanner phone. It opens the camera for the master/card scan.`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    sendCardsToWhatsapp(selectedApprovedApplications.map(makeCardRecord));
   }
 
   const columns = [
@@ -335,9 +435,9 @@ export default function Applications() {
       <div className="panel approved-card-toolbar">
         <div>
           <p className="eyebrow">Approved card download</p>
-          <h3>Selected real card files</h3>
+          <h3>Selected printable card files</h3>
           <span>
-            Select approved applications, download printable cards, or send their scan link to WhatsApp.
+            Download real front/back cards. Organization cards use the scanner number below; student cards use the parent or next-of-kin phone.
           </span>
         </div>
         <div className="approved-card-actions">
@@ -351,7 +451,7 @@ export default function Applications() {
             Select approved visible
           </label>
           <label>
-            WhatsApp number
+            Organization scanner WhatsApp
             <input
               value={whatsappNumber}
               onChange={(event) => setWhatsappNumber(event.target.value)}
