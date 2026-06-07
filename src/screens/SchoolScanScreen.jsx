@@ -180,6 +180,13 @@ export function SchoolScanScreen() {
     }
   }
 
+  function clearScan() {
+    setCardToken('');
+    setLastResult(null);
+    setStatusMessage('');
+    setCameraState('idle');
+  }
+
   useEffect(() => {
     startCamera();
     return stopCamera;
@@ -238,9 +245,9 @@ export function SchoolScanScreen() {
 
             <View style={styles.cameraActions}>
               <Button icon={Camera} onPress={startCamera} disabled={submitting}>
-                Start scanner
+                Open camera scanner
               </Button>
-              <Button icon={RotateCcw} variant="secondary" onPress={() => { setCardToken(''); setLastResult(null); setCameraState('idle'); }}>
+              <Button icon={RotateCcw} variant="secondary" onPress={clearScan}>
                 Clear
               </Button>
             </View>
@@ -256,11 +263,36 @@ export function SchoolScanScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Student card QR token</Text>
+              <Text style={styles.label}>Student card QR</Text>
+              <Pressable
+                onPress={startCamera}
+                disabled={submitting}
+                style={({ pressed }) => [
+                  styles.scanTrigger,
+                  pressed && styles.scanTriggerPressed,
+                  cardToken && styles.scanTriggerDone
+                ]}
+              >
+                <View style={styles.scanTriggerIcon}>
+                  {cardToken ? <CheckCircle2 size={24} color={colors.success} /> : <Camera size={24} color={colors.primary} />}
+                </View>
+                <View style={styles.scanTriggerCopy}>
+                  <Text style={styles.scanTriggerTitle}>
+                    {cardToken ? 'Card QR scanned' : 'Tap to open camera'}
+                  </Text>
+                  <Text style={styles.scanTriggerText}>
+                    {cardToken ? cardToken : 'Scan the student card code at the school gate.'}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Manual QR token fallback</Text>
               <TextInput
                 value={cardToken}
                 onChangeText={setCardToken}
-                placeholder="Scan or paste token"
+                placeholder="Only type here if camera cannot scan"
                 placeholderTextColor="#8ba0b8"
                 style={styles.input}
               />
@@ -492,6 +524,50 @@ const styles = StyleSheet.create({
     color: colors.slate,
     fontSize: 13,
     fontWeight: '600'
+  },
+  scanTrigger: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderColor: '#cfe0fb',
+    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    cursor: 'pointer'
+  },
+  scanTriggerPressed: {
+    transform: [{ scale: 0.99 }],
+    backgroundColor: '#eef6ff'
+  },
+  scanTriggerDone: {
+    borderColor: '#bfe7d4',
+    backgroundColor: colors.successSoft
+  },
+  scanTriggerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dbe7f5',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  scanTriggerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3
+  },
+  scanTriggerTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  scanTriggerText: {
+    color: colors.muted,
+    lineHeight: 20
   },
   input: {
     minHeight: 46,
