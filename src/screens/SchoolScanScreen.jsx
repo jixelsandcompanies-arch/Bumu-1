@@ -17,6 +17,7 @@ function readRouteParams() {
     token: searchParams.get('token') || hashParams.get('token') || '',
     studentClass: searchParams.get('class') || hashParams.get('class') || '',
     stream: searchParams.get('stream') || hashParams.get('stream') || '',
+    schoolType: searchParams.get('schoolType') || hashParams.get('schoolType') || '',
     location: searchParams.get('schoolLocation') || hashParams.get('schoolLocation') || 'School Location',
     point: searchParams.get('scanPoint') || hashParams.get('scanPoint') || 'Main gate'
   };
@@ -25,7 +26,7 @@ function readRouteParams() {
 function parseCardPayload(value) {
   const raw = String(value || '').trim();
   if (!raw) {
-    return { token: '', studentClass: '', stream: '' };
+    return { token: '', studentClass: '', stream: '', schoolType: '' };
   }
 
   try {
@@ -33,10 +34,11 @@ function parseCardPayload(value) {
     return {
       token: url.searchParams.get('token') || url.searchParams.get('card') || raw,
       studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || '',
-      stream: url.searchParams.get('stream') || ''
+      stream: url.searchParams.get('stream') || '',
+      schoolType: url.searchParams.get('schoolType') || url.searchParams.get('type') || ''
     };
   } catch {
-    return { token: raw, studentClass: '', stream: '' };
+    return { token: raw, studentClass: '', stream: '', schoolType: '' };
   }
 }
 
@@ -70,6 +72,7 @@ export function SchoolScanScreen() {
   const [cardToken, setCardToken] = useState(() => extractCardToken(initialParams.token));
   const [studentClass, setStudentClass] = useState(initialParams.studentClass);
   const [stream, setStream] = useState(initialParams.stream);
+  const [schoolType, setSchoolType] = useState(initialParams.schoolType);
   const [schoolLocation, setSchoolLocation] = useState(initialParams.location);
   const [scanPoint, setScanPoint] = useState(initialParams.point);
   const [direction, setDirection] = useState('entry');
@@ -142,6 +145,7 @@ export function SchoolScanScreen() {
             setCardToken(card.token);
             if (card.studentClass) setStudentClass(card.studentClass);
             if (card.stream) setStream(card.stream);
+            if (card.schoolType) setSchoolType(card.schoolType);
             setStatusMessage('QR token found. Confirm the school location and save the scan.');
             stopCamera();
             setCameraState('detected');
@@ -184,6 +188,8 @@ export function SchoolScanScreen() {
         direction,
         studentClass: studentClass.trim(),
         stream: stream.trim(),
+        schoolType: schoolType.trim(),
+        gradeUpdateBy: schoolType.toLowerCase().includes('boarding') ? 'class_teacher' : schoolType.toLowerCase().includes('day') ? 'parent' : '',
         schoolLocation: schoolLocation.trim(),
         scanPoint: scanPoint.trim() || 'Main gate',
         scannedUrl: window.location.href
@@ -202,6 +208,7 @@ export function SchoolScanScreen() {
     setCardToken('');
     setStudentClass('');
     setStream('');
+    setSchoolType('');
     setLastResult(null);
     setStatusMessage('');
     setCameraState('idle');
@@ -316,6 +323,7 @@ export function SchoolScanScreen() {
                   setCardToken(card.token);
                   if (card.studentClass) setStudentClass(card.studentClass);
                   if (card.stream) setStream(card.stream);
+                  if (card.schoolType) setSchoolType(card.schoolType);
                 }}
                 placeholder="Only type here if camera cannot scan"
                 placeholderTextColor="#8ba0b8"
@@ -331,6 +339,20 @@ export function SchoolScanScreen() {
               <View style={styles.cardDetailItem}>
                 <Text style={styles.cardDetailLabel}>Stream</Text>
                 <Text style={styles.cardDetailValue}>{stream || 'Not set'}</Text>
+              </View>
+              <View style={styles.cardDetailItem}>
+                <Text style={styles.cardDetailLabel}>School type</Text>
+                <Text style={styles.cardDetailValue}>{schoolType || 'Not set'}</Text>
+              </View>
+              <View style={styles.cardDetailItem}>
+                <Text style={styles.cardDetailLabel}>Grade update by</Text>
+                <Text style={styles.cardDetailValue}>
+                  {schoolType.toLowerCase().includes('boarding')
+                    ? 'Class teacher'
+                    : schoolType.toLowerCase().includes('day')
+                      ? 'Parent'
+                      : 'Not set'}
+                </Text>
               </View>
             </View>
 
@@ -354,6 +376,24 @@ export function SchoolScanScreen() {
                   placeholderTextColor="#8ba0b8"
                   style={styles.input}
                 />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>School type</Text>
+              <View style={styles.row}>
+                <Pressable
+                  onPress={() => setSchoolType('boarding')}
+                  style={[styles.segment, schoolType === 'boarding' && styles.segmentActive]}
+                >
+                  <Text style={[styles.segmentText, schoolType === 'boarding' && styles.segmentTextActive]}>Boarding</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setSchoolType('day')}
+                  style={[styles.segment, schoolType === 'day' && styles.segmentActive]}
+                >
+                  <Text style={[styles.segmentText, schoolType === 'day' && styles.segmentTextActive]}>Day school</Text>
+                </Pressable>
               </View>
             </View>
 

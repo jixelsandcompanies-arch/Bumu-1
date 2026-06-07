@@ -36,6 +36,8 @@ export default async function handler(req, res) {
     const direction = normalizeDirection(body.direction);
     const studentClass = normalizeText(body.studentClass);
     const stream = normalizeText(body.stream);
+    const schoolType = normalizeText(body.schoolType);
+    const gradeUpdateBy = normalizeText(body.gradeUpdateBy);
 
     if (!token) {
       sendJson(res, 400, { message: 'Student card QR token is required.' });
@@ -48,6 +50,8 @@ export default async function handler(req, res) {
       direction,
       student_class: studentClass,
       stream,
+      school_type: schoolType,
+      grade_update_by: gradeUpdateBy,
       school_location: schoolLocation,
       scan_point: scanPoint,
       scanner_name: normalizeText(body.scannerName),
