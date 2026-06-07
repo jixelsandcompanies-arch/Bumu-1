@@ -16,41 +16,55 @@ const CARD_TEMPLATE_OPTIONS = [
     kind: "auto",
     title: "Auto choose",
     description: "Uses school image cards for students and organization image cards for master scanner cards.",
-    image: "/card-templates/organization-executive-card.png"
+    image: "/card-templates/company-executive-clear-real.png"
   },
   {
-    id: "school-green",
+    id: "school-student-green",
     kind: "student",
-    title: "School green card",
-    description: "Student card with class, stream, gate QR, parent link, and school location scan flow.",
-    image: "/card-templates/school-green-card.png"
+    title: "School Student Classic",
+    description: "Real student card image with class, stream, school location, photo area, and gate QR.",
+    image: "/card-templates/school-student-green-real.png"
   },
   {
-    id: "school-blue",
+    id: "school-student-blue",
     kind: "student",
-    title: "School blue card",
-    description: "Cleaner school card for class, stream, student photo, and gate scanner QR.",
-    image: "/card-templates/school-blue-card.png"
+    title: "School Student Clear",
+    description: "Clean school ID image for class, stream, parent link, and gate scanning.",
+    image: "/card-templates/school-student-blue-real.png"
   },
   {
-    id: "organization-staff",
+    id: "company-staff-classic",
     kind: "organization",
-    title: "Organization staff card",
-    description: "Staff-style master card for daily scanner use in companies and organizations.",
-    image: "/card-templates/organization-staff-card.png"
+    title: "Company Staff Classic",
+    description: "Realistic staff card image with logo, chip, photo area, QR, and secure ID band.",
+    image: "/card-templates/company-staff-classic-real.png"
   },
   {
-    id: "organization-executive",
+    id: "company-executive-clear",
     kind: "organization",
-    title: "Organization executive card",
-    description: "Premium organization master scanner card with stronger executive styling.",
-    image: "/card-templates/organization-executive-card.png"
+    title: "Company Executive Clear",
+    description: "Premium dark-blue master scanner card image with QR and executive layout.",
+    image: "/card-templates/company-executive-clear-real.png"
+  },
+  {
+    id: "company-contractor-bold",
+    kind: "organization",
+    title: "Company Contractor Bold",
+    description: "High-contrast real card image for contractors and fast visual checking.",
+    image: "/card-templates/company-contractor-bold-real.png"
+  },
+  {
+    id: "company-visitor-qr",
+    kind: "organization",
+    title: "Company Visitor QR Focus",
+    description: "Visitor-first real card image with a stronger QR and verification layout.",
+    image: "/card-templates/company-visitor-qr-real.png"
   }
 ];
 
 const DEFAULT_TEMPLATE_BY_KIND = {
-  student: "school-green",
-  organization: "organization-executive"
+  student: "school-student-green",
+  organization: "company-executive-clear"
 };
 
 export default function Applications() {
@@ -63,8 +77,10 @@ export default function Applications() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [cardTemplateMode, setCardTemplateMode] = useState(() => {
     const saved = window.localStorage.getItem("bumu-approved-card-template");
-    if (saved === "school") return "school-green";
-    if (saved === "organization") return "organization-executive";
+    if (saved === "school" || saved === "school-green") return "school-student-green";
+    if (saved === "school-blue") return "school-student-blue";
+    if (saved === "organization" || saved === "organization-executive") return "company-executive-clear";
+    if (saved === "organization-staff") return "company-staff-classic";
     return CARD_TEMPLATE_OPTIONS.some((template) => template.id === saved) ? saved : "auto";
   });
 
@@ -250,7 +266,7 @@ export default function Applications() {
     const cards = records
       .map((record) => {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
-        const templateImage = `${window.location.origin}${record.template?.image || "/card-templates/school-green-card.png"}`;
+        const templateImage = `${window.location.origin}${record.template?.image || "/card-templates/school-student-green-real.png"}`;
         return record.cardKind === "student"
           ? `
             <article class="card student-template">
