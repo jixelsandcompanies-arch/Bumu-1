@@ -15,20 +15,24 @@ function readRouteParams() {
 
   return {
     token: searchParams.get('token') || hashParams.get('token') || '',
+    cardType: searchParams.get('cardType') || hashParams.get('type') || hashParams.get('cardType') || '',
     studentClass: searchParams.get('class') || hashParams.get('class') || '',
     stream: searchParams.get('stream') || hashParams.get('stream') || '',
     schoolType: searchParams.get('schoolType') || hashParams.get('schoolType') || '',
     location: searchParams.get('schoolLocation') || hashParams.get('schoolLocation') || 'School Location',
     point: searchParams.get('scanPoint') || hashParams.get('scanPoint') || 'Main gate',
     scannerName: searchParams.get('scannerName') || hashParams.get('scannerName') || '',
-    scannerPhone: searchParams.get('scannerPhone') || hashParams.get('scannerPhone') || ''
+    scannerPhone: searchParams.get('scannerPhone') || hashParams.get('scannerPhone') || '',
+    signInTime: searchParams.get('signInTime') || hashParams.get('signInTime') || '',
+    leaveTime: searchParams.get('leaveTime') || hashParams.get('leaveTime') || '',
+    graceMinutes: searchParams.get('graceMinutes') || hashParams.get('graceMinutes') || '30'
   };
 }
 
 function parseCardPayload(value) {
   const raw = String(value || '').trim();
   if (!raw) {
-    return { token: '', studentClass: '', stream: '', schoolType: '' };
+    return { token: '', studentClass: '', stream: '', schoolType: '', cardType: '' };
   }
 
   try {
@@ -38,7 +42,8 @@ function parseCardPayload(value) {
         token: String(json.token || json.card || json.cardToken || json.studentId || json.qr || json.id || raw).trim(),
         studentClass: String(json.class || json.studentClass || json.grade || '').trim(),
         stream: String(json.stream || json.classStream || '').trim(),
-        schoolType: String(json.schoolType || json.type || '').trim()
+        schoolType: String(json.schoolType || '').trim(),
+        cardType: String(json.cardType || json.type || '').trim()
       };
     }
   } catch {}
@@ -49,7 +54,8 @@ function parseCardPayload(value) {
       token: url.searchParams.get('token') || url.searchParams.get('card') || url.searchParams.get('qr') || url.searchParams.get('id') || raw,
       studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || url.searchParams.get('grade') || '',
       stream: url.searchParams.get('stream') || url.searchParams.get('classStream') || '',
-      schoolType: url.searchParams.get('schoolType') || url.searchParams.get('type') || ''
+      schoolType: url.searchParams.get('schoolType') || '',
+      cardType: url.searchParams.get('cardType') || url.searchParams.get('type') || ''
     };
   } catch {
     const pairs = Object.fromEntries(
@@ -65,9 +71,16 @@ function parseCardPayload(value) {
       token: pairs.token || pairs.card || pairs.cardtoken || pairs.qr || pairs.id || pairs.studentid || parts[0] || raw,
       studentClass: pairs.class || pairs.studentclass || pairs.grade || parts[1] || '',
       stream: pairs.stream || pairs.classstream || parts[2] || '',
-      schoolType: pairs.schooltype || pairs.type || parts[3] || ''
+      schoolType: pairs.schooltype || parts[3] || '',
+      cardType: pairs.cardtype || pairs.type || ''
     };
   }
+}
+
+function normalizeCardType(value, token = '') {
+  const text = `${value || ''} ${token || ''}`.toLowerCase();
+  if (text.includes('organization') || text.includes('company') || text.includes('master')) return 'organization';
+  return 'student';
 }
 
 function extractCardToken(value) {
@@ -98,6 +111,7 @@ export function SchoolScanScreen() {
   const streamRef = useRef(null);
   const frameRef = useRef(0);
   const [cardToken, setCardToken] = useState(() => extractCardToken(initialParams.token));
+  const [cardType, setCardType] = useState(() => normalizeCardType(initialParams.cardType, initialParams.token));
   const [studentClass, setStudentClass] = useState(initialParams.studentClass);
   const [stream, setStream] = useState(initialParams.stream);
   const [schoolType, setSchoolType] = useState(initialParams.schoolType);
@@ -105,6 +119,9 @@ export function SchoolScanScreen() {
   const [scanPoint, setScanPoint] = useState(initialParams.point);
   const [scannerName, setScannerName] = useState(initialParams.scannerName);
   const [scannerPhone, setScannerPhone] = useState(initialParams.scannerPhone);
+  const [signInTime, setSignInTime] = useState(initialParams.signInTime);
+  const [leaveTime, setLeaveTime] = useState(initialParams.leaveTime);
+  const [graceMinutes, setGraceMinutes] = useState(initialParams.graceMinutes);
   const [direction, setDirection] = useState('entry');
   const [cameraState, setCameraState] = useState('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -113,6 +130,7 @@ export function SchoolScanScreen() {
   const [gps, setGps] = useState({ status: 'idle', latitude: null, longitude: null, accuracy: null, capturedAt: '' });
 
   const canDecodeQr = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+  const isOrganization = cardType === 'organization';
 
   function stopCamera() {
     if (frameRef.current) {
@@ -180,6 +198,7 @@ export function SchoolScanScreen() {
               scanning = false;
               const card = parseCardPayload(value);
               setCardToken(card.token);
+              if (card.cardType) setCardType(normalizeCardType(card.cardType, card.token));
               if (card.studentClass) setStudentClass(card.studentClass);
               if (card.stream) setStream(card.stream);
               if (card.schoolType) setSchoolType(card.schoolType);
@@ -257,6 +276,7 @@ export function SchoolScanScreen() {
     try {
       const result = await submitSchoolScan({
         token,
+        cardType,
         direction,
         studentClass: studentClass.trim(),
         stream: stream.trim(),
@@ -266,6 +286,8 @@ export function SchoolScanScreen() {
         scanPoint: scanPoint.trim() || 'Main gate',
         scannerName: scannerName.trim(),
         scannerPhone: scannerPhone.trim(),
+        expectedScanTime: isOrganization ? (direction === 'entry' ? signInTime : leaveTime) : '',
+        graceMinutes: isOrganization ? graceMinutes : '',
         scannedUrl: window.location.href,
         latitude: gps.latitude,
         longitude: gps.longitude,
@@ -312,9 +334,11 @@ export function SchoolScanScreen() {
           </View>
           <View style={styles.headerCopy}>
             <Text style={styles.kicker}>School Location</Text>
-            <Text style={styles.title}>Student card QR scan</Text>
+            <Text style={styles.title}>{isOrganization ? 'Organization sign in / sign out' : 'Student card QR scan'}</Text>
             <Text style={styles.subtitle}>
-              Open this scanned URL at the school gate. The camera reads the card token, records entry or exit, and prepares the parent notification flow.
+              {isOrganization
+                ? 'Scan the organization card, choose sign in or sign out, and save the scan. Admin reports will show on-time or late status.'
+                : 'Open this scanned URL at the school gate. The camera reads the card token, records entry or exit, and prepares the parent notification flow.'}
             </Text>
           </View>
         </View>
@@ -324,7 +348,7 @@ export function SchoolScanScreen() {
             <View style={styles.cameraHeader}>
               <View>
                 <Text style={styles.cardTitle}>Camera scanner</Text>
-                <Text style={styles.cardText}>Point the phone camera at the student card QR.</Text>
+                <Text style={styles.cardText}>Point the phone camera at the {isOrganization ? 'organization card QR' : 'student card QR'}.</Text>
               </View>
               <View style={styles.cameraBadge}>
                 <Camera size={15} color={colors.primary} />
@@ -384,11 +408,15 @@ export function SchoolScanScreen() {
               <MapPin size={22} color={colors.primary} />
               <View>
                 <Text style={styles.cardTitle}>School scan details</Text>
-                <Text style={styles.cardText}>Class and stream must show on the student card details before saving.</Text>
+                <Text style={styles.cardText}>
+                  {isOrganization
+                    ? 'Sign-in and sign-out scans update the admin reports with time status.'
+                    : 'Class and stream must show on the student card details before saving.'}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.cardDetailsPanel}>
+            {!isOrganization ? <View style={styles.cardDetailsPanel}>
               <Text style={styles.cardDetailsTitle}>Student card details</Text>
               <View style={styles.cardDetails}>
                 <View style={styles.cardDetailItem}>
@@ -400,10 +428,28 @@ export function SchoolScanScreen() {
                   <Text style={styles.cardDetailValue}>{stream || 'Enter stream'}</Text>
                 </View>
               </View>
-            </View>
+            </View> : (
+              <View style={styles.cardDetailsPanel}>
+                <Text style={styles.cardDetailsTitle}>Organization reporting times</Text>
+                <View style={styles.cardDetails}>
+                  <View style={styles.cardDetailItem}>
+                    <Text style={styles.cardDetailLabel}>Sign in</Text>
+                    <Text style={styles.cardDetailValue}>{signInTime || 'Not set'}</Text>
+                  </View>
+                  <View style={styles.cardDetailItem}>
+                    <Text style={styles.cardDetailLabel}>Leave</Text>
+                    <Text style={styles.cardDetailValue}>{leaveTime || 'Not set'}</Text>
+                  </View>
+                  <View style={styles.cardDetailItem}>
+                    <Text style={styles.cardDetailLabel}>Grace</Text>
+                    <Text style={styles.cardDetailValue}>{graceMinutes || '30'} mins</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             <View style={styles.field}>
-              <Text style={styles.label}>Student card QR</Text>
+              <Text style={styles.label}>{isOrganization ? 'Organization card QR' : 'Student card QR'}</Text>
               <Pressable
                 onPress={startCamera}
                 disabled={submitting}
@@ -421,7 +467,7 @@ export function SchoolScanScreen() {
                     {cardToken ? 'Card QR scanned' : 'Tap to open camera'}
                   </Text>
                   <Text style={styles.scanTriggerText}>
-                    {cardToken ? cardToken : 'Scan the student card code at the school gate.'}
+                    {cardToken ? cardToken : `Scan the ${isOrganization ? 'organization' : 'student'} card code.`}
                   </Text>
                 </View>
               </Pressable>
@@ -434,6 +480,7 @@ export function SchoolScanScreen() {
                 onChangeText={(value) => {
                   const card = parseCardPayload(value);
                   setCardToken(card.token);
+                  if (card.cardType) setCardType(normalizeCardType(card.cardType, card.token));
                   if (card.studentClass) setStudentClass(card.studentClass);
                   if (card.stream) setStream(card.stream);
                   if (card.schoolType) setSchoolType(card.schoolType);
@@ -444,14 +491,14 @@ export function SchoolScanScreen() {
               />
             </View>
 
-            <View style={styles.cardDetails}>
+            {!isOrganization ? <View style={styles.cardDetails}>
               <View style={styles.cardDetailItem}>
                 <Text style={styles.cardDetailLabel}>School type</Text>
                 <Text style={styles.cardDetailValue}>{schoolType || 'Not set'}</Text>
               </View>
-            </View>
+            </View> : null}
 
-            <View style={styles.row}>
+            {!isOrganization ? <View style={styles.row}>
               <View style={[styles.field, styles.halfField]}>
                 <Text style={styles.label}>Class</Text>
                 <TextInput
@@ -472,9 +519,9 @@ export function SchoolScanScreen() {
                   style={styles.input}
                 />
               </View>
-            </View>
+            </View> : null}
 
-            <View style={styles.field}>
+            {!isOrganization ? <View style={styles.field}>
               <Text style={styles.label}>School type</Text>
               <View style={styles.row}>
                 <Pressable
@@ -490,40 +537,80 @@ export function SchoolScanScreen() {
                   <Text style={[styles.segmentText, schoolType === 'day' && styles.segmentTextActive]}>Day school</Text>
                 </Pressable>
               </View>
-            </View>
+            </View> : null}
+
+            {isOrganization ? (
+              <View style={styles.row}>
+                <View style={[styles.field, styles.halfField]}>
+                  <Text style={styles.label}>Sign-in time</Text>
+                  <TextInput
+                    value={signInTime}
+                    onChangeText={setSignInTime}
+                    placeholder="08:00"
+                    placeholderTextColor="#8ba0b8"
+                    style={styles.input}
+                  />
+                </View>
+                <View style={[styles.field, styles.halfField]}>
+                  <Text style={styles.label}>Leave time</Text>
+                  <TextInput
+                    value={leaveTime}
+                    onChangeText={setLeaveTime}
+                    placeholder="17:00"
+                    placeholderTextColor="#8ba0b8"
+                    style={styles.input}
+                  />
+                </View>
+                <View style={[styles.field, styles.halfField]}>
+                  <Text style={styles.label}>Grace minutes</Text>
+                  <TextInput
+                    value={graceMinutes}
+                    onChangeText={setGraceMinutes}
+                    placeholder="30"
+                    placeholderTextColor="#8ba0b8"
+                    style={styles.input}
+                    inputMode="numeric"
+                  />
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.row}>
               <Pressable
                 onPress={() => setDirection('entry')}
                 style={[styles.segment, direction === 'entry' && styles.segmentActive]}
               >
-                <Text style={[styles.segmentText, direction === 'entry' && styles.segmentTextActive]}>Coming in</Text>
+                <Text style={[styles.segmentText, direction === 'entry' && styles.segmentTextActive]}>
+                  {isOrganization ? 'Sign in' : 'Coming in'}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => setDirection('exit')}
                 style={[styles.segment, direction === 'exit' && styles.segmentActive]}
               >
-                <Text style={[styles.segmentText, direction === 'exit' && styles.segmentTextActive]}>Going out</Text>
+                <Text style={[styles.segmentText, direction === 'exit' && styles.segmentTextActive]}>
+                  {isOrganization ? 'Sign out' : 'Going out'}
+                </Text>
               </Pressable>
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>School location</Text>
+              <Text style={styles.label}>{isOrganization ? 'Organization location' : 'School location'}</Text>
               <TextInput
                 value={schoolLocation}
                 onChangeText={setSchoolLocation}
-                placeholder="School Location"
+                placeholder={isOrganization ? 'Organization Location' : 'School Location'}
                 placeholderTextColor="#8ba0b8"
                 style={styles.input}
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Gate or scan point</Text>
+              <Text style={styles.label}>{isOrganization ? 'Office or scan point' : 'Gate or scan point'}</Text>
               <TextInput
                 value={scanPoint}
                 onChangeText={setScanPoint}
-                placeholder="Main gate"
+                placeholder={isOrganization ? 'Main entrance' : 'Main gate'}
                 placeholderTextColor="#8ba0b8"
                 style={styles.input}
               />
@@ -560,7 +647,7 @@ export function SchoolScanScreen() {
             ) : null}
 
             <Button icon={CheckCircle2} onPress={saveScan} disabled={submitting} style={styles.saveButton}>
-              {submitting ? 'Saving scan...' : 'Save school gate scan'}
+              {submitting ? 'Saving scan...' : isOrganization ? 'Save organization scan' : 'Save school gate scan'}
             </Button>
           </View>
         </View>

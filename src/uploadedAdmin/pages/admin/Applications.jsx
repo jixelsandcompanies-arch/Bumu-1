@@ -75,6 +75,9 @@ export default function Applications() {
   const [submittingId, setSubmittingId] = useState("");
   const [selectedCardIds, setSelectedCardIds] = useState([]);
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [organizationSignInTime, setOrganizationSignInTime] = useState("08:00");
+  const [organizationLeaveTime, setOrganizationLeaveTime] = useState("17:00");
+  const [organizationGraceMinutes, setOrganizationGraceMinutes] = useState("30");
   const [cardTemplateMode, setCardTemplateMode] = useState(() => {
     const saved = window.localStorage.getItem("bumu-approved-card-template");
     if (saved === "school" || saved === "school-green") return "school-student-green";
@@ -202,7 +205,24 @@ export default function Applications() {
     ]
       .filter(Boolean)
       .join("-");
-    const scanUrl = `${window.location.origin}/school-scan?token=${encodeURIComponent(token)}&class=${encodeURIComponent(studentClass)}&stream=${encodeURIComponent(stream)}&schoolLocation=${encodeURIComponent("School Location")}&scanPoint=${encodeURIComponent("Main Gate")}&scannerName=${encodeURIComponent(scannerName)}&scannerPhone=${encodeURIComponent(scannerPhone)}`;
+    const scanParams = new URLSearchParams({
+      token,
+      cardType: cardKind,
+      class: studentClass,
+      stream,
+      schoolLocation: "School Location",
+      scanPoint: cardKind === "student" ? "Main Gate" : "Organization entrance",
+      scannerName,
+      scannerPhone
+    });
+
+    if (cardKind === "organization") {
+      scanParams.set("signInTime", organizationSignInTime);
+      scanParams.set("leaveTime", organizationLeaveTime);
+      scanParams.set("graceMinutes", organizationGraceMinutes || "30");
+    }
+
+    const scanUrl = `${window.location.origin}/school-scan?${scanParams.toString()}`;
 
     return {
       application,
@@ -217,7 +237,10 @@ export default function Applications() {
       studentClass,
       stream,
       scannerName,
-      scannerPhone
+      scannerPhone,
+      organizationSignInTime,
+      organizationLeaveTime,
+      organizationGraceMinutes
     };
   }
 
@@ -337,8 +360,8 @@ export default function Applications() {
                   <div class="org-details">
                     <span><b>Scanner</b>${escapeHtml(recordRecipientLabel(record))}</span>
                     <span><b>Asset</b>${escapeHtml(record.bike.serialNumber || record.productType || "Not assigned")}</span>
-                    <span><b>Phone</b>${escapeHtml(record.customer.phone || "Not captured")}</span>
-                    <span><b>Status</b>Approved</span>
+                  <span><b>Phone</b>${escapeHtml(record.customer.phone || "Not captured")}</span>
+                    <span><b>Times</b>${escapeHtml(record.organizationSignInTime || "08:00")} in / ${escapeHtml(record.organizationLeaveTime || "17:00")} out</span>
                   </div>
                 </div>
                 <div class="org-qr-panel">
@@ -352,7 +375,7 @@ export default function Applications() {
                 <div>
                   <span class="eyebrow">Organization workflow</span>
                   <h3>Master card use</h3>
-                  <p>Send this link to the scanner phone entered by admin. The user opens the link, the camera starts, then the card is scanned and saved.</p>
+                  <p>Send this link to the scanner phone entered by admin. The user opens the link, scans the card, then signs in or signs out. Admin reports show on-time or late status using the configured grace period.</p>
                 </div>
                 <a href="${escapeHtml(record.scanUrl)}">${escapeHtml(record.scanUrl)}</a>
               </section>
@@ -580,7 +603,7 @@ export default function Applications() {
           <p className="eyebrow">Approved card download</p>
           <h3>Selected printable card files</h3>
           <span>
-            Download real front/back cards. Organization cards use the scanner number below; student cards use the parent or next-of-kin phone.
+            Download real front/back cards. Organization cards use sign-in/sign-out times and a 30-minute grace period; student cards use the parent or next-of-kin phone.
           </span>
         </div>
         <div className="approved-card-actions">
@@ -610,6 +633,32 @@ export default function Applications() {
               onChange={(event) => setWhatsappNumber(event.target.value)}
               placeholder="2547..."
               inputMode="tel"
+            />
+          </label>
+          <label>
+            Org sign-in time
+            <input
+              type="time"
+              value={organizationSignInTime}
+              onChange={(event) => setOrganizationSignInTime(event.target.value)}
+            />
+          </label>
+          <label>
+            Org leave time
+            <input
+              type="time"
+              value={organizationLeaveTime}
+              onChange={(event) => setOrganizationLeaveTime(event.target.value)}
+            />
+          </label>
+          <label>
+            Grace minutes
+            <input
+              type="number"
+              min="0"
+              max="180"
+              value={organizationGraceMinutes}
+              onChange={(event) => setOrganizationGraceMinutes(event.target.value)}
             />
           </label>
           <button className="button secondary" type="button" onClick={downloadSelectedCards}>
