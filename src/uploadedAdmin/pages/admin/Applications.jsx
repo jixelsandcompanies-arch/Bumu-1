@@ -189,6 +189,12 @@ export default function Applications() {
         ? selectedTemplate.kind
         : detectedCardKind;
     const template = templateForRecord(cardKind);
+    const scannerPhone = cardKind === "student"
+      ? recordRecipientPhone({ application, customer, cardKind })
+      : formatWhatsappPhone(whatsappNumber || customer.phone);
+    const scannerName = cardKind === "student"
+      ? (application.nextOfKin?.name || customer.nextOfKin?.name || "Parent scanner")
+      : (customer.name || "Organization scanner");
     const token = [
       cardKind === "student" ? "BUMU-STUDENT" : "BUMU-MASTER",
       application.id,
@@ -196,7 +202,7 @@ export default function Applications() {
     ]
       .filter(Boolean)
       .join("-");
-    const scanUrl = `${window.location.origin}/school-scan?token=${encodeURIComponent(token)}&class=${encodeURIComponent(studentClass)}&stream=${encodeURIComponent(stream)}&schoolLocation=${encodeURIComponent("School Location")}&scanPoint=${encodeURIComponent("Main Gate")}`;
+    const scanUrl = `${window.location.origin}/school-scan?token=${encodeURIComponent(token)}&class=${encodeURIComponent(studentClass)}&stream=${encodeURIComponent(stream)}&schoolLocation=${encodeURIComponent("School Location")}&scanPoint=${encodeURIComponent("Main Gate")}&scannerName=${encodeURIComponent(scannerName)}&scannerPhone=${encodeURIComponent(scannerPhone)}`;
 
     return {
       application,
@@ -209,7 +215,9 @@ export default function Applications() {
       token,
       scanUrl,
       studentClass,
-      stream
+      stream,
+      scannerName,
+      scannerPhone
     };
   }
 

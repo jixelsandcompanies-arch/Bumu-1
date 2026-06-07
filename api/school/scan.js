@@ -73,6 +73,7 @@ export default async function handler(req, res) {
       school_location: schoolLocation,
       scan_point: scanPoint,
       scanner_name: normalizeText(body.scannerName, 120),
+      scanner_phone: normalizeText(body.scannerPhone, 40),
       scanned_at: new Date().toISOString(),
       source: 'school_qr_scan'
     };
@@ -100,9 +101,9 @@ export default async function handler(req, res) {
         .select()
         .maybeSingle();
 
-      if (error && /latitude|longitude|gps_/i.test(error.message || '')) {
-        const { latitude: _latitude, longitude: _longitude, gps_accuracy_m: _accuracy, gps_captured_at: _capturedAt, ...eventWithoutGps } = event;
-        insertPayload = eventWithoutGps;
+      if (error && /latitude|longitude|gps_|scanner_phone/i.test(error.message || '')) {
+        const { latitude: _latitude, longitude: _longitude, gps_accuracy_m: _accuracy, gps_captured_at: _capturedAt, scanner_phone: _scannerPhone, ...eventWithoutOptionalColumns } = event;
+        insertPayload = eventWithoutOptionalColumns;
         const retry = await getSupabase()
           .from('student_gate_events')
           .insert(insertPayload)

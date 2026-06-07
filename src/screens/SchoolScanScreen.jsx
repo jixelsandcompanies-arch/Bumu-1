@@ -19,7 +19,9 @@ function readRouteParams() {
     stream: searchParams.get('stream') || hashParams.get('stream') || '',
     schoolType: searchParams.get('schoolType') || hashParams.get('schoolType') || '',
     location: searchParams.get('schoolLocation') || hashParams.get('schoolLocation') || 'School Location',
-    point: searchParams.get('scanPoint') || hashParams.get('scanPoint') || 'Main gate'
+    point: searchParams.get('scanPoint') || hashParams.get('scanPoint') || 'Main gate',
+    scannerName: searchParams.get('scannerName') || hashParams.get('scannerName') || '',
+    scannerPhone: searchParams.get('scannerPhone') || hashParams.get('scannerPhone') || ''
   };
 }
 
@@ -101,6 +103,8 @@ export function SchoolScanScreen() {
   const [schoolType, setSchoolType] = useState(initialParams.schoolType);
   const [schoolLocation, setSchoolLocation] = useState(initialParams.location);
   const [scanPoint, setScanPoint] = useState(initialParams.point);
+  const [scannerName, setScannerName] = useState(initialParams.scannerName);
+  const [scannerPhone, setScannerPhone] = useState(initialParams.scannerPhone);
   const [direction, setDirection] = useState('entry');
   const [cameraState, setCameraState] = useState('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -260,6 +264,8 @@ export function SchoolScanScreen() {
         gradeUpdateBy: schoolType.toLowerCase().includes('boarding') ? 'class_teacher' : schoolType.toLowerCase().includes('day') ? 'parent' : '',
         schoolLocation: schoolLocation.trim(),
         scanPoint: scanPoint.trim() || 'Main gate',
+        scannerName: scannerName.trim(),
+        scannerPhone: scannerPhone.trim(),
         scannedUrl: window.location.href,
         latitude: gps.latitude,
         longitude: gps.longitude,
@@ -521,6 +527,29 @@ export function SchoolScanScreen() {
                 placeholderTextColor="#8ba0b8"
                 style={styles.input}
               />
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>Scanner name</Text>
+                <TextInput
+                  value={scannerName}
+                  onChangeText={setScannerName}
+                  placeholder="Scanner staff or parent"
+                  placeholderTextColor="#8ba0b8"
+                  style={styles.input}
+                />
+              </View>
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>Scanner phone</Text>
+                <TextInput
+                  value={scannerPhone}
+                  onChangeText={setScannerPhone}
+                  placeholder="Phone number"
+                  placeholderTextColor="#8ba0b8"
+                  style={styles.input}
+                />
+              </View>
             </View>
 
             {statusMessage ? (

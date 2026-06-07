@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bumu-paygo-shell-v7';
+const CACHE_NAME = 'bumu-paygo-shell-v8';
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',

@@ -10,6 +10,7 @@ create table if not exists public.student_gate_events (
   school_location text not null default 'School Location',
   scan_point text not null default 'Main gate',
   scanner_name text,
+  scanner_phone text,
   latitude double precision,
   longitude double precision,
   gps_accuracy_m double precision,
@@ -41,6 +42,12 @@ alter table public.student_gate_events
 
 alter table public.student_gate_events
   add column if not exists grade_update_by text;
+
+alter table public.student_gate_events
+  add column if not exists scanner_name text;
+
+alter table public.student_gate_events
+  add column if not exists scanner_phone text;
 
 alter table public.student_gate_events
   add column if not exists latitude double precision;
