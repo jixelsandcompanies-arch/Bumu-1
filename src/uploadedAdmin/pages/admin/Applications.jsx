@@ -10,6 +10,49 @@ import { getApplicationApprovalBlockers } from "../../lib/admin/applicationCheck
 import { findAgent, findBike, findCustomer } from "../../lib/admin/lookups.js";
 import { formatKes } from "../../lib/formatting/currency.js";
 
+const CARD_TEMPLATE_OPTIONS = [
+  {
+    id: "auto",
+    kind: "auto",
+    title: "Auto choose",
+    description: "Uses school image cards for students and organization image cards for master scanner cards.",
+    image: "/card-templates/organization-executive-card.png"
+  },
+  {
+    id: "school-green",
+    kind: "student",
+    title: "School green card",
+    description: "Student card with class, stream, gate QR, parent link, and school location scan flow.",
+    image: "/card-templates/school-green-card.png"
+  },
+  {
+    id: "school-blue",
+    kind: "student",
+    title: "School blue card",
+    description: "Cleaner school card for class, stream, student photo, and gate scanner QR.",
+    image: "/card-templates/school-blue-card.png"
+  },
+  {
+    id: "organization-staff",
+    kind: "organization",
+    title: "Organization staff card",
+    description: "Staff-style master card for daily scanner use in companies and organizations.",
+    image: "/card-templates/organization-staff-card.png"
+  },
+  {
+    id: "organization-executive",
+    kind: "organization",
+    title: "Organization executive card",
+    description: "Premium organization master scanner card with stronger executive styling.",
+    image: "/card-templates/organization-executive-card.png"
+  }
+];
+
+const DEFAULT_TEMPLATE_BY_KIND = {
+  student: "school-green",
+  organization: "organization-executive"
+};
+
 export default function Applications() {
   const { agents, applications, bikes, customers, updateApplicationStatus } = useAdminData();
   const [message, setMessage] = useState("");
@@ -18,7 +61,12 @@ export default function Applications() {
   const [submittingId, setSubmittingId] = useState("");
   const [selectedCardIds, setSelectedCardIds] = useState([]);
   const [whatsappNumber, setWhatsappNumber] = useState("");
-  const [cardTemplateMode, setCardTemplateMode] = useState("auto");
+  const [cardTemplateMode, setCardTemplateMode] = useState(() => {
+    const saved = window.localStorage.getItem("bumu-approved-card-template");
+    if (saved === "school") return "school-green";
+    if (saved === "organization") return "organization-executive";
+    return CARD_TEMPLATE_OPTIONS.some((template) => template.id === saved) ? saved : "auto";
+  });
 
   const visibleApplications = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -97,6 +145,20 @@ export default function Applications() {
     });
   }
 
+  function chooseCardTemplate(templateId) {
+    setCardTemplateMode(templateId);
+    window.localStorage.setItem("bumu-approved-card-template", templateId);
+  }
+
+  function templateForRecord(cardKind) {
+    const selectedTemplate = CARD_TEMPLATE_OPTIONS.find((template) => template.id === cardTemplateMode);
+    const templateId =
+      !selectedTemplate || selectedTemplate.kind === "auto"
+        ? DEFAULT_TEMPLATE_BY_KIND[cardKind]
+        : selectedTemplate.id;
+    return CARD_TEMPLATE_OPTIONS.find((template) => template.id === templateId) || CARD_TEMPLATE_OPTIONS[1];
+  }
+
   function makeCardRecord(application) {
     const customer = findCustomer(customers, application.customerId) || {};
     const agent = findAgent(agents, application.agentId) || {};
@@ -105,7 +167,12 @@ export default function Applications() {
     const stream = customer.stream || application.stream || "Stream not set";
     const productType = application.productType || customer.productType || bike.productType || "product";
     const detectedCardKind = isStudentCard({ customer, application, productType, studentClass, stream }) ? "student" : "organization";
-    const cardKind = cardTemplateMode === "school" ? "student" : cardTemplateMode === "organization" ? "organization" : detectedCardKind;
+    const selectedTemplate = CARD_TEMPLATE_OPTIONS.find((template) => template.id === cardTemplateMode);
+    const cardKind =
+      selectedTemplate?.kind === "student" || selectedTemplate?.kind === "organization"
+        ? selectedTemplate.kind
+        : detectedCardKind;
+    const template = templateForRecord(cardKind);
     const token = [
       cardKind === "student" ? "BUMU-STUDENT" : "BUMU-MASTER",
       application.id,
@@ -122,6 +189,7 @@ export default function Applications() {
       bike,
       cardKind,
       productType,
+      template,
       token,
       scanUrl,
       studentClass,
@@ -179,15 +247,14 @@ export default function Applications() {
   }
 
   function buildCardsHtml(records) {
-    const schoolTemplateImage = `${window.location.origin}/card-templates/school-card-bg.png`;
-    const organizationTemplateImage = `${window.location.origin}/card-templates/organization-card-bg.png`;
     const cards = records
       .map((record) => {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
+        const templateImage = `${window.location.origin}${record.template?.image || "/card-templates/school-green-card.png"}`;
         return record.cardKind === "student"
           ? `
             <article class="card student-template">
-              <section class="student-front" style="--card-bg: url('${schoolTemplateImage}')">
+              <section class="student-front" style="--card-bg: url('${templateImage}')">
                 <div class="school-band">
                   <div class="crest">BP</div>
                   <div>
@@ -235,7 +302,7 @@ export default function Applications() {
           `
           : `
             <article class="card organization-template">
-              <section class="org-front" style="--card-bg: url('${organizationTemplateImage}')">
+              <section class="org-front" style="--card-bg: url('${templateImage}')">
                 <div class="org-glass">
                   <div class="org-topline">
                     <span>MASTER ACCESS</span>
@@ -504,10 +571,12 @@ export default function Applications() {
           </label>
           <label>
             Card template
-            <select value={cardTemplateMode} onChange={(event) => setCardTemplateMode(event.target.value)}>
-              <option value="auto">Auto choose</option>
-              <option value="school">School image card</option>
-              <option value="organization">Organization image card</option>
+            <select value={cardTemplateMode} onChange={(event) => chooseCardTemplate(event.target.value)}>
+              {CARD_TEMPLATE_OPTIONS.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.title}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -528,6 +597,22 @@ export default function Applications() {
             Send link
           </button>
           <strong>{selectedApprovedApplications.length} selected</strong>
+        </div>
+        <div className="approved-card-template-grid" aria-label="Real card template choices">
+          {CARD_TEMPLATE_OPTIONS.map((template) => (
+            <button
+              className={`approved-card-template ${cardTemplateMode === template.id ? "is-selected" : ""}`}
+              key={template.id}
+              type="button"
+              onClick={() => chooseCardTemplate(template.id)}
+            >
+              <img src={template.image} alt={`${template.title} preview`} />
+              <span>
+                <b>{template.title}</b>
+                <small>{template.description}</small>
+              </span>
+            </button>
+          ))}
         </div>
       </div>
       <DataTable columns={columns} rows={visibleApplications} emptyMessage="No applications match this view." />
