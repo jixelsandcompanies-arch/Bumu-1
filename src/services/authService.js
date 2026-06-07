@@ -36,8 +36,8 @@ async function apiRequest(path, { method = 'GET', body } = {}) {
     });
   } catch (error) {
     throw new Error(error.name === 'AbortError'
-      ? 'Backend request timed out. Check Vercel API logs and Supabase environment variables.'
-      : 'Backend API is not reachable. Leave VITE_API_BASE_URL blank on Vercel or check the backend domain/CORS/CSP settings.');
+      ? 'The request took too long. Please try again.'
+      : 'The system is not reachable right now. Check your connection and try again.');
   } finally {
     clearTimeout(timeout);
   }
@@ -52,7 +52,7 @@ async function apiRequest(path, { method = 'GET', body } = {}) {
   })() : {};
 
   if (!response.ok) {
-    throw new Error(data.message || `Authentication request failed with HTTP ${response.status}. Check that Vercel API routes are deployed.`);
+    throw new Error(data.message || 'Sign in request failed. Please try again.');
   }
 
   return data;

@@ -149,7 +149,7 @@ export function AgentPortalScreen({ canInstall = false, onInstall }) {
       <View style={styles.systemFrame}>
         <Image source={bumuLogo} style={styles.authLogo} />
         <Text style={styles.stateTitle}>Loading agent portal</Text>
-        <Text style={styles.stateText}>Reading agent records from the shared CRM database.</Text>
+        <Text style={styles.stateText}>Loading agent records.</Text>
       </View>
     );
   }
@@ -361,7 +361,7 @@ function AgentAuthScreen({ onAuthenticated, onBack, message }) {
             {mode === 'login'
               ? 'Use your approved agent email.'
               : mode === 'register'
-                ? 'Create an agent profile linked to Supabase Auth and the shared CRM.'
+                ? 'Create an agent profile for the shared Bumu Paygo system.'
                 : 'Enter your email, verify the OTP, and change your password.'}
           </Text>
         </View>

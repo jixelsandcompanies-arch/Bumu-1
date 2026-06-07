@@ -117,7 +117,7 @@ export function CommissionsScreen() {
 
   async function markAgentPaid(agent) {
     const agentKey = agent.agentCode || agent.agentName;
-    const confirmed = window.confirm(`Submit payment request for ${agent.agentName} commissions? The backend must complete the money transfer.`);
+    const confirmed = window.confirm(`Submit payment request for ${agent.agentName} commissions? The system will complete the money transfer.`);
     if (!confirmed) return;
 
     setProcessingId(agentKey);

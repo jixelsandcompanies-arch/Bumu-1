@@ -119,7 +119,7 @@ export function AdminPortalScreen() {
       <View style={styles.systemFrame}>
         <Image source={bumuLogo} style={styles.authLogo} />
         <Text style={styles.stateTitle}>Loading admin portal</Text>
-        <Text style={styles.stateText}>Reading shared CRM records from Supabase.</Text>
+        <Text style={styles.stateText}>Loading shared CRM records.</Text>
       </View>
     );
   }
@@ -245,7 +245,7 @@ function AdminAuthScreen({ onAuthenticated, onBack, message }) {
         </View>
         <View style={styles.authHeading}>
           <Text style={styles.authTitle}>{mode === 'login' ? 'Admin sign in' : 'Create admin account'}</Text>
-          <Text style={styles.authText}>{mode === 'login' ? 'Use your approved admin email.' : 'Create the admin user for the shared Supabase CRM.'}</Text>
+          <Text style={styles.authText}>{mode === 'login' ? 'Use your approved admin email.' : 'Create the admin user for the shared CRM.'}</Text>
         </View>
         <View style={styles.form}>
           {mode === 'register' && (

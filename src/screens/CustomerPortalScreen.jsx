@@ -140,7 +140,7 @@ export function CustomerPortalScreen({ canInstall = false, onInstall }) {
     return (
       <SystemFrame>
         <Text style={styles.stateTitle}>Loading customer portal</Text>
-        <Text style={styles.stateText}>Reading your account from the shared Bumu Paygo database.</Text>
+        <Text style={styles.stateText}>Loading your Bumu Paygo account.</Text>
       </SystemFrame>
     );
   }
@@ -495,7 +495,7 @@ function PaymentTab({ portal, onRefresh }) {
     setSubmitting(true);
     try {
       await customerPortalService.createPaymentRequest({ amount: Number(amount), phone });
-      setMessage('Payment request sent to the backend queue.');
+      setMessage('Payment request sent.');
       setAmount('');
       await onRefresh();
     } catch (error) {
@@ -509,7 +509,7 @@ function PaymentTab({ portal, onRefresh }) {
     <View style={styles.twoColumn}>
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Payment request</Text>
-        <Text style={styles.panelText}>The backend will handle mobile money prompts, provider callbacks, and balance updates.</Text>
+        <Text style={styles.panelText}>The system will handle the mobile money prompt and update your balance after confirmation.</Text>
         <View style={styles.suggestionRow}>
           {suggestions.map((value) => (
             <Pressable key={value} onPress={() => setAmount(String(value))} style={styles.amountChip}>
@@ -542,7 +542,7 @@ function HistoryTab({ portal }) {
         <History size={21} color={colors.primary} />
         <View>
           <Text style={styles.panelTitle}>Payment history</Text>
-          <Text style={styles.panelText}>Confirmed backend and mobile checkout records appear here.</Text>
+          <Text style={styles.panelText}>Confirmed payments and mobile checkout records appear here.</Text>
         </View>
       </View>
       <View style={styles.tableList}>
@@ -571,7 +571,7 @@ function AlertsTab({ portal }) {
         <Bell size={21} color={colors.primary} />
         <View>
           <Text style={styles.panelTitle}>Notifications</Text>
-          <Text style={styles.panelText}>Payment reminders and account updates from the backend.</Text>
+          <Text style={styles.panelText}>Payment reminders and account updates.</Text>
         </View>
       </View>
       <MiniList

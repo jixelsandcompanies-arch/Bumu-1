@@ -277,7 +277,7 @@ export function AdminDataProvider({ children }) {
       setDataError("");
     } catch (error) {
       setDataStatus("error");
-      setDataError(error.message || "Unable to load shared admin database.");
+      setDataError(error.message || "Unable to load admin records.");
     }
   }, [isAuthenticated]);
 

@@ -101,7 +101,7 @@ export default function BackOfficeAuth() {
         <p style={authStyles.copy}>
           {mode === "login"
             ? "Use your approved Back Office email to access screening workflows."
-            : "Create a Back Office profile linked to Supabase Auth and the shared CRM."}
+            : "Create a Back Office profile for the shared CRM."}
         </p>
 
         <form className="form-grid" style={authStyles.form} onSubmit={mode === "login" ? handleLogin : handleRegister}>

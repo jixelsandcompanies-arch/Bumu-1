@@ -19,7 +19,7 @@ export function AdminLayout() {
           ) : null}
           {dataStatus === "error" ? (
             <div className="alert danger">
-              {dataError || "Live admin data could not be loaded. Check Supabase configuration."}
+              {dataError || "Live admin data could not be loaded. Please try again."}
             </div>
           ) : null}
           <Outlet />

@@ -370,7 +370,7 @@ function PortalCardsPage({ onBack, onOpenPortal }) {
           <Text style={styles.kicker}>Portals</Text>
           <Text style={styles.portalPageTitle}>Choose a workspace</Text>
           <Text style={styles.sectionText}>
-            Agent Bumu, Customer Bumu, and Back Office Bumu use the same shared PAYGO database with role-based access.
+            Agent Bumu, Customer Bumu, and Back Office Bumu use the same shared PAYGO records with role-based access.
           </Text>
         </View>
         <Pressable onPress={onBack} style={styles.backHomeButton}>
@@ -481,7 +481,7 @@ function ServicesPage({ onOpenPortals }) {
           ['PAYGO applications', 'Customers and agents can begin the application journey for approved products with the details needed for screening.'],
           ['Customer support', 'Customers receive guidance on repayments, product status, balances, and next steps after approval.'],
           ['Dealer coordination', 'Dealers and field agents can support onboarding and after-sale follow-up as coverage expands across Kenya.'],
-          ['Mobile money readiness', 'The customer journey is designed for Africa\'s Talking mobile checkout repayment flows owned by the backend and payment provider.'],
+          ['Mobile money readiness', 'The customer journey is designed for mobile checkout repayment flows and automatic balance updates.'],
           ['Payment visibility', 'Approved teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
           ['After-sale follow-up', 'Customers can be contacted about missed payments, product needs, and service updates without losing the relationship history.']
         ].map(([title, text]) => (

@@ -20,6 +20,7 @@ import { SchoolScanScreen } from './screens/SchoolScanScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
+import { SupportChatWidget } from './components/ui/SupportChatWidget.jsx';
 import { authService } from './services/authService.js';
 import { getAuthToken } from './services/authSession.js';
 import { notificationService } from './services/notificationService.js';
@@ -426,7 +427,12 @@ export function App() {
   }
 
   if (customerRouteActive) {
-    return <CustomerPortalScreen canInstall={canInstall} onInstall={install} />;
+    return (
+      <>
+        <CustomerPortalScreen canInstall={canInstall} onInstall={install} />
+        <SupportChatWidget />
+      </>
+    );
   }
 
   if (nextOfKinRouteActive) {
@@ -438,7 +444,12 @@ export function App() {
   }
 
   if (agentRouteActive) {
-    return <AgentPortalScreen canInstall={canInstall} onInstall={install} />;
+    return (
+      <>
+        <AgentPortalScreen canInstall={canInstall} onInstall={install} />
+        <SupportChatWidget />
+      </>
+    );
   }
 
   if (backOfficeRouteActive) {
@@ -450,7 +461,12 @@ export function App() {
   }
 
   if (!authenticated) {
-    return authRouteActive ? <LoginScreen onLogin={handleLogin} /> : <PortalLandingScreen />;
+    return (
+      <>
+        {authRouteActive ? <LoginScreen onLogin={handleLogin} /> : <PortalLandingScreen />}
+        <SupportChatWidget />
+      </>
+    );
   }
 
   function handleThemeModeChange(nextTheme) {
@@ -512,6 +528,7 @@ export function App() {
         )}
       </AppShell>
       <Toast message={toastMessage} onClose={() => setToastMessage('')} />
+      <SupportChatWidget />
     </View>
   );
 }

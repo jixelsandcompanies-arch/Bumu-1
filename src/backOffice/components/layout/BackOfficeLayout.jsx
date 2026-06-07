@@ -17,7 +17,7 @@ export function BackOfficeLayout() {
           {dataStatus === "loading" ? <div className="alert soft">Loading screening records...</div> : null}
           {dataStatus === "error" ? (
             <div className="alert danger">
-              {dataError || "Screening records could not be loaded. Check Supabase configuration."}
+              {dataError || "Screening records could not be loaded. Please try again."}
             </div>
           ) : null}
           <Outlet />

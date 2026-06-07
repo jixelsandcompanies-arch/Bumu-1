@@ -208,7 +208,7 @@ export function AuthProvider({ children }) {
       });
       const normalizedUser = normalizeBackendUser(data.user);
       setUser(normalizedUser);
-      return { ok: true, user: normalizedUser, message: "Profile saved to the shared database." };
+      return { ok: true, user: normalizedUser, message: "Profile saved." };
     } catch (error) {
       return { ok: false, message: error.message };
     }
@@ -223,11 +223,11 @@ export function AuthProvider({ children }) {
       return { ok: false, message: "New password and confirmation do not match." };
     }
 
-    return { ok: false, message: "Admin password changes must use the shared backend password reset flow." };
+    return { ok: false, message: "Use password reset to change the admin password." };
   }
 
   async function requestPasswordReset() {
-    return { ok: false, message: "Admin password reset must be handled by the shared backend owner." };
+    return { ok: false, message: "Ask the system owner to reset the admin password." };
   }
 
   function createOtpChallenge(label = "critical action") {

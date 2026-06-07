@@ -326,7 +326,7 @@ function CollectionsLineChart({ trend, maxAmount }) {
       <View style={styles.lineChartHeader}>
         <View>
           <Text style={styles.chartTitle}>Daily collections</Text>
-          <Text style={styles.rowMuted}>Live customer-to-account collections from backend transactions</Text>
+          <Text style={styles.rowMuted}>Live customer-to-account collections from payment transactions</Text>
         </View>
         <Text style={styles.chartTotal}>
           {formatKes(trend.reduce((sum, item) => sum + Number(item.amount || 0), 0))}

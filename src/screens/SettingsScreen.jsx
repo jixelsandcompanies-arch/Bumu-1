@@ -445,7 +445,7 @@ export function SettingsScreen({
         {auditOpen && (
           <View style={styles.auditPanel}>
             <Text style={styles.formTitle}>Activity trail</Text>
-            <Text style={styles.helpText}>No audit records loaded. Connect the backend audit endpoint to show activity here.</Text>
+            <Text style={styles.helpText}>No audit records loaded yet.</Text>
           </View>
         )}
         <SettingRow
@@ -460,7 +460,7 @@ export function SettingsScreen({
         {helpOpen && (
           <View style={styles.helpPanel}>
             <Text style={styles.formTitle}>Support</Text>
-            <Text style={styles.helpText}>Support contact details should be configured by the backend or admin portal.</Text>
+            <Text style={styles.helpText}>Support contact details will be shown here when added by the admin.</Text>
           </View>
         )}
       </SettingsGroup>
