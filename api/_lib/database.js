@@ -10,7 +10,7 @@ import {
   sendScreeningSms
 } from './africastalking.js';
 import { getSupabase } from './supabase.js';
-import { initiateB2CPayout, initiateStkPush } from './africastalking-payments.js';
+import { initiateB2CPayout, initiateStkPush } from './daraja.js';
 import { validateStrongPassword } from './security.js';
 
 function todayDate() {
@@ -308,6 +308,10 @@ function financeReference(prefix = 'FIN') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
+function looksLikeUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
 function isAlreadySubmitted(status) {
   return ['processing', 'paid'].includes(String(status || '').toLowerCase());
 }
@@ -357,6 +361,7 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
   let payoutStatus = 'queued';
   let providerResponse = {};
   let backendReference = null;
+  let providerReference = null;
   let payoutError = null;
 
   try {
@@ -368,7 +373,8 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
     });
     payoutStatus = payout.status;
     providerResponse = payout.providerResponse || {};
-    backendReference = payout.conversationId || payout.originatorConversationId || null;
+    backendReference = payout.originatorConversationId || payout.conversationId || null;
+    providerReference = payout.conversationId || payout.originatorConversationId || null;
   } catch (error) {
     payoutStatus = 'failed';
     providerResponse = error.providerResponse || {};
@@ -380,7 +386,7 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
     .update({
       status: payoutStatus,
       backend_reference: backendReference,
-      provider_reference: backendReference,
+      provider_reference: providerReference || backendReference,
       provider_response: providerResponse,
       processed_at: payoutStatus === 'failed' ? new Date().toISOString() : null
     })
@@ -400,7 +406,7 @@ async function queueCommissionPayout(commission, referencePrefix = 'FIN') {
       payout_status: payoutStatus,
       payout_requested_at: requestedAt,
       payout_completed_at: payoutStatus === 'paid' ? new Date().toISOString() : null,
-      payout_reference: backendReference || payoutRequest.data?.id || null,
+      payout_reference: providerReference || backendReference || payoutRequest.data?.id || null,
       provider_response: providerResponse,
       payout_error: payoutError
     })
@@ -451,7 +457,7 @@ export async function completePaymentRequest(paymentRequest, {
   providerTransactionId,
   providerResponse = {},
   paidAt,
-  method = 'africastalking_mobile_checkout'
+  method = 'mpesa_stk_push'
 } = {}) {
   const customer = paymentRequest.customers || {};
   const transactionId = providerTransactionId || receipt || providerReference;
@@ -617,7 +623,10 @@ async function findCustomerForProviderPayment({ accountReference, phone }) {
   const rawPhone = nonEmpty(phone);
 
   if (reference) {
-    for (const [column, value] of [['id', reference], ['national_id', reference]]) {
+    const referenceLookups = looksLikeUuid(reference)
+      ? [['id', reference], ['national_id', reference]]
+      : [['national_id', reference]];
+    for (const [column, value] of referenceLookups) {
       const result = await getSupabase()
         .from('customers')
         .select('*')
@@ -663,7 +672,7 @@ export async function completeProviderC2BPayment({
   providerResponse = {},
   paidAt,
   accountReference,
-  method = 'africastalking_mobile_c2b'
+  method = 'mpesa_c2b'
 } = {}) {
   const transactionId = providerTransactionId || receipt || providerReference;
   const paymentReceipt = receipt || transactionId || providerReference;
@@ -730,7 +739,7 @@ export async function completeProviderC2BPayment({
       provider_paid_at: completedAt,
       method,
       status: 'paid',
-      source_portal: 'africastalking_c2b'
+      source_portal: 'mpesa_c2b'
     })
     .select()
     .single();
@@ -767,7 +776,7 @@ export async function completeProviderC2BPayment({
         type: 'payment_confirmed',
         title: 'C2B payment confirmed',
         message: `${customer.customer_name || 'Customer'} paid KES ${paidAmount.toLocaleString('en-KE')}.`,
-        issue: 'Africa\'s Talking C2B callback was received and matched to a customer.',
+        issue: 'M-PESA C2B callback was received and matched to a customer.',
         follow_up: 'Review reconciliation only if the amount or account looks unusual.',
         customer_id: customer.id,
         customer_name: customer.customer_name || '',
@@ -777,7 +786,7 @@ export async function completeProviderC2BPayment({
         amount: paidAmount,
         balance: nextBalance,
         overdue_days: Number(customer.overdue_days || 0),
-        source_portal: 'africastalking_c2b',
+        source_portal: 'mpesa_c2b',
         severity: 'success',
         status: 'unread'
       }),
@@ -792,7 +801,7 @@ export async function completeProviderC2BPayment({
         system_amount: paidAmount,
         date: completedAt.slice(0, 10),
         status: 'matched',
-        source_portal: 'africastalking_c2b'
+        source_portal: 'mpesa_c2b'
       })
   ]);
 
@@ -2624,7 +2633,7 @@ export async function runAutomatedFollowUps({ dryRun = false } = {}) {
       title,
       message: `${customer.customer_name}: ${customerMessage}`,
       issue: overdueDays > 0 ? 'Customer has missed expected repayment.' : 'Customer has repayment due today.',
-      followUp: 'Agent should confirm payment prompt, mobile checkout payment, or customer support action.',
+      followUp: 'Agent should confirm M-PESA prompt, Paybill payment, or customer support action.',
       severity: overdueDays >= 3 ? 'critical' : overdueDays > 0 ? 'warning' : 'info',
       amount,
       overdueDays,

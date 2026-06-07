@@ -605,10 +605,10 @@ function RegisterTab({ portal, onRefresh }) {
       const result = await agentWorkspaceService.createCustomer(form);
       const promptStatus = result.paymentRequest?.status;
       const promptMessage = promptStatus === 'failed'
-        ? 'Deposit request was saved but the mobile money prompt failed. Check Africa\'s Talking payment settings.'
+        ? 'Deposit request was saved but the M-PESA prompt failed. Check Daraja payment settings.'
         : promptStatus === 'queued'
-          ? 'Deposit request was queued. Configure Africa\'s Talking payment settings to send the mobile money prompt.'
-          : 'Customer mobile money prompt was sent for the deposit.';
+          ? 'Deposit request was queued. Configure Daraja payment settings to send the M-PESA prompt.'
+          : 'Customer M-PESA prompt was sent for the deposit.';
       if (result.nextOfKinOtpRequired && result.customer?.id) {
         setPendingCustomerId('');
         setNextOfKinOtp('');

@@ -2,7 +2,7 @@ import { sendJson } from './_lib/http.js';
 import { proxyBackend } from './_lib/backend.js';
 import { getSupabase, hasSupabaseAuthConfig, hasSupabaseConfig } from './_lib/supabase.js';
 import { hasSmsConfig, smsConfigDiagnostics } from './_lib/africastalking.js';
-import { africasTalkingPaymentDiagnostics } from './_lib/africastalking-payments.js';
+import { darajaPaymentDiagnostics } from './_lib/daraja.js';
 
 const REQUIRED_TABLES = [
   'admin_profiles',
@@ -81,9 +81,9 @@ export default async function handler(req, res) {
           hasSmsConfig() ||
           Boolean(process.env.RESEND_API_KEY && process.env.OTP_FROM_EMAIL)
         ) && Boolean(process.env.OTP_PEPPER && process.env.OTP_PEPPER !== 'bumu-paygo'),
-        paymentProvider: process.env.PAYMENT_PROVIDER || 'africastalking',
-        paymentConfig: africasTalkingPaymentDiagnostics(),
-        commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'africastalking'
+        paymentProvider: process.env.PAYMENT_PROVIDER || 'daraja',
+        paymentConfig: darajaPaymentDiagnostics(),
+        commissionPayoutProvider: process.env.COMMISSION_PAYOUT_PROVIDER || process.env.PAYOUT_PROVIDER || 'daraja'
       },
       error: serviceRoleCheck.error
         ? serviceRoleCheck.error.message

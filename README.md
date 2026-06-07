@@ -29,21 +29,34 @@ CRON_SECRET=generate-a-long-random-secret
 OTP_PEPPER=generate-a-long-random-secret
 PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
-PAYMENT_PROVIDER=africastalking
-COMMISSION_PAYOUT_PROVIDER=africastalking
+PAYMENT_PROVIDER=daraja
+COMMISSION_PAYOUT_PROVIDER=daraja
 AFRICASTALKING_USERNAME=
 AFRICASTALKING_API_KEY=
 AFRICASTALKING_SENDER_ID=
 AFRICASTALKING_SANDBOX=false
 AFRICASTALKING_INBOUND_SECRET=
-AFRICASTALKING_PAYMENT_PRODUCT=
-AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL=
-AFRICASTALKING_PAYMENT_CURRENCY=KES
-AFRICASTALKING_PAYMENTS_SANDBOX=false
-AFRICASTALKING_B2C_REASON=BusinessPayment
+DARAJA_ENV=sandbox
+DARAJA_CONSUMER_KEY=
+DARAJA_CONSUMER_SECRET=
+DARAJA_BUSINESS_SHORT_CODE=174379
+DARAJA_PASSKEY=
+DARAJA_TRANSACTION_TYPE=CustomerPayBillOnline
+DARAJA_CALLBACK_URL=https://your-vercel-domain.vercel.app/api/mpesa/callback?secret=YOUR_PAYMENT_CALLBACK_SECRET
+DARAJA_C2B_SHORT_CODE=174379
+DARAJA_C2B_VALIDATION_URL=https://your-vercel-domain.vercel.app/api/mpesa/validation?secret=YOUR_PAYMENT_CALLBACK_SECRET
+DARAJA_C2B_CONFIRMATION_URL=https://your-vercel-domain.vercel.app/api/mpesa/confirmation?secret=YOUR_PAYMENT_CALLBACK_SECRET
+DARAJA_C2B_RESPONSE_TYPE=Completed
+DARAJA_C2B_COMMAND_ID=CustomerPayBillOnline
+DARAJA_B2C_SHORT_CODE=
+DARAJA_B2C_INITIATOR_NAME=
+DARAJA_B2C_SECURITY_CREDENTIAL=
+DARAJA_B2C_RESULT_URL=https://your-vercel-domain.vercel.app/api/commissions/payout-callback?secret=YOUR_PAYOUT_CALLBACK_SECRET
+DARAJA_B2C_TIMEOUT_URL=https://your-vercel-domain.vercel.app/api/commissions/payout-callback?secret=YOUR_PAYOUT_CALLBACK_SECRET
+DARAJA_B2C_COMMAND_ID=BusinessPayment
 ```
 
-Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking. In Kenya, the live dashboard may not show a Payments menu; ask Africa's Talking Payments support for the API payment product/channel values after they host your Paybill or enable B2C. Set `AFRICASTALKING_PAYMENT_PRODUCT` and, if supplied, `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL`.
+Set `AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` from your Africa's Talking app. Set `AFRICASTALKING_SENDER_ID` after your sender ID is approved. SMS OTPs, approvals, next-of-kin acceptance links, reminders, payment notices, and commission notices use Africa's Talking. Set `DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_BUSINESS_SHORT_CODE`, and `DARAJA_PASSKEY` from your Safaricom Daraja app for M-PESA STK Push collection.
 
 ## Supabase Setup
 
@@ -100,15 +113,35 @@ where email = 'name@bumupaygo.co.ke';
 
 If a separate backend is later deployed, set `BACKEND_API_URL` and the Vercel routes will proxy to that backend instead of using Supabase directly.
 
-For Africa's Talking payments and payouts, configure this callback URL on the Africa's Talking payment product:
+For Daraja STK Push callbacks, configure this callback URL:
 
 ```text
-https://your-vercel-domain.vercel.app/api/africastalking/payments-callback?secret=YOUR_PAYMENT_CALLBACK_SECRET
+https://your-vercel-domain.vercel.app/api/mpesa/callback?secret=YOUR_PAYMENT_CALLBACK_SECRET
 ```
 
 Set `PAYMENT_CALLBACK_SECRET` in Vercel and put the same value in the callback URL query string as shown above. If no callback secret is configured, callback routes reject requests.
 
-For Kenya Mobile C2B, email `payments@africastalking.com` and ask them to host your Paybill. Include your organization name, Paybill number, callback URL, contact/admin details, and the payment product/channel values they assign. Normal hosted-Paybill C2B callbacks can be recorded even when the app did not create a payment request first, as long as the customer pays using an account reference that matches a customer ID, national ID, or registered customer phone. For B2C commission payouts, Africa's Talking support may require a Bulk Payment shortcode; use the values they provide in `AFRICASTALKING_PAYMENT_PRODUCT` and `AFRICASTALKING_PAYMENT_PROVIDER_CHANNEL`.
+For C2B Paybill payments made outside STK Push, register these Daraja URLs for your shortcode:
+
+```text
+Validation URL: https://your-vercel-domain.vercel.app/api/mpesa/validation?secret=YOUR_PAYMENT_CALLBACK_SECRET
+Confirmation URL: https://your-vercel-domain.vercel.app/api/mpesa/confirmation?secret=YOUR_PAYMENT_CALLBACK_SECRET
+```
+
+Normal Paybill C2B callbacks can be recorded even when the app did not create a payment request first, as long as the customer pays using an account reference that matches a customer ID, national ID, or registered customer phone. For B2C commission payouts, set the Daraja initiator name, encrypted security credential, B2C shortcode, result URL, and timeout URL after Safaricom enables B2C on your shortcode.
+
+After setting the Daraja C2B env vars, register the URLs from the backend:
+
+```text
+POST https://your-vercel-domain.vercel.app/api/mpesa/register-urls?secret=YOUR_PAYMENT_CALLBACK_SECRET
+```
+
+For sandbox C2B testing, simulate a Paybill payment:
+
+```text
+POST https://your-vercel-domain.vercel.app/api/mpesa/simulate-c2b?secret=YOUR_PAYMENT_CALLBACK_SECRET
+Body: { "amount": 100, "phone": "254708374149", "accountReference": "CUSTOMER_ID_OR_NATIONAL_ID" }
+```
 
 ## Automated Follow-Ups
 
@@ -116,7 +149,7 @@ Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The 
 
 ## Payments
 
-Bumu Paygo uses Africa's Talking for SMS and payment movement: OTPs, approval messages, next-of-kin links, reminders, payment confirmations, commission notifications, customer C2B mobile checkout, and finance B2C commission payouts.
+Bumu Paygo uses Africa's Talking for SMS and Safaricom Daraja for money movement. Daraja handles customer STK Push payment prompts, C2B Paybill confirmations, and optional finance B2C commission payouts.
 
 For next-of-kin SMS acceptance, set your Africa's Talking incoming SMS callback URL to:
 

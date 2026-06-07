@@ -5,9 +5,14 @@ import { getSupabase } from '../_lib/supabase.js';
 
 function payoutStatus(value) {
   const normalized = String(value || '').toLowerCase();
+  if (Number(value) === 0) return 'paid';
   if (['success', 'successful', 'completed'].includes(normalized)) return 'paid';
   if (['failed', 'failure', 'cancelled', 'canceled'].includes(normalized)) return 'failed';
   return 'processing';
+}
+
+function darajaResult(body) {
+  return body?.Result || body?.result || null;
 }
 
 export default async function handler(req, res) {
@@ -24,8 +29,14 @@ export default async function handler(req, res) {
     }
 
     const body = await readJson(req);
-    const transactionId = body.transactionId || body.providerRefId || body.provider_reference || body.id;
-    const status = payoutStatus(body.status || body.statusCode);
+    const resultBody = darajaResult(body);
+    const transactionId = resultBody?.ConversationID ||
+      resultBody?.OriginatorConversationID ||
+      body.transactionId ||
+      body.providerRefId ||
+      body.provider_reference ||
+      body.id;
+    const status = payoutStatus(resultBody?.ResultCode ?? body.status ?? body.statusCode);
     const completedAt = status === 'paid' || status === 'failed' ? new Date().toISOString() : null;
 
     if (!transactionId) {
@@ -68,7 +79,7 @@ export default async function handler(req, res) {
         payout_completed_at: status === 'paid' ? completedAt : null,
         payout_reference: transactionId,
         provider_response: body,
-        payout_error: status === 'failed' ? body.description || body.message || 'Payout failed.' : null
+        payout_error: status === 'failed' ? resultBody?.ResultDesc || body.description || body.message || 'Payout failed.' : null
       })
       .eq('id', payoutRequest.data.commission_id)
       .select()

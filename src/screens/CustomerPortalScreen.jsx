@@ -509,7 +509,7 @@ function PaymentTab({ portal, onRefresh }) {
     <View style={styles.twoColumn}>
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Payment request</Text>
-        <Text style={styles.panelText}>The system will handle the mobile money prompt and update your balance after confirmation.</Text>
+        <Text style={styles.panelText}>The system will handle the M-PESA prompt and update your balance after confirmation.</Text>
         <View style={styles.suggestionRow}>
           {suggestions.map((value) => (
             <Pressable key={value} onPress={() => setAmount(String(value))} style={styles.amountChip}>
@@ -518,7 +518,7 @@ function PaymentTab({ portal, onRefresh }) {
           ))}
         </View>
         <Field label="Amount in KES" value={amount} onChangeText={setAmount} placeholder="Enter amount" keyboardType="numeric" />
-        <Field label="Payment phone" value={phone} onChangeText={setPhone} placeholder="Enter mobile money phone" />
+        <Field label="Payment phone" value={phone} onChangeText={setPhone} placeholder="Enter M-PESA phone" />
         {message ? <Text style={styles.greenText}>{message}</Text> : null}
         <Button icon={CreditCard} onPress={submit} disabled={submitting} style={styles.fullButton}>
           {submitting ? 'Sending...' : 'Send payment request'}
@@ -542,7 +542,7 @@ function HistoryTab({ portal }) {
         <History size={21} color={colors.primary} />
         <View>
           <Text style={styles.panelTitle}>Payment history</Text>
-          <Text style={styles.panelText}>Confirmed payments and mobile checkout records appear here.</Text>
+          <Text style={styles.panelText}>Confirmed payments and M-PESA checkout records appear here.</Text>
         </View>
       </View>
       <View style={styles.tableList}>

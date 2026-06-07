@@ -1,6 +1,7 @@
 import { sendPaymentConfirmedSms } from '../_lib/africastalking.js';
 import { completePaymentRequest, failPaymentRequest } from '../_lib/database.js';
 import { isCallbackAuthorized } from '../_lib/callbackAuth.js';
+import { parseDarajaStkCallback } from '../_lib/daraja.js';
 import { readJson, sendJson } from '../_lib/http.js';
 import { getSupabase } from '../_lib/supabase.js';
 
@@ -23,10 +24,15 @@ export default async function handler(req, res) {
     }
 
     const body = await readJson(req);
-    const transactionId = body.transactionId || body.provider_reference || body.id;
-    const paid = String(body.status || '').toLowerCase() === 'success';
+    const darajaCallback = parseDarajaStkCallback(body);
+    const transactionId = darajaCallback?.checkoutRequestId ||
+      darajaCallback?.merchantRequestId ||
+      body.transactionId ||
+      body.provider_reference ||
+      body.id;
+    const paid = darajaCallback ? darajaCallback.success : String(body.status || '').toLowerCase() === 'success';
     const amount = parseAmount(body.value || body.amount);
-    const phone = body.phoneNumber || body.phone;
+    const phone = darajaCallback?.phone || body.phoneNumber || body.phone;
 
     if (!transactionId) {
       sendJson(res, 400, { message: 'Missing payment transactionId.' });
@@ -49,14 +55,14 @@ export default async function handler(req, res) {
 
     if (paid) {
       const result = await completePaymentRequest(paymentRequest, {
-        amount,
+        amount: darajaCallback?.amount || amount || paymentRequest.amount,
         phone,
-        receipt: transactionId,
+        receipt: darajaCallback?.receipt || transactionId,
         providerReference: transactionId,
-        providerTransactionId: transactionId,
+        providerTransactionId: darajaCallback?.receipt || transactionId,
         providerResponse: body,
         paidAt: new Date().toISOString(),
-        method: 'africastalking_mobile_checkout'
+        method: darajaCallback ? 'mpesa_stk_push' : 'provider_mobile_checkout'
       });
 
       await sendPaymentConfirmedSms({
@@ -68,7 +74,7 @@ export default async function handler(req, res) {
       }).catch(() => null);
     } else {
       await failPaymentRequest(paymentRequest.id, {
-        reason: body.description || body.message || 'Payment failed.',
+        reason: darajaCallback?.resultDescription || body.description || body.message || 'Payment failed.',
         providerResponse: body
       });
     }

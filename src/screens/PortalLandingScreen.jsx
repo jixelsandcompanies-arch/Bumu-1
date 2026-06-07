@@ -83,7 +83,7 @@ const serviceHighlights = [
   },
   {
     title: 'Mobile money convenience',
-    text: 'Payments are designed around familiar Kenyan mobile money habits through Africa\'s Talking payment flows.'
+    text: 'Payments are designed around familiar Kenyan M-PESA habits through Safaricom Daraja payment flows.'
   },
   {
     title: 'Agent and dealer support',
@@ -481,7 +481,7 @@ function ServicesPage({ onOpenPortals }) {
           ['PAYGO applications', 'Customers and agents can begin the application journey for approved products with the details needed for screening.'],
           ['Customer support', 'Customers receive guidance on repayments, product status, balances, and next steps after approval.'],
           ['Dealer coordination', 'Dealers and field agents can support onboarding and after-sale follow-up as coverage expands across Kenya.'],
-          ['Mobile money readiness', 'The customer journey is designed for mobile checkout repayment flows and automatic balance updates.'],
+          ['M-PESA readiness', 'The customer journey is designed for STK Push repayment flows and automatic balance updates.'],
           ['Payment visibility', 'Approved teams can review collections, commissions, reports, and payment outcomes through controlled portal access.'],
           ['After-sale follow-up', 'Customers can be contacted about missed payments, product needs, and service updates without losing the relationship history.']
         ].map(([title, text]) => (
