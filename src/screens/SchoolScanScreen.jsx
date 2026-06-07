@@ -380,16 +380,6 @@ export function SchoolScanScreen() {
                 <Text style={styles.cardDetailLabel}>School type</Text>
                 <Text style={styles.cardDetailValue}>{schoolType || 'Not set'}</Text>
               </View>
-              <View style={styles.cardDetailItem}>
-                <Text style={styles.cardDetailLabel}>Grade update by</Text>
-                <Text style={styles.cardDetailValue}>
-                  {schoolType.toLowerCase().includes('boarding')
-                    ? 'Class teacher'
-                    : schoolType.toLowerCase().includes('day')
-                      ? 'Parent'
-                      : 'Not set'}
-                </Text>
-              </View>
             </View>
 
             <View style={styles.row}>
