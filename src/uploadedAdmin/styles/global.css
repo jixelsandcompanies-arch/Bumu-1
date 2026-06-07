@@ -631,6 +631,11 @@ b {
   vertical-align: middle;
 }
 
+.data-table td:has(.status-badge),
+.data-table th:has(.status-badge) {
+  text-align: center;
+}
+
 .data-table th {
   background: var(--panel-soft);
   color: #47514f;
@@ -650,8 +655,10 @@ b {
 
 .status-badge {
   display: inline-flex;
+  min-width: 84px;
   min-height: 28px;
   align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 0 10px;
   background: var(--blue-soft);
