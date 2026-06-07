@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-label="School card background">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="0.56" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e8fff1"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f3b8f"/>
+      <stop offset="0.62" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0f2341" flood-opacity=".18"/>
+    </filter>
+    <pattern id="micro" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M0 17H34M17 0V34" stroke="#0f4ed8" stroke-opacity=".055" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect x="18" y="18" width="924" height="564" rx="36" fill="url(#paper)" filter="url(#shadow)"/>
+  <rect x="18" y="18" width="924" height="564" rx="36" fill="url(#micro)"/>
+  <path d="M18 18h924v116H18z" fill="#fff"/>
+  <path d="M18 134h924v12H18z" fill="#16a34a"/>
+  <circle cx="87" cy="76" r="42" fill="url(#blue)"/>
+  <circle cx="87" cy="76" r="33" fill="none" stroke="#fff" stroke-width="3" opacity=".9"/>
+  <text x="87" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="800" fill="#fff">BP</text>
+  <text x="142" y="67" font-family="Arial, sans-serif" font-size="17" font-weight="800" letter-spacing="2" fill="#0f4ed8">SCHOOL GATE PASS</text>
+  <text x="142" y="99" font-family="Arial, sans-serif" font-size="31" font-weight="800" fill="#132033">BUMU PAYGO STUDENT</text>
+  <rect x="781" y="54" width="112" height="44" rx="22" fill="#dcfce7"/>
+  <text x="837" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="800" fill="#166534">ACTIVE</text>
+  <rect x="42" y="178" width="170" height="218" rx="24" fill="#fff" stroke="#dbe7f5" stroke-width="2"/>
+  <rect x="60" y="198" width="134" height="168" rx="18" fill="url(#blue)"/>
+  <path d="M58 431h844" stroke="#0f172a" stroke-width="54" stroke-linecap="round"/>
+  <rect x="674" y="178" width="184" height="184" rx="24" fill="#fff" stroke="#dbe7f5" stroke-width="2"/>
+  <path d="M702 206h128v128H702z" fill="#eef6ff"/>
+  <path d="M718 222h30v30h-30zm66 0h30v30h-30zm-66 66h30v30h-30zm52-36h18v18h-18zm-34 34h16v16h-16zm64 14h18v18h-18z" fill="#0f172a"/>
+  <path d="M252 196h360M252 258h280M252 318h316" stroke="#cfe0fb" stroke-width="22" stroke-linecap="round"/>
+  <path d="M252 374h132M414 374h132M576 374h92" stroke="#bbf7d0" stroke-width="28" stroke-linecap="round"/>
+</svg>

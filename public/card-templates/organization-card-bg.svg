@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-label="Organization master card background">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset=".48" stop-color="#0f3b8f"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".22" cy=".16" r=".62">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity=".62"/>
+      <stop offset=".42" stop-color="#38bdf8" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#07111f" flood-opacity=".28"/>
+    </filter>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M0 0H42V42" fill="none" stroke="#fff" stroke-opacity=".055" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect x="18" y="18" width="924" height="564" rx="38" fill="url(#base)" filter="url(#shadow)"/>
+  <rect x="18" y="18" width="924" height="564" rx="38" fill="url(#glow)"/>
+  <rect x="18" y="18" width="924" height="564" rx="38" fill="url(#grid)"/>
+  <path d="M68 68h600c34 0 62 28 62 62v340c0 34-28 62-62 62H68z" fill="#fff" fill-opacity=".11" stroke="#fff" stroke-opacity=".24" stroke-width="2"/>
+  <path d="M84 96h220" stroke="#dbeafe" stroke-opacity=".62" stroke-width="16" stroke-linecap="round"/>
+  <path d="M84 154h470" stroke="#fff" stroke-opacity=".84" stroke-width="34" stroke-linecap="round"/>
+  <path d="M84 210h380" stroke="#dbeafe" stroke-opacity=".46" stroke-width="18" stroke-linecap="round"/>
+  <rect x="82" y="296" width="170" height="70" rx="18" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".2"/>
+  <rect x="272" y="296" width="170" height="70" rx="18" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".2"/>
+  <rect x="82" y="386" width="170" height="70" rx="18" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".2"/>
+  <rect x="272" y="386" width="170" height="70" rx="18" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".2"/>
+  <rect x="752" y="154" width="154" height="220" rx="30" fill="#fff"/>
+  <rect x="776" y="178" width="106" height="106" fill="#eef6ff"/>
+  <path d="M792 194h26v26h-26zm48 0h26v26h-26zm-48 48h26v26h-26zm38-20h18v18h-18zm-26 30h14v14h-14zm50 10h12v12h-12z" fill="#0f172a"/>
+  <text x="829" y="327" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="900" letter-spacing="7" fill="#0f4ed8">SCAN</text>
+  <path d="M62 520h780" stroke="#38bdf8" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M789 68c49 31 86 78 110 141" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="14" stroke-linecap="round"/>
+</svg>

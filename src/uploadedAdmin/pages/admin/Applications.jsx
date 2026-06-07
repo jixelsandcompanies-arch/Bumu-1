@@ -177,13 +177,15 @@ export default function Applications() {
   }
 
   function buildCardsHtml(records) {
+    const schoolTemplateImage = `${window.location.origin}/card-templates/school-card-bg.svg`;
+    const organizationTemplateImage = `${window.location.origin}/card-templates/organization-card-bg.svg`;
     const cards = records
       .map((record) => {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(record.scanUrl)}`;
         return record.cardKind === "student"
           ? `
             <article class="card student-template">
-              <section class="student-front">
+              <section class="student-front" style="--card-bg: url('${schoolTemplateImage}')">
                 <div class="school-band">
                   <div class="crest">BP</div>
                   <div>
@@ -231,7 +233,7 @@ export default function Applications() {
           `
           : `
             <article class="card organization-template">
-              <section class="org-front">
+              <section class="org-front" style="--card-bg: url('${organizationTemplateImage}')">
                 <div class="org-glass">
                   <div class="org-topline">
                     <span>MASTER ACCESS</span>
@@ -278,12 +280,13 @@ export default function Applications() {
     .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 26px; align-items: start; }
     .card { display: grid; gap: 12px; page-break-inside: avoid; }
     .student-front, .student-back, .org-front, .org-back { min-height: 268px; border-radius: 16px; overflow: hidden; box-shadow: 0 22px 46px rgba(15, 35, 65, .18); }
-    .school-band { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 16px 18px; background: #ffffff; border-bottom: 5px solid #16a34a; }
+    .student-front, .org-front { background-image: var(--card-bg); background-size: cover; background-position: center; }
+    .school-band { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 16px 18px; background: rgba(255,255,255,.92); border-bottom: 5px solid #16a34a; }
     .crest { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #0f4ed8; color: white; font-weight: 800; }
     .school-band span, .eyebrow { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #0f4ed8; }
     .school-band strong { font-size: 18px; }
     .school-band b { border-radius: 999px; background: #dcfce7; color: #166534; padding: 8px 12px; font-size: 12px; }
-    .student-main { display: grid; grid-template-columns: 96px 1fr 132px; gap: 14px; align-items: center; padding: 18px; background: linear-gradient(135deg, #f8fbff 0%, #ffffff 56%, #ecfdf5 100%); }
+    .student-main { display: grid; grid-template-columns: 96px 1fr 132px; gap: 14px; align-items: center; padding: 18px; background: rgba(255,255,255,.76); backdrop-filter: blur(1px); }
     .student-photo { width: 96px; height: 116px; display: grid; place-items: center; border: 4px solid #ffffff; border-radius: 12px; background: linear-gradient(135deg, #0f4ed8, #38bdf8); color: white; font-size: 42px; font-weight: 800; box-shadow: 0 12px 28px rgba(15, 78, 216, .22); }
     .label { margin: 0 0 4px; color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; }
     h2, h3 { margin: 0; line-height: 1.1; }
@@ -300,7 +303,7 @@ export default function Applications() {
     .student-back { display: grid; gap: 14px; padding: 18px; background: #ffffff; border: 1px solid #cfe0fb; }
     .student-back ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.45; color: #334155; }
     a { color: #0f4ed8; overflow-wrap: anywhere; font-size: 12px; text-decoration: none; }
-    .org-front { position: relative; display: grid; grid-template-columns: 1fr 160px; gap: 18px; align-items: stretch; padding: 20px; background: radial-gradient(circle at 20% 10%, rgba(56,189,248,.42), transparent 25%), linear-gradient(135deg, #08111f 0%, #0f3b8f 58%, #1d4ed8 100%); color: white; }
+    .org-front { position: relative; display: grid; grid-template-columns: 1fr 160px; gap: 18px; align-items: stretch; padding: 20px; color: white; }
     .org-glass { display: grid; align-content: space-between; border: 1px solid rgba(255,255,255,.24); border-radius: 16px; background: rgba(255,255,255,.1); padding: 18px; backdrop-filter: blur(6px); }
     .org-topline { display: flex; justify-content: space-between; gap: 12px; color: #dbeafe; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
     .org-glass h2 { font-size: 30px; margin-top: 28px; }
