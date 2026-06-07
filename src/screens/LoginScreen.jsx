@@ -66,7 +66,7 @@ function AuthHeader({ page }) {
   const subtitle = {
     login: 'Access payments, riders, commissions, reports, and reconciliation.',
     register: '',
-    forgot: 'Enter your account, verify the OTP, and change your password.'
+    forgot: 'Enter your account email, verify the OTP, and change your password.'
   }[page];
 
   return (
@@ -233,7 +233,7 @@ function ForgotPasswordPage() {
       if (!result.delivered) {
         setOtpSent(false);
         setNotice('');
-        setError(result.message || 'OTP could not be delivered. Check the email/SMS provider settings and try again.');
+        setError(result.message || 'OTP could not be delivered. Confirm your email and try again.');
         return;
       }
 
@@ -309,7 +309,7 @@ function ForgotPasswordPage() {
         <>
           <View style={styles.formGroup}>
             <Text style={styles.formGroupTitle}>Account</Text>
-            <Text style={styles.formGroupHelp}>Enter your email and phone number to receive OTP.</Text>
+            <Text style={styles.formGroupHelp}>Enter your email to receive the OTP.</Text>
           </View>
           <Field
             label="Email"
@@ -342,7 +342,7 @@ function ForgotPasswordPage() {
             <>
               <View style={styles.compactActionRow}>
                 <Pressable onPress={backToResendOtp} style={styles.compactLinkButton}>
-                  <Text style={styles.compactLinkText}>No OTP received? Confirm your email and phone number, then resend the code.</Text>
+                  <Text style={styles.compactLinkText}>No OTP received? Confirm your email, then resend the code.</Text>
                 </Pressable>
               </View>
               <View>
