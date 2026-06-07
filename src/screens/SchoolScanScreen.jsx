@@ -15,21 +15,33 @@ function readRouteParams() {
 
   return {
     token: searchParams.get('token') || hashParams.get('token') || '',
+    studentClass: searchParams.get('class') || hashParams.get('class') || '',
+    stream: searchParams.get('stream') || hashParams.get('stream') || '',
     location: searchParams.get('schoolLocation') || hashParams.get('schoolLocation') || 'School Location',
     point: searchParams.get('scanPoint') || hashParams.get('scanPoint') || 'Main gate'
   };
 }
 
-function extractCardToken(value) {
+function parseCardPayload(value) {
   const raw = String(value || '').trim();
-  if (!raw) return '';
+  if (!raw) {
+    return { token: '', studentClass: '', stream: '' };
+  }
 
   try {
     const url = new URL(raw, window.location.origin);
-    return url.searchParams.get('token') || url.searchParams.get('card') || raw;
+    return {
+      token: url.searchParams.get('token') || url.searchParams.get('card') || raw,
+      studentClass: url.searchParams.get('class') || url.searchParams.get('studentClass') || '',
+      stream: url.searchParams.get('stream') || ''
+    };
   } catch {
-    return raw;
+    return { token: raw, studentClass: '', stream: '' };
   }
+}
+
+function extractCardToken(value) {
+  return parseCardPayload(value).token;
 }
 
 async function submitSchoolScan(payload) {
@@ -56,6 +68,8 @@ export function SchoolScanScreen() {
   const streamRef = useRef(null);
   const frameRef = useRef(0);
   const [cardToken, setCardToken] = useState(() => extractCardToken(initialParams.token));
+  const [studentClass, setStudentClass] = useState(initialParams.studentClass);
+  const [stream, setStream] = useState(initialParams.stream);
   const [schoolLocation, setSchoolLocation] = useState(initialParams.location);
   const [scanPoint, setScanPoint] = useState(initialParams.point);
   const [direction, setDirection] = useState('entry');
@@ -124,8 +138,10 @@ export function SchoolScanScreen() {
           const codes = await detector.detect(videoRef.current);
           const value = codes[0]?.rawValue;
           if (value) {
-            const token = extractCardToken(value);
-            setCardToken(token);
+            const card = parseCardPayload(value);
+            setCardToken(card.token);
+            if (card.studentClass) setStudentClass(card.studentClass);
+            if (card.stream) setStream(card.stream);
             setStatusMessage('QR token found. Confirm the school location and save the scan.');
             stopCamera();
             setCameraState('detected');
@@ -166,6 +182,8 @@ export function SchoolScanScreen() {
       const result = await submitSchoolScan({
         token,
         direction,
+        studentClass: studentClass.trim(),
+        stream: stream.trim(),
         schoolLocation: schoolLocation.trim(),
         scanPoint: scanPoint.trim() || 'Main gate',
         scannedUrl: window.location.href
@@ -182,6 +200,8 @@ export function SchoolScanScreen() {
 
   function clearScan() {
     setCardToken('');
+    setStudentClass('');
+    setStream('');
     setLastResult(null);
     setStatusMessage('');
     setCameraState('idle');
@@ -291,11 +311,50 @@ export function SchoolScanScreen() {
               <Text style={styles.label}>Manual QR token fallback</Text>
               <TextInput
                 value={cardToken}
-                onChangeText={setCardToken}
+                onChangeText={(value) => {
+                  const card = parseCardPayload(value);
+                  setCardToken(card.token);
+                  if (card.studentClass) setStudentClass(card.studentClass);
+                  if (card.stream) setStream(card.stream);
+                }}
                 placeholder="Only type here if camera cannot scan"
                 placeholderTextColor="#8ba0b8"
                 style={styles.input}
               />
+            </View>
+
+            <View style={styles.cardDetails}>
+              <View style={styles.cardDetailItem}>
+                <Text style={styles.cardDetailLabel}>Class</Text>
+                <Text style={styles.cardDetailValue}>{studentClass || 'Not set'}</Text>
+              </View>
+              <View style={styles.cardDetailItem}>
+                <Text style={styles.cardDetailLabel}>Stream</Text>
+                <Text style={styles.cardDetailValue}>{stream || 'Not set'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>Class</Text>
+                <TextInput
+                  value={studentClass}
+                  onChangeText={setStudentClass}
+                  placeholder="e.g. Grade 6"
+                  placeholderTextColor="#8ba0b8"
+                  style={styles.input}
+                />
+              </View>
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>Stream</Text>
+                <TextInput
+                  value={stream}
+                  onChangeText={setStream}
+                  placeholder="e.g. Blue"
+                  placeholderTextColor="#8ba0b8"
+                  style={styles.input}
+                />
+              </View>
             </View>
 
             <View style={styles.row}>
@@ -520,6 +579,10 @@ const styles = StyleSheet.create({
   field: {
     gap: 7
   },
+  halfField: {
+    flex: 1,
+    minWidth: 130
+  },
   label: {
     color: colors.slate,
     fontSize: 13,
@@ -579,6 +642,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     outlineStyle: 'none',
     fontSize: 16
+  },
+  cardDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  cardDetailItem: {
+    flex: 1,
+    minWidth: 130,
+    borderWidth: 1,
+    borderColor: '#d5e6ff',
+    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    padding: 11,
+    gap: 4
+  },
+  cardDetailLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase'
+  },
+  cardDetailValue: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600'
   },
   row: {
     flexDirection: 'row',

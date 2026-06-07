@@ -34,6 +34,8 @@ export default async function handler(req, res) {
     const schoolLocation = normalizeText(body.schoolLocation) || 'School Location';
     const scanPoint = normalizeText(body.scanPoint) || 'Main gate';
     const direction = normalizeDirection(body.direction);
+    const studentClass = normalizeText(body.studentClass);
+    const stream = normalizeText(body.stream);
 
     if (!token) {
       sendJson(res, 400, { message: 'Student card QR token is required.' });
@@ -44,6 +46,8 @@ export default async function handler(req, res) {
       card_token: token,
       scanned_url: normalizeText(body.scannedUrl),
       direction,
+      student_class: studentClass,
+      stream,
       school_location: schoolLocation,
       scan_point: scanPoint,
       scanner_name: normalizeText(body.scannerName),
