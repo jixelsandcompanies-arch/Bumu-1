@@ -7,41 +7,69 @@ import { colors } from '../../theme/colors.js';
 const starterMessage = {
   id: 'welcome',
   from: 'assistant',
-  text: 'Hi, I can help with login, registration, OTP, payments, school scanning, and account approval.'
+  text: 'Hi, I can help with Bumu Paygo portals, OTPs, M-PESA payments, customer registration, commissions, reports, and approvals.'
 };
+
+function hasAny(text, words) {
+  return words.some((word) => text.includes(word));
+}
 
 function simpleReply(input) {
   const text = String(input || '').toLowerCase();
 
-  if (text.includes('otp') || text.includes('code')) {
-    return 'Enter your phone or email, tap send OTP, then check your messages. If it does not arrive, wait a minute and try resend.';
+  if (hasAny(text, ['otp', 'code', 'sms', 'africa', 'africastalking', 'africa\'s talking'])) {
+    return 'Bumu uses Africa\'s Talking for SMS messages and OTPs. Enter the correct phone number, request the OTP, then wait a minute before resending. Customer activation OTPs are sent after approval.';
   }
 
-  if (text.includes('login') || text.includes('password') || text.includes('sign in')) {
-    return 'Use the same email and password you registered with. If your account is not approved yet, wait for the activation message before signing in.';
+  if (hasAny(text, ['login', 'password', 'sign in', 'signin', 'reset'])) {
+    return 'Use the email and password for your portal. Finance, admin, agent, and customer accounts are separate. If you forgot your password, request an OTP and use the latest code before it expires.';
   }
 
-  if (text.includes('register') || text.includes('account')) {
-    return 'Fill in the required details, submit the form, then wait for approval. You will receive a message after the account is activated.';
+  if (hasAny(text, ['register customer', 'customer registration', 'new customer', 'application'])) {
+    return 'Agents register customers with KYC, product details, next-of-kin, deposit amount, and customer phone. The system sends next-of-kin SMS, creates a deposit M-PESA prompt, and sends activation OTP after approval.';
   }
 
-  if (text.includes('payment') || text.includes('mpesa') || text.includes('m-pesa') || text.includes('pay')) {
-    return 'Open payments, enter the amount, and submit the request. After payment is confirmed, your balance and history will update.';
+  if (hasAny(text, ['register', 'account', 'approval', 'approve'])) {
+    return 'Create the account in the correct portal, then wait for admin or back-office approval where required. Approved users receive the right SMS or activation flow before they can continue.';
   }
 
-  if (text.includes('agent')) {
-    return 'Agents can register customers, follow tasks, view assigned products, and track customer progress after approval.';
+  if (hasAny(text, ['payment', 'mpesa', 'm-pesa', 'daraja', 'stk', 'paybill', 'c2b', 'b2c', 'pay'])) {
+    return 'Bumu uses Safaricom Daraja for money movement. Customer payment requests send an M-PESA STK prompt, Paybill C2B confirmations update balances, and B2C can pay approved commissions.';
   }
 
-  if (text.includes('school') || text.includes('scan') || text.includes('qr') || text.includes('student')) {
+  if (hasAny(text, ['agent', 'dealer', 'field'])) {
+    return 'Agents can register customers, send deposit prompts, verify next-of-kin OTPs when needed, follow assigned tasks, view customer progress, and track commission status.';
+  }
+
+  if (hasAny(text, ['customer', 'balance', 'history', 'portal'])) {
+    return 'Customers use the customer portal to view product details, balance, payment history, alerts, and to request an M-PESA payment prompt using their registered phone.';
+  }
+
+  if (hasAny(text, ['commission', 'payout', 'earn'])) {
+    return 'Commissions are created from qualifying payments and product activation. Finance reviews commissions and sends approved payouts through the backend, not from the browser.';
+  }
+
+  if (hasAny(text, ['finance', 'reconciliation', 'report', 'collection'])) {
+    return 'Finance reviews payments, reconciliation, commissions, reports, customers, and alerts. Daraja receipts and Paybill confirmations are matched to customer records.';
+  }
+
+  if (hasAny(text, ['admin', 'back office', 'screening', 'kyc'])) {
+    return 'Admin and back office teams review applications, users, KYC checks, product assignment, OTP status, and approval decisions before customers fully activate.';
+  }
+
+  if (hasAny(text, ['next of kin', 'kin', 'guarantor'])) {
+    return 'Next-of-kin receives an SMS acceptance link or OTP. Once accepted, the application can continue through screening and customer activation.';
+  }
+
+  if (hasAny(text, ['school', 'scan', 'qr', 'student'])) {
     return 'Open the school scan page, tap the camera scanner, scan the student card QR, choose coming in or going out, then save the scan.';
   }
 
-  if (text.includes('admin') || text.includes('approve') || text.includes('approval')) {
-    return 'Admin reviews pending accounts and applications. Once approved, the user receives an activation message and can continue.';
+  if (hasAny(text, ['support', 'contact', 'help'])) {
+    return 'Tell support the portal you are using, your phone or email, the customer name if relevant, and the exact action that failed: OTP, M-PESA prompt, approval, payout, or login.';
   }
 
-  return 'Tell me what you want to do, for example: login, register, send OTP, make payment, scan student card, or check approval.';
+  return 'Tell me what you want to do, for example: request OTP, register customer, send M-PESA prompt, check Paybill payment, approve application, review commission, or fix login.';
 }
 
 export function SupportChatWidget() {
@@ -99,8 +127,8 @@ export function SupportChatWidget() {
             <Bot size={18} color="#ffffff" />
           </View>
           <View>
-            <Text style={styles.title}>Help chat</Text>
-            <Text style={styles.subtitle}>Simple answers for using Bumu Paygo</Text>
+            <Text style={styles.title}>Bumu help agent</Text>
+            <Text style={styles.subtitle}>Portals, OTPs, payments, and approvals</Text>
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -129,7 +157,7 @@ export function SupportChatWidget() {
       </View>
 
       <View style={styles.quickRow}>
-        {['OTP', 'Register', 'Payment', 'School scan'].map((item) => (
+        {['OTP/SMS', 'M-PESA', 'Register customer', 'Commission'].map((item) => (
           <Pressable key={item} onPress={() => setDraft(item)} style={styles.quickButton}>
             <Text style={styles.quickText}>{item}</Text>
           </Pressable>
