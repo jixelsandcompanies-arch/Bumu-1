@@ -7,7 +7,7 @@ import { colors } from '../../theme/colors.js';
 const starterMessage = {
   id: 'welcome',
   from: 'assistant',
-  text: 'Hi, I can help with Bumu Paygo portals, OTPs, M-PESA payments, customer registration, commissions, reports, and approvals.'
+  text: 'Hi, I am the Bumu help agent. Ask me about PAYGO products, customer onboarding, portals, OTPs, M-PESA payments, commissions, reports, or support.'
 };
 
 function hasAny(text, words) {
@@ -17,8 +17,24 @@ function hasAny(text, words) {
 function simpleReply(input) {
   const text = String(input || '').toLowerCase();
 
+  if (hasAny(text, ['what is bumu', 'about bumu', 'about', 'bumu paygo', 'who are you', 'what do you do'])) {
+    return 'Bumu Paygo helps customers access useful products through lipa mdogo mdogo plans. Customers can start with an approved deposit, use the product, and repay in manageable instalments while agents, finance, and admin teams track the account.';
+  }
+
+  if (hasAny(text, ['product', 'products', 'bike', 'motorbike', 'boda', 'phone', 'cooker', 'solar', 'lamp', 'asset'])) {
+    return 'Bumu can support PAYGO products such as motorbikes, phones, cookers, solar lamps, and other approved assets. Each product is connected to a customer account, payment plan, balance, agent, and repayment history.';
+  }
+
+  if (hasAny(text, ['how it works', 'process', 'workflow', 'paygo', 'lipa mdogo mdogo', 'installment', 'instalment'])) {
+    return 'The Bumu flow is: choose a product, submit customer details, verify next-of-kin, approve the account, collect the deposit by M-PESA, activate the customer, then track daily or agreed repayments until the balance is cleared.';
+  }
+
+  if (hasAny(text, ['portal', 'portals', 'workspace', 'app'])) {
+    return 'Bumu has separate portals for each role: Customer for balances and payments, Agent for registration and follow-up, Finance for collections and reconciliation, Admin for users and oversight, and Back Office for screening.';
+  }
+
   if (hasAny(text, ['otp', 'code', 'sms', 'africa', 'africastalking', 'africa\'s talking'])) {
-    return 'Bumu uses Africa\'s Talking for SMS messages and OTPs. Enter the correct phone number, request the OTP, then wait a minute before resending. Customer activation OTPs are sent after approval.';
+    return 'Bumu uses Africa\'s Talking for SMS messages and OTPs. OTPs are used for password help, activation, approvals, and next-of-kin flows. Use the correct phone number, wait for the SMS, and resend only after a short delay.';
   }
 
   if (hasAny(text, ['login', 'password', 'sign in', 'signin', 'reset'])) {
@@ -34,7 +50,7 @@ function simpleReply(input) {
   }
 
   if (hasAny(text, ['payment', 'mpesa', 'm-pesa', 'daraja', 'stk', 'paybill', 'c2b', 'b2c', 'pay'])) {
-    return 'Bumu uses Safaricom Daraja for money movement. Customer payment requests send an M-PESA STK prompt, Paybill C2B confirmations update balances, and B2C can pay approved commissions.';
+    return 'Bumu uses Safaricom Daraja for money movement. STK Push sends a prompt to the customer phone, Paybill C2B records direct customer payments, and B2C can send approved commission payouts. Confirmed payments update balance, history, reconciliation, and alerts.';
   }
 
   if (hasAny(text, ['agent', 'dealer', 'field'])) {
@@ -46,7 +62,7 @@ function simpleReply(input) {
   }
 
   if (hasAny(text, ['commission', 'payout', 'earn'])) {
-    return 'Commissions are created from qualifying payments and product activation. Finance reviews commissions and sends approved payouts through the backend, not from the browser.';
+    return 'Commissions are created from qualifying payments and product activation. Finance reviews earned commissions, approves payouts, and the backend sends B2C payouts where Daraja B2C is configured.';
   }
 
   if (hasAny(text, ['finance', 'reconciliation', 'report', 'collection'])) {
@@ -66,10 +82,14 @@ function simpleReply(input) {
   }
 
   if (hasAny(text, ['support', 'contact', 'help'])) {
-    return 'Tell support the portal you are using, your phone or email, the customer name if relevant, and the exact action that failed: OTP, M-PESA prompt, approval, payout, or login.';
+    return 'For support, share the portal you are using, your phone or email, the customer name if relevant, and the exact action that failed: OTP, M-PESA prompt, Paybill confirmation, approval, payout, report, or login.';
   }
 
-  return 'Tell me what you want to do, for example: request OTP, register customer, send M-PESA prompt, check Paybill payment, approve application, review commission, or fix login.';
+  if (hasAny(text, ['location', 'where', 'nairobi', 'kenya'])) {
+    return 'Bumu is built for Kenyan PAYGO operations, with Nairobi as the base and support for dealer and agent networks as coverage grows.';
+  }
+
+  return 'Ask me about what Bumu does, PAYGO products, customer registration, OTP/SMS, M-PESA STK or Paybill payments, commissions, approvals, reports, or which portal to use.';
 }
 
 export function SupportChatWidget() {
@@ -88,8 +108,7 @@ export function SupportChatWidget() {
     setOpen(false);
   }
 
-  function sendMessage() {
-    const text = draft.trim();
+  function addMessage(text) {
     if (!text) return;
 
     const now = Date.now();
@@ -99,6 +118,10 @@ export function SupportChatWidget() {
       { id: `assistant-${now}`, from: 'assistant', text: simpleReply(text) }
     ]);
     setDraft('');
+  }
+
+  function sendMessage() {
+    addMessage(draft.trim());
   }
 
   if (!open) {
@@ -157,8 +180,8 @@ export function SupportChatWidget() {
       </View>
 
       <View style={styles.quickRow}>
-        {['OTP/SMS', 'M-PESA', 'Register customer', 'Commission'].map((item) => (
-          <Pressable key={item} onPress={() => setDraft(item)} style={styles.quickButton}>
+        {['What is Bumu?', 'Products', 'PAYGO flow', 'M-PESA', 'OTP/SMS', 'Portals'].map((item) => (
+          <Pressable key={item} onPress={() => addMessage(item)} style={styles.quickButton}>
             <Text style={styles.quickText}>{item}</Text>
           </Pressable>
         ))}
