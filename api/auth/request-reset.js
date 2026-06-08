@@ -1,5 +1,5 @@
 import { readJson, sendJson } from '../_lib/http.js';
-import { requestSupabasePasswordResetOtp } from '../_lib/supabase-password-reset.js';
+import { requestPasswordResetOtp } from '../_lib/database.js';
 import { assertBodySize, assertRateLimit } from '../_lib/security.js';
 
 export default async function handler(req, res) {
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    sendJson(res, 200, await requestSupabasePasswordResetOtp(body));
+    sendJson(res, 200, await requestPasswordResetOtp(body));
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
   }
