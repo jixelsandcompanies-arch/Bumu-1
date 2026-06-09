@@ -74,6 +74,7 @@ function publicAppBaseUrl() {
     .trim()
     .replace(/\/+$/, '');
   if (!configured) return 'https://www.bumupay.com';
+  configured = configured.replace(/^(https?:)\/+/i, '$1//');
   configured = configured.replace(/^\/+/, '');
   return configured.startsWith('http') ? configured : `https://${configured}`;
 }
@@ -99,6 +100,36 @@ function deliveryFromResponse(data) {
 
 function senderRejected(data) {
   return String(data?.SMSMessageData?.Message || data?.message || '').toLowerCase().includes('invalidsenderid');
+}
+
+function assertTransactionalSms(message) {
+  const text = String(message || '').trim();
+  if (!text) {
+    const error = new Error('Transactional SMS message is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const promotionalTerms = [
+    /\bpromo(?:tion|tional)?\b/i,
+    /\boffer\b/i,
+    /\bsale\b/i,
+    /\bdiscount\b/i,
+    /\bdeal\b/i,
+    /\bbuy now\b/i,
+    /\blimited time\b/i,
+    /\bcampaign\b/i,
+    /\badvert/i,
+    /\bmarketing\b/i,
+    /\bwin\b/i,
+    /\bfree gift\b/i
+  ];
+
+  if (promotionalTerms.some((pattern) => pattern.test(text))) {
+    const error = new Error('Blocked non-transactional SMS content. BUMUPAYGO sender ID is for OTPs, account updates, payment notices, and service reminders only.');
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 async function sendSmsRequest({ phone, message, useSender = true }) {
@@ -129,18 +160,19 @@ export async function sendSms({ to, message }) {
     return { configured: false, delivered: false, provider: 'africastalking' };
   }
 
+  assertTransactionalSms(message);
+
   const phone = normalizePhone(to);
   if (!phone) {
     return { configured: true, delivered: false, provider: 'africastalking', reason: 'missing_phone' };
   }
 
   let { response, data } = await sendSmsRequest({ phone, message, useSender: true });
-  let fallbackUsed = false;
   if (senderId() && senderRejected(data)) {
-    const fallback = await sendSmsRequest({ phone, message, useSender: false });
-    response = fallback.response;
-    data = fallback.data;
-    fallbackUsed = true;
+    const error = new Error('Africa\'s Talking rejected the configured transactional sender ID. SMS was not sent without BUMUPAYGO.');
+    error.statusCode = 502;
+    error.providerResponse = data;
+    throw error;
   }
 
   if (!response.ok) {
@@ -154,7 +186,8 @@ export async function sendSms({ to, message }) {
     configured: true,
     delivered: deliveryFromResponse(data),
     provider: 'africastalking',
-    fallbackUsed,
+    transactional: true,
+    senderIdUsed: Boolean(senderId()),
     response: data,
     sid: data?.SMSMessageData?.Recipients?.[0]?.messageId || null
   };
@@ -191,14 +224,14 @@ export async function sendScreeningSms({ action, customer, agent, reason, activa
 
   if (action === 'approve') {
     const customerMessage = activationOtp
-      ? `Congratulations ${customerName}! Your Bumu Paygo account has been approved. Open ${portalUrl('customer')} and enter OTP ${activationOtp} to activate your account and log in. Valid for 10 minutes.`
-      : `Congratulations ${customerName}! Your Bumu Paygo account has been approved and activated. You can now log in at ${portalUrl('customer')}.`;
+      ? `Bumu Paygo account update: ${customerName}, your account has been approved. Open ${portalUrl('customer')} and enter OTP ${activationOtp} to activate your account. Valid for 10 minutes.`
+      : `Bumu Paygo account update: ${customerName}, your account has been approved and activated. You can now log in at ${portalUrl('customer')}.`;
 
     const [customerResult, agentResult] = await Promise.all([
       sendSms({ to: customerPhone, message: customerMessage }),
       sendSms({
         to: agentPhone,
-        message: `Good news! Your customer ${customerName} (Ref: ${customerId}) has been approved. They can now log in and start making payments.`
+        message: `Bumu Paygo account update: customer ${customerName} (Ref: ${customerId}) has been approved and can now log in.`
       })
     ]);
 
@@ -252,7 +285,7 @@ export async function sendAccountApprovedSms({ phone, name, portal }) {
   const portalName = portal || 'portal';
   return sendSms({
     to: phone,
-    message: `Hello ${name || 'there'}, your Bumu Paygo ${portalName} account has been approved and activated by admin. You can now log in at ${portalUrl(portalName)}.`
+    message: `Bumu Paygo account update: ${name || 'there'}, your ${portalName} account has been approved and activated. You can now log in at ${portalUrl(portalName)}.`
   });
 }
 

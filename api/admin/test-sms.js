@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     const result = await sendSms({
       to: phone,
-      message: `Bumu Paygo test SMS ${new Date().toISOString()}.`
+      message: `Bumu Paygo transactional SMS delivery test ${new Date().toISOString()}.`
     });
     const waitSeconds = Math.min(Math.max(Number(body.waitSeconds || 0), 0), 10);
     const finalStatus = result.sid && waitSeconds > 0
