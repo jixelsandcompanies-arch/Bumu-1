@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Bot, MessageCircle, Send, X, Trash2 } from 'lucide-react';
+import { Bot, CheckCircle2, Headphones, Mail, MessageCircle, Send, Sparkles, X, Trash2 } from 'lucide-react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from './Text.jsx';
 import { colors } from '../../theme/colors.js';
@@ -7,8 +7,11 @@ import { colors } from '../../theme/colors.js';
 const starterMessage = {
   id: 'welcome',
   from: 'assistant',
-  text: 'Hi, I am the Bumu help agent. Ask me about PAYGO products, customer onboarding, portals, OTPs, M-PESA payments, commissions, reports, or support.'
+  text: 'Hi, you are speaking with Bumu Assist. I can help with PAYGO products, customer onboarding, portals, OTPs, M-PESA payments, commissions, reports, or support.'
 };
+
+const supportPhone = String(import.meta.env.VITE_SUPPORT_WHATSAPP_NUMBER || '').replace(/\D/g, '');
+const supportEmail = String(import.meta.env.VITE_SUPPORT_EMAIL || 'support@bumupay.com').trim();
 
 function hasAny(text, words) {
   return words.some((word) => text.includes(word));
@@ -92,14 +95,33 @@ function simpleReply(input) {
   return 'Ask me about what Bumu does, PAYGO products, customer registration, OTP/SMS, M-PESA STK or Paybill payments, commissions, approvals, reports, or which portal to use.';
 }
 
+function transcriptFromMessages(messages) {
+  return messages
+    .filter((message) => message.from !== 'system')
+    .map((message) => `${message.from === 'user' ? 'User' : 'Bumu Assist'}: ${message.text}`)
+    .join('\n');
+}
+
+function liveAgentMessage(messages, draft = '') {
+  const details = draft ? `\n\nCurrent message:\n${draft}` : '';
+  return [
+    'Hello Bumu support, I need help from a live agent.',
+    details,
+    '\nChat transcript:',
+    transcriptFromMessages(messages)
+  ].join('\n').trim();
+}
+
 export function SupportChatWidget() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState([starterMessage]);
+  const [handoffMode, setHandoffMode] = useState(false);
   const unread = useMemo(() => (!open ? 1 : 0), [open]);
 
   function startNewChat() {
     setDraft('');
+    setHandoffMode(false);
     setMessages([{ ...starterMessage, id: `welcome-${Date.now()}` }]);
   }
 
@@ -112,6 +134,20 @@ export function SupportChatWidget() {
     if (!text) return;
 
     const now = Date.now();
+    if (handoffMode) {
+      setMessages((current) => [
+        ...current,
+        { id: `user-${now}`, from: 'user', text },
+        {
+          id: `assistant-${now}`,
+          from: 'assistant',
+          text: 'I have prepared this for a live support agent. Use WhatsApp or email below to continue with a person.'
+        }
+      ]);
+      setDraft('');
+      return;
+    }
+
     setMessages((current) => [
       ...current,
       { id: `user-${now}`, from: 'user', text },
@@ -122,6 +158,36 @@ export function SupportChatWidget() {
 
   function sendMessage() {
     addMessage(draft.trim());
+  }
+
+  function requestLiveAgent() {
+    const now = Date.now();
+    setHandoffMode(true);
+    setMessages((current) => [
+      ...current,
+      {
+        id: `system-${now}`,
+        from: 'system',
+        text: 'Live support handoff started'
+      },
+      {
+        id: `handoff-${now}`,
+        from: 'assistant',
+        text: 'A Bumu support agent can help with account access, OTP delivery, M-PESA, approvals, or payment issues. Add your phone/email and a short issue summary, then continue through WhatsApp or email.'
+      }
+    ]);
+  }
+
+  function openWhatsappHandoff() {
+    const text = encodeURIComponent(liveAgentMessage(messages, draft.trim()));
+    if (!supportPhone) return;
+    window.open(`https://wa.me/${supportPhone}?text=${text}`, '_blank', 'noopener,noreferrer');
+  }
+
+  function openEmailHandoff() {
+    const subject = encodeURIComponent('Bumu Paygo support request');
+    const body = encodeURIComponent(liveAgentMessage(messages, draft.trim()));
+    window.open(`mailto:${supportEmail}?subject=${subject}&body=${body}`, '_blank', 'noopener,noreferrer');
   }
 
   if (!open) {
@@ -147,11 +213,14 @@ export function SupportChatWidget() {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={styles.avatar}>
-            <Bot size={18} color="#ffffff" />
+            {handoffMode ? <Headphones size={18} color="#ffffff" /> : <Bot size={18} color="#ffffff" />}
           </View>
           <View>
-            <Text style={styles.title}>Bumu help agent</Text>
-            <Text style={styles.subtitle}>Portals, OTPs, payments, and approvals</Text>
+            <Text style={styles.title}>{handoffMode ? 'Bumu support desk' : 'Bumu Assist'}</Text>
+            <View style={styles.statusLine}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.subtitle}>{handoffMode ? 'Live agent handoff ready' : 'AI agent active'}</Text>
+            </View>
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -167,15 +236,29 @@ export function SupportChatWidget() {
 
       <View style={styles.messages}>
         {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.bubble,
-              message.from === 'user' ? styles.userBubble : styles.assistantBubble
-            ]}
-          >
-            <Text style={message.from === 'user' ? styles.userText : styles.assistantText}>{message.text}</Text>
-          </View>
+          message.from === 'system' ? (
+            <View key={message.id} style={styles.systemEvent}>
+              <CheckCircle2 size={13} color="#22a06b" />
+              <Text style={styles.systemEventText}>{message.text}</Text>
+            </View>
+          ) : (
+            <View key={message.id} style={message.from === 'user' ? styles.userMessageWrap : styles.assistantMessageWrap}>
+              {message.from === 'assistant' ? (
+                <View style={styles.messageMeta}>
+                  <Sparkles size={12} color={colors.primary} />
+                  <Text style={styles.messageMetaText}>{handoffMode ? 'Support desk' : 'Bumu Assist'}</Text>
+                </View>
+              ) : null}
+              <View
+                style={[
+                  styles.bubble,
+                  message.from === 'user' ? styles.userBubble : styles.assistantBubble
+                ]}
+              >
+                <Text style={message.from === 'user' ? styles.userText : styles.assistantText}>{message.text}</Text>
+              </View>
+            </View>
+          )
         ))}
       </View>
 
@@ -185,14 +268,33 @@ export function SupportChatWidget() {
             <Text style={styles.quickText}>{item}</Text>
           </Pressable>
         ))}
+        <Pressable onPress={requestLiveAgent} style={[styles.quickButton, styles.liveButton]}>
+          <Headphones size={14} color="#ffffff" />
+          <Text style={styles.liveText}>Live agent</Text>
+        </Pressable>
       </View>
+
+      {handoffMode ? (
+        <View style={styles.handoffRow}>
+          {supportPhone ? (
+            <Pressable onPress={openWhatsappHandoff} style={styles.handoffButton}>
+              <MessageCircle size={16} color="#ffffff" />
+              <Text style={styles.handoffText}>WhatsApp</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={openEmailHandoff} style={[styles.handoffButton, styles.emailButton]}>
+            <Mail size={16} color={colors.primary} />
+            <Text style={styles.emailText}>Email agent</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.inputRow}>
         <TextInput
           value={draft}
           onChangeText={setDraft}
           onSubmitEditing={sendMessage}
-          placeholder="Ask for help..."
+          placeholder={handoffMode ? 'Add phone/email and issue summary...' : 'Ask for help...'}
           placeholderTextColor="#8ba0b8"
           style={styles.input}
         />
@@ -286,6 +388,18 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12
   },
+  statusLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#22a06b',
+    boxShadow: '0 0 0 3px rgba(34, 160, 107, 0.12)'
+  },
   headerActions: {
     flexDirection: 'row',
     gap: 6
@@ -325,6 +439,42 @@ const styles = StyleSheet.create({
     maxHeight: 330,
     overflowY: 'auto',
     backgroundColor: '#ffffff'
+  },
+  assistantMessageWrap: {
+    alignSelf: 'stretch',
+    gap: 4
+  },
+  userMessageWrap: {
+    alignSelf: 'stretch',
+    alignItems: 'flex-end'
+  },
+  messageMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginLeft: 2
+  },
+  messageMetaText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  systemEvent: {
+    alignSelf: 'center',
+    minHeight: 24,
+    borderRadius: 999,
+    backgroundColor: '#edf9f2',
+    borderWidth: 1,
+    borderColor: '#ccefdc',
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5
+  },
+  systemEventText: {
+    color: '#166534',
+    fontSize: 11,
+    fontWeight: '700'
   },
   bubble: {
     maxWidth: '88%',
@@ -376,6 +526,51 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 12,
     fontWeight: '600'
+  },
+  liveButton: {
+    flexDirection: 'row',
+    gap: 5,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  liveText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  handoffRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#eef2f7',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    flexDirection: 'row',
+    gap: 8
+  },
+  handoffButton: {
+    minHeight: 38,
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: '#22a06b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    cursor: 'pointer'
+  },
+  handoffText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  emailButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cfe0fb'
+  },
+  emailText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700'
   },
   inputRow: {
     padding: 12,
