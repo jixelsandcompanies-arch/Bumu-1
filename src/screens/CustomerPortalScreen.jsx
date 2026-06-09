@@ -226,6 +226,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
   const [notice, setNotice] = useState(message || '');
   const [submitting, setSubmitting] = useState(false);
 
@@ -293,6 +294,10 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
         return;
       }
       setOtpSent(true);
+      setOtpVerified(false);
+      setResetOtp('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
       setNotice(result.message || 'OTP sent. If it does not arrive, go back and resend it.');
     } catch (error) {
       setNotice(error.message);
@@ -301,10 +306,30 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
     }
   }
 
-  async function changePassword() {
+  async function verifyResetOtp() {
     setNotice('');
     if (!/^\d{6}$/.test(resetOtp.trim())) {
       setNotice('Enter the 6-digit OTP.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await customerPortalService.verifyPasswordResetOtp({ email: email.trim(), otp: resetOtp.trim() });
+      setOtpVerified(true);
+      setNotice('OTP verified. Enter your new password.');
+    } catch (error) {
+      setOtpVerified(false);
+      setNotice(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function changePassword() {
+    setNotice('');
+    if (!otpVerified) {
+      setNotice('Verify the OTP before changing your password.');
       return;
     }
     if (!resetNewPassword || resetNewPassword !== resetConfirmPassword) {
@@ -314,7 +339,6 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
 
     setSubmitting(true);
     try {
-      await customerPortalService.verifyPasswordResetOtp({ email: email.trim(), otp: resetOtp.trim() });
       await customerPortalService.resetPassword({
         email: email.trim(),
         otp: resetOtp.trim(),
@@ -325,6 +349,7 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
       setResetNewPassword('');
       setResetConfirmPassword('');
       setOtpSent(false);
+      setOtpVerified(false);
       setNotice('Password changed. Sign in with your new password.');
       setMode('login');
     } catch (error) {
@@ -377,9 +402,13 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
             <>
               {!otpSent ? (
                 <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="Enter phone number" />
+              ) : !otpVerified ? (
+                <Field label="OTP" value={resetOtp} onChangeText={(value) => {
+                  setResetOtp(value);
+                  setOtpVerified(false);
+                }} placeholder="Enter 6-digit OTP" />
               ) : (
                 <>
-                  <Field label="OTP" value={resetOtp} onChangeText={setResetOtp} placeholder="Enter 6-digit OTP" />
                   <Field label="New password" value={resetNewPassword} onChangeText={setResetNewPassword} placeholder="At least 10 characters" secureTextEntry />
                   <Field label="Confirm password" value={resetConfirmPassword} onChangeText={setResetConfirmPassword} placeholder="Repeat password" secureTextEntry />
                   <Text style={styles.greenText}>Password must include uppercase, lowercase, number, and special character.</Text>
@@ -393,8 +422,8 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
               {submitting ? 'Signing in...' : 'Sign in'}
             </Button>
           ) : mode === 'reset' ? (
-            <Button icon={Bell} onPress={otpSent ? changePassword : requestReset} disabled={submitting} style={styles.fullButton}>
-              {submitting ? 'Working...' : otpSent ? 'Change password' : 'Send OTP'}
+            <Button icon={Bell} onPress={!otpSent ? requestReset : otpVerified ? changePassword : verifyResetOtp} disabled={submitting} style={styles.fullButton}>
+              {submitting ? 'Working...' : !otpSent ? 'Send OTP' : otpVerified ? 'Change password' : 'Verify OTP'}
             </Button>
           ) : mode === 'activate' ? (
             <Button icon={UserRound} onPress={activateCustomer} disabled={submitting} style={styles.fullButton}>
@@ -415,7 +444,14 @@ function CustomerAuthScreen({ onAuthenticated, onBack, message }) {
               </Pressable>
             </View>
           ) : (
-            <Pressable onPress={() => setMode('login')} style={styles.inlineLink}>
+            <Pressable onPress={() => {
+              setMode('login');
+              setOtpSent(false);
+              setOtpVerified(false);
+              setResetOtp('');
+              setResetNewPassword('');
+              setResetConfirmPassword('');
+            }} style={styles.inlineLink}>
               <Text style={styles.linkText}>Back to sign in</Text>
             </Pressable>
           )}

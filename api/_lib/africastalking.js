@@ -70,8 +70,11 @@ export function normalizePhone(phone) {
 }
 
 function publicAppBaseUrl() {
-  const configured = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '').replace(/\/$/, '');
+  let configured = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
   if (!configured) return 'https://www.bumupay.com';
+  configured = configured.replace(/^\/+/, '');
   return configured.startsWith('http') ? configured : `https://${configured}`;
 }
 

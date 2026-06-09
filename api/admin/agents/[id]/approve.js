@@ -121,6 +121,5 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     sendJson(res, error.statusCode || 500, { message: error.message });
-    sendJson(res, error.statusCode || 500, { message: error.message });
   }
 }
