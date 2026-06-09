@@ -262,11 +262,23 @@ function makeAudit(action, entityType, entityId, actor, role) {
   };
 }
 
+function adminRefreshIntervalMs() {
+  try {
+    const settings = JSON.parse(window.localStorage.getItem("bumu-admin-settings") || "{}");
+    const value = settings?.admin?.dashboardRefreshInterval;
+    const seconds = Number(value);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 15000;
+  } catch {
+    return 15000;
+  }
+}
+
 export function AdminDataProvider({ children }) {
   const { isAuthenticated, user } = useAuth();
   const [state, setState] = useState(defaultState);
   const [dataStatus, setDataStatus] = useState("idle");
   const [dataError, setDataError] = useState("");
+  const [refreshIntervalMs, setRefreshIntervalMs] = useState(adminRefreshIntervalMs);
 
   const loadPortal = useCallback(async ({ silent = false } = {}) => {
     if (!isAuthenticated) {
@@ -295,9 +307,22 @@ export function AdminDataProvider({ children }) {
     if (!isAuthenticated) return undefined;
     const timer = window.setInterval(() => {
       loadPortal({ silent: true });
-    }, 15000);
+    }, refreshIntervalMs);
     return () => window.clearInterval(timer);
-  }, [isAuthenticated, loadPortal]);
+  }, [isAuthenticated, loadPortal, refreshIntervalMs]);
+
+  useEffect(() => {
+    function handleSettingsChange() {
+      setRefreshIntervalMs(adminRefreshIntervalMs());
+    }
+
+    window.addEventListener("bumu-admin-settings-changed", handleSettingsChange);
+    window.addEventListener("storage", handleSettingsChange);
+    return () => {
+      window.removeEventListener("bumu-admin-settings-changed", handleSettingsChange);
+      window.removeEventListener("storage", handleSettingsChange);
+    };
+  }, []);
 
   const currentActor = user?.name || user?.email || "System user";
   const currentRole = user?.role || "system";

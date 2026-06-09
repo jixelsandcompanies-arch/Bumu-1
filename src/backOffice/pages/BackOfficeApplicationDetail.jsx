@@ -166,10 +166,7 @@ export default function BackOfficeApplicationDetail() {
           <h3>KYC documents</h3>
           <div className="document-grid">
             {(application.documents || []).map((document) => (
-              <div className="document-tile" key={document.type}>
-                <span>{document.type}</span>
-                <StatusBadge status={document.status} />
-              </div>
+              <DocumentTile document={document} key={document.type} />
             ))}
             {(application.documents || []).length === 0 ? (
               <div className="document-tile">
@@ -322,6 +319,25 @@ function CheckResult({ label, status }) {
     <div className="check-result">
       <span>{label}</span>
       <StatusBadge status={status} />
+    </div>
+  );
+}
+
+function DocumentTile({ document }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(document.url) && !imageFailed;
+
+  return (
+    <div className="document-tile">
+      <span>{document.type}</span>
+      {hasImage ? (
+        <a href={document.url} target="_blank" rel="noreferrer" aria-label={`Open ${document.type}`}>
+          <img src={document.url} alt={document.type} onError={() => setImageFailed(true)} />
+        </a>
+      ) : (
+        <div className="document-empty-preview">Image unavailable</div>
+      )}
+      <StatusBadge status={hasImage ? document.status : "missing"} />
     </div>
   );
 }

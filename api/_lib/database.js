@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import {
   hasAfricasTalkingSmsConfig,
   normalizePhone,
+  publicAppBaseUrl,
   sendAgentFollowUpSms,
   sendCommissionPaidSms,
   sendNextOfKinAcceptanceSms,
@@ -266,6 +267,11 @@ export async function ensureSaleCommissionForPayment(payment) {
 }
 
 function buildDashboard(payments, customers, commissions, reconciliation) {
+  const collectibleCustomers = customers.filter((customer) => {
+    const status = String(customer.status || '').toLowerCase();
+    const applicationStatus = String(customer.application_status || '').toLowerCase();
+    return status !== 'rejected' && applicationStatus !== 'rejected';
+  });
   const trendByDate = payments.reduce((days, payment) => {
     const date = String(payment.date || payment.created_at || '').slice(0, 10);
     if (!date) return days;
@@ -274,11 +280,11 @@ function buildDashboard(payments, customers, commissions, reconciliation) {
   }, new Map());
 
   const totalCollected = payments.reduce((total, payment) => total + paymentAmount(payment), 0);
-  const expectedAmount = customers.reduce((total, customer) => total + Number(customer.total_payable || 0), 0);
-  const overdueAmount = customers
+  const expectedAmount = collectibleCustomers.reduce((total, customer) => total + Number(customer.total_payable || 0), 0);
+  const overdueAmount = collectibleCustomers
     .filter((customer) => Number(customer.overdue_days || 0) > 0 || customer.status === 'defaulted')
     .reduce((total, customer) => total + Number(customer.balance || 0), 0);
-  const pendingPayments = customers
+  const pendingPayments = collectibleCustomers
     .filter((customer) => Number(customer.balance || 0) > 0)
     .reduce((total, customer) => total + Number(customer.balance || 0), 0);
 
@@ -293,7 +299,7 @@ function buildDashboard(payments, customers, commissions, reconciliation) {
       unpaid_commissions: commissions
         .filter((commission) => commission.status !== 'paid')
         .reduce((total, commission) => total + Number(commission.amount || 0), 0),
-      active_accounts: customers.filter((customer) => customer.status !== 'paid').length,
+      active_accounts: collectibleCustomers.filter((customer) => customer.status !== 'paid').length,
       today_collections: payments.filter((payment) => String(payment.date || '').startsWith(todayDate())).length,
       unpaid_payments: payments.filter((payment) => payment.status === 'unpaid').length,
       pending_commissions: commissions.filter((commission) => commission.status === 'earned').length
@@ -1360,7 +1366,9 @@ export async function getAgentPortal(user) {
   const customers = customersResult.data || [];
   const commissions = commissionsResult.data || [];
   const tasks = tasksResult.data || [];
-  const assignedBalance = customers.reduce((total, customer) => total + Number(customer.balance || 0), 0);
+  const assignedBalance = customers
+    .filter((customer) => customer.status !== 'rejected' && customer.application_status !== 'rejected')
+    .reduce((total, customer) => total + Number(customer.balance || 0), 0);
   const paidCommissions = commissions
     .filter((commission) => commission.status === 'paid')
     .reduce((total, commission) => total + Number(commission.amount || 0), 0);
@@ -1391,6 +1399,11 @@ export async function getAgentPortal(user) {
       id: customer.id,
       name: customer.customer_name,
       phone: customer.customer_phone || '',
+      email: customer.email || '',
+      alternatePhones: customer.alternate_phones || '',
+      alternateEmails: customer.alternate_emails || '',
+      nextOfKinName: customer.next_of_kin_name || '',
+      nextOfKinPhone: customer.next_of_kin_phone || '',
       productType: customer.product_type || 'product',
       productModel: customer.product_model || customer.bike_model || '',
       serialNumber: customer.serial_number || '',
@@ -1437,6 +1450,78 @@ export async function getAgentPortal(user) {
       createdAt: formatDate(task.created_at)
     }))
   };
+}
+
+export async function createAgentCustomerMessage(user, customerId, body) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (agent.status !== 'active') {
+    const error = new Error('Your agent account is waiting for admin approval.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const message = nonEmpty(body.message);
+  if (!message || message.length > 700) {
+    const error = new Error('Enter a message up to 700 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const agentCode = agent.agent_code || agent.agent_id;
+  let customerRequest = getSupabase()
+    .from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .limit(1);
+
+  customerRequest = agentCode
+    ? customerRequest.eq('agent_id', agentCode)
+    : customerRequest.eq('agent_name', agent.full_name || agent.agent_name);
+
+  const customer = await customerRequest.maybeSingle();
+  if (customer.error) throw mapSupabaseError(customer.error);
+  if (!customer.data) {
+    const error = new Error('Customer was not found for this agent.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const title = nonEmpty(body.title) || `Message from ${agent.full_name || agent.agent_name || 'your agent'}`;
+  const notification = await getSupabase()
+    .from('customer_notifications')
+    .insert({
+      customer_id: customer.data.id,
+      title,
+      message,
+      type: 'agent_message',
+      status: 'unread',
+      source_portal: 'agent'
+    })
+    .select()
+    .single();
+
+  if (notification.error) throw mapSupabaseError(notification.error);
+
+  await getSupabase().from('agent_notifications').insert({
+    type: 'customer_message_sent',
+    customer_id: customer.data.id,
+    customer_name: customer.data.customer_name,
+    customer_phone: customer.data.customer_phone,
+    agent_id: agent.id,
+    agent_name: agent.full_name || agent.agent_name,
+    agent_code: agentCode || null,
+    message: `Message sent to ${customer.data.customer_name}.`,
+    status: 'read',
+    source_portal: 'agent'
+  }).catch(() => null);
+
+  return { notification: notification.data };
 }
 
 export async function createAgentCustomer(user, body) {
@@ -1569,6 +1654,8 @@ export async function createAgentCustomer(user, body) {
       customer_phone: customerPhone,
       national_id: nationalId,
       email: normalizeEmail(body.email) || null,
+      alternate_phones: nonEmpty(body.alternatePhones || body.alternate_phones) || null,
+      alternate_emails: nonEmpty(body.alternateEmails || body.alternate_emails) || null,
       date_of_birth: dateOfBirth,
       gender,
       location,
@@ -1647,11 +1734,7 @@ export async function createAgentCustomer(user, body) {
   }
 
   if (nextOfKinOtp) {
-    const publicBaseUrl = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '').replace(/\/$/, '');
-    const appBaseUrl = publicBaseUrl
-      ? (publicBaseUrl.startsWith('http') ? publicBaseUrl : `https://${publicBaseUrl}`)
-      : 'https://bumu-beta.vercel.app';
-    const acceptUrl = `${appBaseUrl}/#/next-of-kin?customer=${encodeURIComponent(data.id)}&otp=${encodeURIComponent(nextOfKinOtp)}`;
+    const acceptUrl = `${publicAppBaseUrl()}/?next-of-kin=1&customer=${encodeURIComponent(data.id)}&otp=${encodeURIComponent(nextOfKinOtp)}`;
     nextOfKinOtpDelivery = await sendNextOfKinAcceptanceSms({
       phone: nextOfKinPhone,
       otp: nextOfKinOtp,

@@ -89,6 +89,8 @@ create table if not exists public.customers (
   customer_phone text,
   national_id text,
   email text,
+  alternate_phones text,
+  alternate_emails text,
   bike_model text,
   serial_number text,
   chassis_number text,
@@ -364,6 +366,8 @@ create table if not exists public.password_reset_requests (
 );
 
 alter table public.customers add column if not exists auth_user_id uuid references auth.users(id) on delete set null;
+alter table public.customers add column if not exists alternate_phones text;
+alter table public.customers add column if not exists alternate_emails text;
 alter table public.customers add column if not exists product_type text not null default 'bike';
 alter table public.customers add column if not exists product_model text;
 alter table public.customers add column if not exists chassis_number text;

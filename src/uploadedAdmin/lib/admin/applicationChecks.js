@@ -15,10 +15,6 @@ export function getApplicationApprovalBlockers(application) {
     blockers.push("Resolve the duplicate national ID flag before approval.");
   }
 
-  if (!application.customerOtpVerified) {
-    blockers.push("Customer phone OTP must be verified.");
-  }
-
   if (!application.nextOfKinOtpVerified) {
     blockers.push("Next-of-kin OTP must be verified.");
   }

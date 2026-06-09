@@ -256,13 +256,11 @@ export default function ApplicationDetail() {
           <h3>KYC documents</h3>
           <div className="document-grid">
             {(application.documents || []).map((document) => (
-              <div className="document-tile" key={document.type}>
-                <span>{document.type}</span>
-                <StatusBadge status={document.status} />
-                <button className="button secondary" type="button" onClick={() => setDocumentPreview(document)}>
-                  View
-                </button>
-              </div>
+              <DocumentTile
+                document={document}
+                key={document.type}
+                onPreview={() => setDocumentPreview(document)}
+              />
             ))}
             {(application.documents || []).length === 0 ? (
               <div className="document-tile">
@@ -441,11 +439,22 @@ export default function ApplicationDetail() {
           <section className="modal-panel kyc-preview-modal" role="dialog" aria-modal="true">
             <h3>{documentPreview.type}</h3>
             <div className="kyc-preview-frame">
-              <span>{documentPreview.type}</span>
-              <small>{documentPreview.storagePath || documentPreview.url || "Local document preview placeholder"}</small>
+              {documentPreview.url ? (
+                <img src={documentPreview.url} alt={documentPreview.type} />
+              ) : (
+                <>
+                  <span>{documentPreview.type}</span>
+                  <small>{documentPreview.storagePath || "No document URL available"}</small>
+                </>
+              )}
             </div>
             <StatusBadge status={documentPreview.status} />
             <div className="page-actions">
+              {documentPreview.url ? (
+                <a className="button secondary" href={documentPreview.url} target="_blank" rel="noreferrer">
+                  Open image
+                </a>
+              ) : null}
               <button className="button secondary" type="button" onClick={() => setDocumentPreview(null)}>
                 Close
               </button>
@@ -473,6 +482,26 @@ function CheckResult({ label, status }) {
     <div className="check-result">
       <span>{label}</span>
       <StatusBadge status={status} />
+    </div>
+  );
+}
+
+function DocumentTile({ document, onPreview }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(document.url) && !imageFailed;
+
+  return (
+    <div className="document-tile">
+      <span>{document.type}</span>
+      {hasImage ? (
+        <img src={document.url} alt={document.type} onError={() => setImageFailed(true)} />
+      ) : (
+        <div className="document-empty-preview">Image unavailable</div>
+      )}
+      <StatusBadge status={hasImage ? document.status : "missing"} />
+      <button className="button secondary" type="button" onClick={onPreview}>
+        View
+      </button>
     </div>
   );
 }

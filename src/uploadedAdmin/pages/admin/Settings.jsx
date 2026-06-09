@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Gauge,
@@ -118,6 +118,12 @@ export default function Settings() {
   const [saveMessage, setSaveMessage] = useState("");
   const [settings, setSettings] = useState(defaultSettings);
   const [loadingSection, setLoadingSection] = useState(false);
+  const saveTimers = useRef({});
+
+  function applySettingsImmediately(nextSettings) {
+    window.localStorage.setItem("bumu-admin-settings", JSON.stringify(nextSettings));
+    window.dispatchEvent(new CustomEvent("bumu-admin-settings-changed", { detail: nextSettings }));
+  }
 
   useEffect(() => {
     let active = true;
@@ -129,10 +135,14 @@ export default function Settings() {
         const data = await settingsRequest(activeSection);
         if (!active) return;
         if (data?.values) {
-          setSettings((current) => ({
-            ...current,
-            [activeSection]: mergeSectionDefaults(activeSection, data.values)
-          }));
+          setSettings((current) => {
+            const nextSettings = {
+              ...current,
+              [activeSection]: mergeSectionDefaults(activeSection, data.values)
+            };
+            applySettingsImmediately(nextSettings);
+            return nextSettings;
+          });
         }
         setSaveMessage("");
       } catch (error) {
@@ -151,13 +161,39 @@ export default function Settings() {
   }, [activeSection]);
 
   function updateSection(sectionId, nextValues) {
-    setSettings((current) => ({
-      ...current,
-      [sectionId]: {
+    setSettings((current) => {
+      const mergedSection = {
         ...current[sectionId],
         ...nextValues
-      }
-    }));
+      };
+      const nextSettings = {
+        ...current,
+        [sectionId]: mergedSection
+      };
+
+      applySettingsImmediately(nextSettings);
+      window.clearTimeout(saveTimers.current[sectionId]);
+      saveTimers.current[sectionId] = window.setTimeout(async () => {
+        try {
+          const data = await settingsRequest(sectionId, { method: "PUT", values: mergedSection });
+          if (data?.values) {
+            setSettings((latest) => {
+              const savedSettings = {
+                ...latest,
+                [sectionId]: mergeSectionDefaults(sectionId, data.values)
+              };
+              applySettingsImmediately(savedSettings);
+              return savedSettings;
+            });
+          }
+          setSaveMessage(`${sections.find((section) => section.id === sectionId)?.label} applied and saved.`);
+        } catch (error) {
+          setSaveMessage(`${sections.find((section) => section.id === sectionId)?.label} changed locally but could not be saved: ${error.message}`);
+        }
+      }, 650);
+
+      return nextSettings;
+    });
   }
 
   async function saveActiveSection() {
@@ -167,10 +203,14 @@ export default function Settings() {
     try {
       const data = await settingsRequest(activeSection, { method: "PUT", values });
       if (data?.values) {
-        setSettings((current) => ({
-          ...current,
-          [activeSection]: mergeSectionDefaults(activeSection, data.values)
-        }));
+        setSettings((current) => {
+          const nextSettings = {
+            ...current,
+            [activeSection]: mergeSectionDefaults(activeSection, data.values)
+          };
+          applySettingsImmediately(nextSettings);
+          return nextSettings;
+        });
       }
       setSaveMessage(`${sectionLabel} saved to system settings.`);
     } catch (error) {

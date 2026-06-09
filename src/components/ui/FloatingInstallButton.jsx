@@ -18,7 +18,7 @@ export function FloatingInstallButton({ visible, onPress, label = 'Install BUMU 
 const styles = StyleSheet.create({
   button: {
     position: 'fixed',
-    right: 18,
+    left: 18,
     bottom: 18,
     zIndex: 1000,
     minHeight: 46,

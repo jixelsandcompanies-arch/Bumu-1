@@ -65,12 +65,12 @@ export default function BackOfficeScreening() {
           <OtpActionButton className="button secondary" disabled={Boolean(submittingId)} label={`approve ${row.id}`} onVerified={() => saveDecision(row, "approved")}>
             {submittingId === row.id ? "Working..." : "Approve"}
           </OtpActionButton>
-          <button type="button" disabled={Boolean(submittingId)} onClick={() => saveDecision(row, "info_required")}>
+          <OtpActionButton className="button warning" disabled={Boolean(submittingId)} label={`request information for ${row.id}`} onVerified={() => saveDecision(row, "info_required")}>
             Request info
-          </button>
-          <button type="button" disabled={Boolean(submittingId)} onClick={() => saveDecision(row, "rejected")}>
+          </OtpActionButton>
+          <OtpActionButton className="button danger" disabled={Boolean(submittingId)} label={`reject ${row.id}`} onVerified={() => saveDecision(row, "rejected")}>
             Reject
-          </button>
+          </OtpActionButton>
         </div>
       )
     }

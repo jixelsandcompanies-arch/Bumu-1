@@ -25,7 +25,11 @@ async function acceptNextOfKin({ customerId, otp }) {
 }
 
 export function NextOfKinAcceptScreen() {
-  const params = useMemo(() => new URLSearchParams(window.location.hash.split('?')[1] || ''), []);
+  const params = useMemo(() => {
+    const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+    const searchQuery = window.location.search.replace(/^\?/, '');
+    return new URLSearchParams(searchQuery || hashQuery);
+  }, []);
   const customerId = params.get('customer') || '';
   const otp = params.get('otp') || '';
   const [submitting, setSubmitting] = useState(false);

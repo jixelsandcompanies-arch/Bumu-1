@@ -10,6 +10,12 @@ function amount(payment) {
   return Number(payment.deposit_credit || 0) + Number(payment.paygo_payment || 0) || Number(payment.paid_amount || 0);
 }
 
+function countsForOutstanding(customer = {}) {
+  const status = String(customer.status || '').toLowerCase();
+  const applicationStatus = String(customer.application_status || '').toLowerCase();
+  return status !== 'rejected' && applicationStatus !== 'rejected';
+}
+
 function parseStorageReference(reference) {
   const value = String(reference || '');
   if (!value.startsWith('storage://')) return null;
@@ -218,7 +224,9 @@ export default async function handler(req, res) {
           customers: customerRows.length,
           pendingApplications: normalizedApplicationRows.filter((item) => item.status === 'pending_screening').length,
           activeProducts: (products.data || []).filter((item) => item.status !== 'sold').length,
-          totalBalance: customerRows.reduce((total, item) => total + Number(item.balance || 0), 0),
+          totalBalance: customerRows
+            .filter(countsForOutstanding)
+            .reduce((total, item) => total + Number(item.balance || 0), 0),
           todayCollections: paymentRows.filter((item) => String(item.date || '').startsWith(today)).reduce((total, item) => total + amount(item), 0),
           pendingCommissions: commissionRows.filter((item) => item.status !== 'paid').reduce((total, item) => total + Number(item.amount || 0), 0)
         },
@@ -260,7 +268,7 @@ export default async function handler(req, res) {
           },
           productType: item.product_type || 'product',
           productModel: item.product_model || item.bike_model || '',
-          balance: Number(item.balance || 0),
+          balance: countsForOutstanding(item) ? Number(item.balance || 0) : 0,
           applicationStatus: item.application_status || item.status || 'active',
           repaymentStatus: item.status || 'active',
           status: item.status || 'active',

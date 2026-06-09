@@ -69,7 +69,7 @@ export function normalizePhone(phone) {
   return String(phone || '').trim().startsWith('+') ? String(phone).trim() : `+${digits}`;
 }
 
-function publicAppBaseUrl() {
+export function publicAppBaseUrl() {
   let configured = String(process.env.PUBLIC_APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '')
     .trim()
     .replace(/\/+$/, '');
@@ -206,12 +206,12 @@ export async function sendOtpSms({ phone, otp }) {
 
 export async function sendNextOfKinAcceptanceSms({ phone, otp, customerName, acceptUrl }) {
   const actionText = acceptUrl
-    ? `Accept here: ${acceptUrl}`
+    ? `Open this link and press YES I ACCEPT: ${acceptUrl}`
     : `Reply 1/YES to accept, or give OTP ${otp} to the agent.`;
   return sendSms({
     to: phone,
     message: acceptUrl
-      ? `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText}. This link expires in 10 minutes.`
+      ? `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} Link expires in 10 minutes.`
       : `Bumu Paygo request: ${customerName || 'A customer'} has named you as next-of-kin. ${actionText} OTP ${otp}. Valid for 10 minutes.`
   });
 }

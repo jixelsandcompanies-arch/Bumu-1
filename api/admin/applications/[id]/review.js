@@ -81,6 +81,11 @@ export default async function handler(req, res) {
       screened_at: new Date().toISOString()
     };
 
+    if (nextStatus === 'rejected') {
+      customerUpdate.balance = 0;
+      customerUpdate.overdue_days = 0;
+    }
+
     if (activationOtp) {
       customerUpdate.customer_activation_otp_hash = hashOtp(application.data.customer_id, activationOtp);
       customerUpdate.customer_activation_otp_expires_at = activationExpiresAt;

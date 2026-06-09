@@ -14,7 +14,9 @@ export default function Customers() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const approvedCustomers = customers.filter((customer) => customer.applicationStatus === "approved").length;
-  const totalBalance = customers.reduce((sum, customer) => sum + customer.balance, 0);
+  const totalBalance = customers
+    .filter((customer) => customer.applicationStatus !== "rejected" && customer.repaymentStatus !== "rejected")
+    .reduce((sum, customer) => sum + customer.balance, 0);
   const assignedBikes = bikes.filter((bike) => bike.assignedCustomerId).length;
 
   const columns = [
@@ -34,7 +36,7 @@ export default function Customers() {
       render: (row) => <StatusBadge status={row.applicationStatus} />
     },
     { key: "repaymentStatus", label: "Repayment" },
-    { key: "balance", label: "Balance", render: (row) => formatKes(row.balance) },
+    { key: "balance", label: "Balance", render: (row) => row.applicationStatus === "rejected" || row.repaymentStatus === "rejected" ? "Not captured" : formatKes(row.balance) },
     { key: "open", label: "Open", render: (row) => <Link to={`/admin/customers/${row.id}`}>View</Link> }
   ];
   const visibleCustomers = useMemo(() => {

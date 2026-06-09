@@ -51,7 +51,7 @@ export function OtpActionButton({
         <div className="modal-backdrop" role="presentation">
           <form className="modal-panel" role="dialog" aria-modal="true" onSubmit={submitOtp}>
             <h3>OTP verification</h3>
-            <p>Enter the OTP code to continue with {label}.</p>
+            <p>This admin safety OTP is generated in this browser for {label}. It is not sent by SMS.</p>
             {otpChallenge?.code ? (
               <div className="alert soft inline-alert">Local OTP: {otpChallenge.code}</div>
             ) : null}

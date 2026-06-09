@@ -153,6 +153,13 @@ export const agentWorkspaceService = {
     });
   },
 
+  async sendCustomerMessage(customerId, { title, message }) {
+    return request(`/api/agent/customers/${encodeURIComponent(customerId)}/message`, {
+      method: 'POST',
+      body: { title, message }
+    });
+  },
+
   async createTask(task) {
     return request('/api/agent/tasks', {
       method: 'POST',

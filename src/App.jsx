@@ -21,6 +21,7 @@ import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
 import { SupportChatWidget } from './components/ui/SupportChatWidget.jsx';
+import { FloatingInstallButton } from './components/ui/FloatingInstallButton.jsx';
 import { authService } from './services/authService.js';
 import { getAuthToken } from './services/authSession.js';
 import { notificationService } from './services/notificationService.js';
@@ -89,7 +90,8 @@ function isFinanceRoute() {
 }
 
 function isNextOfKinRoute() {
-  return window.location.hash.startsWith('#/next-of-kin');
+  const params = new URLSearchParams(window.location.search);
+  return window.location.hash.startsWith('#/next-of-kin') || params.has('next-of-kin');
 }
 
 function isSchoolScanRoute() {
@@ -436,11 +438,21 @@ export function App() {
   }
 
   if (nextOfKinRouteActive) {
-    return <NextOfKinAcceptScreen />;
+    return (
+      <>
+        <NextOfKinAcceptScreen />
+        <FloatingInstallButton visible={canInstall} onPress={install} />
+      </>
+    );
   }
 
   if (schoolScanRouteActive) {
-    return <SchoolScanScreen />;
+    return (
+      <>
+        <SchoolScanScreen />
+        <FloatingInstallButton visible={canInstall} onPress={install} />
+      </>
+    );
   }
 
   if (agentRouteActive) {
@@ -453,17 +465,28 @@ export function App() {
   }
 
   if (backOfficeRouteActive) {
-    return <BackOfficePortalScreen />;
+    return (
+      <>
+        <BackOfficePortalScreen />
+        <FloatingInstallButton visible={canInstall} onPress={install} />
+      </>
+    );
   }
 
   if (adminRouteActive) {
-    return <UploadedAdminPortalScreen />;
+    return (
+      <>
+        <UploadedAdminPortalScreen />
+        <FloatingInstallButton visible={canInstall} onPress={install} />
+      </>
+    );
   }
 
   if (!authenticated) {
     return (
       <>
         {authRouteActive ? <LoginScreen onLogin={handleLogin} /> : <PortalLandingScreen />}
+        <FloatingInstallButton visible={canInstall} onPress={install} />
         <SupportChatWidget />
       </>
     );

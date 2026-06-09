@@ -56,7 +56,8 @@ export default function Dashboard() {
   const assignedBikes = bikes.filter((item) => item.status === "assigned").length;
 
   const totalDeposits = applications.reduce((sum, application) => sum + application.depositAmount, 0);
-  const totalBalances = customers.reduce((sum, customer) => sum + customer.balance, 0);
+  const collectibleCustomers = customers.filter((customer) => customer.applicationStatus !== "rejected" && customer.repaymentStatus !== "rejected");
+  const totalBalances = collectibleCustomers.reduce((sum, customer) => sum + customer.balance, 0);
   const unpaidCommissions = agents.reduce((sum, agent) => sum + agent.commissionBalance, 0);
   const totalCollected = payments
     .filter((payment) => payment.status === "success")

@@ -7,6 +7,7 @@ function isStandaloneDisplay() {
 export function useInstallPrompt() {
   const [promptEvent, setPromptEvent] = useState(null);
   const [installed, setInstalled] = useState(() => isStandaloneDisplay());
+  const [serviceWorkerReady, setServiceWorkerReady] = useState(false);
 
   useEffect(() => {
     function handleBeforeInstallPrompt(event) {
@@ -28,6 +29,12 @@ export function useInstallPrompt() {
     window.addEventListener('appinstalled', handleInstalled);
     mediaQuery?.addEventListener?.('change', handleDisplayModeChange);
 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then(() => setServiceWorkerReady(true))
+        .catch(() => setServiceWorkerReady(false));
+    }
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleInstalled);
@@ -37,7 +44,10 @@ export function useInstallPrompt() {
 
   async function install() {
     if (!promptEvent) {
-      window.alert('To install this portal, open the browser menu and choose Install app or Add to Home Screen.');
+      const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+      window.alert(isIos
+        ? 'To install Bumu, tap Share, then choose Add to Home Screen.'
+        : 'To install Bumu, open the browser menu and choose Install app or Add to Home Screen. If that option is missing, refresh once and make sure you are using the live HTTPS site.');
       return;
     }
     promptEvent.prompt();
@@ -47,6 +57,8 @@ export function useInstallPrompt() {
 
   return {
     canInstall: !installed,
-    install
+    install,
+    installReady: Boolean(promptEvent),
+    serviceWorkerReady
   };
 }

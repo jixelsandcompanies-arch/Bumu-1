@@ -10,8 +10,12 @@ import {
   Home,
   LogIn,
   LogOut,
+  Mail,
   Menu,
+  MessageCircle,
+  Phone,
   RefreshCw,
+  Send,
   X,
   UserPlus,
   UsersRound
@@ -512,6 +516,8 @@ function RegisterTab({ portal, onRefresh }) {
     customerPhone: '',
     nationalId: '',
     email: '',
+    alternatePhones: '',
+    alternateEmails: '',
     dateOfBirth: '',
     gender: '',
     location: '',
@@ -723,6 +729,8 @@ function RegisterTab({ portal, onRefresh }) {
             <Field fieldStyle={styles.gridField} label="Phone number" value={form.customerPhone} onChangeText={(value) => update('customerPhone', value)} placeholder="Customer phone" />
             <Field fieldStyle={styles.gridField} label="National ID" value={form.nationalId} onChangeText={(value) => update('nationalId', value)} placeholder="National ID" />
             <Field fieldStyle={styles.gridField} label="Email" value={form.email} onChangeText={(value) => update('email', value)} placeholder="Customer email" />
+            <Field fieldStyle={styles.gridField} label="Other phone numbers" value={form.alternatePhones} onChangeText={(value) => update('alternatePhones', value)} placeholder="Separate numbers with comma or new line" multiline />
+            <Field fieldStyle={styles.gridField} label="Other emails" value={form.alternateEmails} onChangeText={(value) => update('alternateEmails', value)} placeholder="Separate emails with comma or new line" multiline />
             <Field fieldStyle={styles.gridField} label="Date of birth" value={form.dateOfBirth} onChangeText={(value) => update('dateOfBirth', value)} placeholder="YYYY-MM-DD" />
             <Field fieldStyle={styles.gridField} label="Gender" value={form.gender} onChangeText={(value) => update('gender', value)} placeholder="Gender" />
             <Field fieldStyle={styles.gridField} label="Location" value={form.location} onChangeText={(value) => update('location', value)} placeholder="Customer location" />
@@ -1024,10 +1032,47 @@ function MediaCapture({ field, label, captureKind = 'document', value, onUploade
   );
 }
 
+function splitContactList(value) {
+  return String(value || '')
+    .split(/[\n,;|/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeWhatsappPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('254')) return digits;
+  if (digits.startsWith('0')) return `254${digits.slice(1)}`;
+  if (digits.length === 9) return `254${digits}`;
+  return digits;
+}
+
+function customerPhones(customer) {
+  return [...new Set([
+    customer.phone,
+    ...splitContactList(customer.alternatePhones),
+    customer.nextOfKinPhone
+  ].map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+function customerEmails(customer) {
+  return [...new Set([
+    customer.email,
+    ...splitContactList(customer.alternateEmails)
+  ].map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+function openExternal(url) {
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 function CustomersTab({ portal, onRefresh }) {
   const [activeCustomerId, setActiveCustomerId] = useState('');
+  const [communicationCustomerId, setCommunicationCustomerId] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositPhone, setDepositPhone] = useState('');
+  const [customerMessage, setCustomerMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -1036,6 +1081,13 @@ function CustomersTab({ portal, onRefresh }) {
     setActiveCustomerId(nextId);
     setDepositAmount('');
     setDepositPhone(nextId ? customer.phone || '' : '');
+    setMessage('');
+  }
+
+  function openCommunication(customer) {
+    const nextId = communicationCustomerId === customer.id ? '' : customer.id;
+    setCommunicationCustomerId(nextId);
+    setCustomerMessage(nextId ? `Hello ${customer.name || 'there'}, this is your Bumu Paygo agent.` : '');
     setMessage('');
   }
 
@@ -1059,6 +1111,37 @@ function CustomersTab({ portal, onRefresh }) {
     }
   }
 
+  async function sendSystemMessage(customer) {
+    setMessage('');
+    setSubmitting(true);
+    try {
+      await agentWorkspaceService.sendCustomerMessage(customer.id, {
+        title: 'Message from your Bumu Paygo agent',
+        message: customerMessage
+      });
+      setMessage('Message sent to the customer portal.');
+      setCommunicationCustomerId('');
+      setCustomerMessage('');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function openWhatsApp(phone) {
+    const normalized = normalizeWhatsappPhone(phone);
+    if (!normalized) return;
+    openExternal(`https://wa.me/${normalized}?text=${encodeURIComponent(customerMessage || 'Hello, this is your Bumu Paygo agent.')}`);
+  }
+
+  function openEmail(email, customer) {
+    const subject = encodeURIComponent('Bumu Paygo account follow-up');
+    const body = encodeURIComponent(customerMessage || `Hello ${customer.name || 'there'}, this is your Bumu Paygo agent.`);
+    openExternal(`mailto:${email}?subject=${subject}&body=${body}`);
+  }
+
   return (
     <View style={styles.panel}>
       <Text style={styles.panelTitle}>Assigned customers</Text>
@@ -1070,11 +1153,18 @@ function CustomersTab({ portal, onRefresh }) {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.rowTitle}>{customer.name}</Text>
                 <Text style={styles.rowText}>{customer.phone} | {customer.productType} | {fallback(customer.productModel)}</Text>
+                {customer.email ? <Text style={styles.rowText}>{customer.email}</Text> : null}
+                {customer.alternatePhones || customer.alternateEmails ? (
+                  <Text style={styles.rowText}>Other contacts: {[customer.alternatePhones, customer.alternateEmails].filter(Boolean).join(' | ')}</Text>
+                ) : null}
                 <Text style={styles.rowText}>Serial {fallback(customer.serialNumber)} | Chassis {fallback(customer.chassisNumber)}</Text>
               </View>
               <View style={styles.rowRight}>
                 <Text style={styles.rowAmount}>{formatKes(customer.balance)}</Text>
                 <Text style={styles.rowStatus}>{customer.status}</Text>
+                <Button icon={MessageCircle} variant="secondary" onPress={() => openCommunication(customer)}>
+                  Chat
+                </Button>
                 <Button icon={CreditCard} variant="secondary" onPress={() => openPrompt(customer)}>
                   Prompt deposit
                 </Button>
@@ -1087,6 +1177,45 @@ function CustomersTab({ portal, onRefresh }) {
                 <Button icon={CreditCard} onPress={() => requestDeposit(customer)} disabled={submitting} style={styles.depositButton}>
                   {submitting ? 'Sending...' : 'Send deposit prompt'}
                 </Button>
+              </View>
+            )}
+            {communicationCustomerId === customer.id && (
+              <View style={styles.communicationBox}>
+                <View style={styles.contactSummary}>
+                  <Text style={styles.rowTitle}>Customer contacts</Text>
+                  <Text style={styles.rowText}>
+                    Phones: {customerPhones(customer).join(', ') || 'No phone'}{customer.nextOfKinName ? ` | Next of kin: ${customer.nextOfKinName}` : ''}
+                  </Text>
+                  <Text style={styles.rowText}>Emails: {customerEmails(customer).join(', ') || 'No email'}</Text>
+                </View>
+                <Field
+                  fieldStyle={styles.messageField}
+                  label="Message"
+                  value={customerMessage}
+                  onChangeText={setCustomerMessage}
+                  placeholder="Write a direct customer message"
+                  multiline
+                />
+                <View style={styles.communicationActions}>
+                  <Button icon={Send} onPress={() => sendSystemMessage(customer)} disabled={submitting || !customerMessage.trim()}>
+                    Send in system
+                  </Button>
+                  {customerPhones(customer).map((phone) => (
+                    <View key={`phone-${phone}`} style={styles.contactActionGroup}>
+                      <Button icon={MessageCircle} variant="secondary" onPress={() => openWhatsApp(phone)}>
+                        WhatsApp {phone}
+                      </Button>
+                      <Button icon={Phone} variant="secondary" onPress={() => openExternal(`tel:${phone}`)}>
+                        Call
+                      </Button>
+                    </View>
+                  ))}
+                  {customerEmails(customer).map((email) => (
+                    <Button key={`email-${email}`} icon={Mail} variant="secondary" onPress={() => openEmail(email, customer)}>
+                      Email {email}
+                    </Button>
+                  ))}
+                </View>
               </View>
             )}
           </View>
@@ -1345,6 +1474,11 @@ const styles = StyleSheet.create({
   tableRow: { minHeight: 70, padding: 11, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   depositBox: { borderTopWidth: 1, borderTopColor: '#e5edf6', padding: 11, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: 10, backgroundColor: '#f8fbff' },
   depositButton: { flexGrow: 1, flexBasis: 210 },
+  communicationBox: { borderTopWidth: 1, borderTopColor: '#e5edf6', padding: 11, gap: 10, backgroundColor: '#f8fbff' },
+  contactSummary: { borderWidth: 1, borderColor: '#dbe5ef', borderRadius: 8, padding: 10, backgroundColor: '#ffffff', gap: 4 },
+  messageField: { width: '100%' },
+  communicationActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  contactActionGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   emptyState: { borderWidth: 1, borderColor: '#e5edf6', borderRadius: 8, padding: 12, backgroundColor: '#ffffff' },
   rowTitle: { color: colors.text, fontWeight: '600' },
   rowText: { color: colors.muted, lineHeight: 20 },
