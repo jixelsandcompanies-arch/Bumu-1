@@ -180,8 +180,6 @@ function mapPortal(portal = {}) {
       bikeId: application.bikeId || "",
       productType: application.productType || customer?.productType || "product",
       productModel: application.productModel || customer?.productModel || "",
-      studentClass: application.studentClass || application.className || customer?.studentClass || customer?.className || "",
-      className: application.className || application.studentClass || customer?.className || customer?.studentClass || "",
       stream: application.stream || customer?.stream || "",
       depositAmount: Number(application.depositAmount || 0),
       installmentPlan: application.installmentPlan || "Daily repayment",

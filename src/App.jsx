@@ -16,7 +16,6 @@ import { AgentPortalScreen } from './screens/AgentPortalScreen.jsx';
 import { UploadedAdminPortalScreen } from './screens/UploadedAdminPortalScreen.jsx';
 import { BackOfficePortalScreen } from './screens/BackOfficePortalScreen.jsx';
 import { NextOfKinAcceptScreen } from './screens/NextOfKinAcceptScreen.jsx';
-import { SchoolScanScreen } from './screens/SchoolScanScreen.jsx';
 import { useInstallPrompt } from './hooks/useInstallPrompt.js';
 import { Toast } from './components/ui/Toast.jsx';
 import { Text } from './components/ui/Text.jsx';
@@ -94,11 +93,6 @@ function isNextOfKinRoute() {
   return window.location.hash.startsWith('#/next-of-kin') || params.has('next-of-kin');
 }
 
-function isSchoolScanRoute() {
-  const path = cleanPortalPath();
-  return path === '/school-scan' || path.startsWith('/school-scan/') || window.location.hash.startsWith('#/school-scan');
-}
-
 function portalMetaForRoute() {
   if (isBackOfficePath()) {
     return {
@@ -142,15 +136,6 @@ function portalMetaForRoute() {
       manifest: '/manifest-finance.webmanifest',
       appleTitle: 'Bumu Finance',
       description: 'Finance workspace for Bumu Paygo collections, commissions, reconciliation, reports, and notifications.'
-    };
-  }
-
-  if (isSchoolScanRoute()) {
-    return {
-      title: 'Bumu Paygo School Scan',
-      manifest: '/manifest.webmanifest',
-      appleTitle: 'Bumu School Scan',
-      description: 'School location gate scan page for student card QR tokens.'
     };
   }
 
@@ -266,7 +251,6 @@ export function App() {
   const [adminRouteActive, setAdminRouteActive] = useState(isAdminRoute);
   const [backOfficeRouteActive, setBackOfficeRouteActive] = useState(isBackOfficePath);
   const [nextOfKinRouteActive, setNextOfKinRouteActive] = useState(isNextOfKinRoute);
-  const [schoolScanRouteActive, setSchoolScanRouteActive] = useState(isSchoolScanRoute);
   const [activeScreen, setActiveScreen] = useState(
     () => window.sessionStorage.getItem('bumu-active-screen') || 'dashboard'
   );
@@ -327,7 +311,6 @@ export function App() {
       setAdminRouteActive(isAdminRoute());
       setBackOfficeRouteActive(isBackOfficePath());
       setNextOfKinRouteActive(isNextOfKinRoute());
-      setSchoolScanRouteActive(isSchoolScanRoute());
     }
 
     window.addEventListener('hashchange', handleHashChange);
@@ -348,7 +331,7 @@ export function App() {
     manifestLink?.setAttribute('href', meta.manifest);
     appleTitle?.setAttribute('content', meta.appleTitle);
     description?.setAttribute('content', meta.description);
-  }, [customerRouteActive, agentRouteActive, adminRouteActive, backOfficeRouteActive, nextOfKinRouteActive, schoolScanRouteActive, authRouteActive]);
+  }, [customerRouteActive, agentRouteActive, adminRouteActive, backOfficeRouteActive, nextOfKinRouteActive, authRouteActive]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -441,15 +424,6 @@ export function App() {
     return (
       <>
         <NextOfKinAcceptScreen />
-        <FloatingInstallButton visible={canInstall} onPress={install} />
-      </>
-    );
-  }
-
-  if (schoolScanRouteActive) {
-    return (
-      <>
-        <SchoolScanScreen />
         <FloatingInstallButton visible={canInstall} onPress={install} />
       </>
     );

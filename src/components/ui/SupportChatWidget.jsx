@@ -80,10 +80,6 @@ function simpleReply(input) {
     return 'Next-of-kin receives an SMS acceptance link or OTP. Once accepted, the application can continue through screening and customer activation.';
   }
 
-  if (hasAny(text, ['school', 'scan', 'qr', 'student'])) {
-    return 'Open the school scan page, tap the camera scanner, scan the student card QR, choose coming in or going out, then save the scan.';
-  }
-
   if (hasAny(text, ['support', 'contact', 'help'])) {
     return 'For support, share the portal you are using, your phone or email, the customer name if relevant, and the exact action that failed: OTP, M-PESA prompt, Paybill confirmation, approval, payout, report, or login.';
   }

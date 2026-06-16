@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DataTable } from "../../components/ui/DataTable.jsx";
 import { PageHeader } from "../../components/ui/PageHeader.jsx";
@@ -24,6 +25,7 @@ export default function CustomerDetail() {
   const application = applications.find((item) => item.customerId === customer.id);
   const bike = bikes.find((item) => item.assignedCustomerId === customer.id);
   const customerPayments = payments.filter((payment) => payment.customerId === customer.id);
+  const documents = application?.documents || [];
 
   return (
     <section className="page-stack">
@@ -93,6 +95,21 @@ export default function CustomerDetail() {
       </div>
 
       <article className="panel">
+        <h3>KYC documents</h3>
+        <div className="document-grid">
+          {documents.map((document) => (
+            <DocumentTile document={document} key={document.type} />
+          ))}
+          {documents.length === 0 ? (
+            <div className="document-tile">
+              <span>No KYC documents captured</span>
+              <StatusBadge status="missing" />
+            </div>
+          ) : null}
+        </div>
+      </article>
+
+      <article className="panel">
         <h3>Payment history</h3>
         <DataTable
           columns={[
@@ -106,5 +123,24 @@ export default function CustomerDetail() {
         />
       </article>
     </section>
+  );
+}
+
+function DocumentTile({ document }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(document.url) && !imageFailed;
+
+  return (
+    <div className="document-tile">
+      <span>{document.type}</span>
+      {hasImage ? (
+        <a href={document.url} target="_blank" rel="noreferrer" aria-label={`Open ${document.type}`}>
+          <img src={document.url} alt={document.type} onError={() => setImageFailed(true)} />
+        </a>
+      ) : (
+        <div className="document-empty-preview">Image unavailable</div>
+      )}
+      <StatusBadge status={hasImage ? document.status : "missing"} />
+    </div>
   );
 }
