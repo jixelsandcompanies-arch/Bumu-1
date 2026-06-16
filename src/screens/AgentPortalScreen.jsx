@@ -1111,6 +1111,20 @@ function CustomersTab({ portal, onRefresh }) {
     }
   }
 
+  async function resendNextOfKin(customer) {
+    setMessage('');
+    setSubmitting(true);
+    try {
+      const result = await agentWorkspaceService.resendNextOfKinAcceptance(customer.id);
+      setMessage(result.message || 'Next-of-kin acceptance SMS resent.');
+      await onRefresh();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function sendSystemMessage(customer) {
     setMessage('');
     setSubmitting(true);
@@ -1168,6 +1182,11 @@ function CustomersTab({ portal, onRefresh }) {
                 <Button icon={CreditCard} variant="secondary" onPress={() => openPrompt(customer)}>
                   Prompt deposit
                 </Button>
+                {customer.nextOfKinPhone ? (
+                  <Button icon={Bell} variant="secondary" onPress={() => resendNextOfKin(customer)} disabled={submitting}>
+                    Resend NOK
+                  </Button>
+                ) : null}
               </View>
             </View>
             {activeCustomerId === customer.id && (

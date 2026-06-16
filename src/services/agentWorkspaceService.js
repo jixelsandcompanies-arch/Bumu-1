@@ -146,6 +146,12 @@ export const agentWorkspaceService = {
     });
   },
 
+  async resendNextOfKinAcceptance(customerId) {
+    return request(`/api/agent/customers/${encodeURIComponent(customerId)}/resend-next-of-kin`, {
+      method: 'POST'
+    });
+  },
+
   async requestCustomerDeposit(customerId, { amount, phone }) {
     return request(`/api/agent/customers/${encodeURIComponent(customerId)}/deposit-request`, {
       method: 'POST',

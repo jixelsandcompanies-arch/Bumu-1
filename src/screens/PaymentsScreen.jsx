@@ -30,6 +30,18 @@ function displayDate(value) {
   return hasValue(value) ? formatDate(value) : NO_DATA;
 }
 
+function parseMoneyValue(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : NaN;
+  }
+
+  const match = String(value ?? '')
+    .replace(/,/g, '')
+    .match(/-?\d+(?:\.\d+)?/);
+
+  return match ? Number(match[0]) : NaN;
+}
+
 function displayAgentCode(payment) {
   return payment.agentId || payment.agentCode || NO_DATA;
 }
@@ -183,18 +195,18 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
   }
 
   async function saveManualPayment() {
-    const depositCredit = Number(manualPayment.depositCredit);
-    const paygoPayment = Number(manualPayment.paygoPayment);
-    const totalPayable = Number(manualPayment.totalPayable);
+    const depositCredit = parseMoneyValue(manualPayment.depositCredit);
+    const paygoPayment = parseMoneyValue(manualPayment.paygoPayment);
+    const totalPayable = parseMoneyValue(manualPayment.totalPayable);
     const hasValidDate = /^\d{4}-\d{2}-\d{2}$/.test(manualPayment.date);
 
     if (
       !manualPayment.customerName.trim() ||
       !manualPayment.customerPhone.trim() ||
       !manualPayment.agentName.trim() ||
-      Number.isNaN(totalPayable) ||
-      Number.isNaN(depositCredit) ||
-      Number.isNaN(paygoPayment) ||
+      !Number.isFinite(totalPayable) ||
+      !Number.isFinite(depositCredit) ||
+      !Number.isFinite(paygoPayment) ||
       !hasValidDate
     ) {
       window.alert('Complete customer, phone, agent, total payable, deposit, Paygo payment, and date as YYYY-MM-DD.');
@@ -214,9 +226,9 @@ export function PaymentsScreen({ onPaymentRecordsChange }) {
         agentName: manualPayment.agentName.trim(),
         serialNumber: identifier,
         chassisNumber: identifier,
-        totalPayable,
-        depositCredit,
-        paygoPayment,
+        totalPayable: Number(totalPayable),
+        depositCredit: Number(depositCredit),
+        paygoPayment: Number(paygoPayment),
         date: `${manualPayment.date}T12:00:00`,
         status: manualPayment.status,
         sourcePortal: 'Manual payment'

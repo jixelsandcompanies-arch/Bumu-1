@@ -103,6 +103,15 @@ PAYMENT_CALLBACK_SECRET=generate-a-long-random-secret
 PAYOUT_CALLBACK_SECRET=generate-a-long-random-secret
 ```
 
+If Vercel shows `No more than 12 Serverless Functions can be added to a Deployment on the Hobby plan`, the project is still deploying under a Hobby project/team. Moving your app to a Pro team removes that limit for the deployment target. In Vercel:
+
+1. Open the project.
+2. Check the team or scope shown at the top of the project settings.
+3. If it is still on a personal Hobby scope, move the project to your Pro team or create a Pro team and redeploy there.
+4. Redeploy after the project is attached to the Pro team.
+
+This repository currently uses many API route files under `/api`, so Hobby deployments will hit that limit unless the routes are consolidated.
+
 Create finance users in Supabase Auth, then mark them as finance users:
 
 ```sql
@@ -150,6 +159,12 @@ Vercel cron calls `/api/system/follow-ups` at 08:00 and 17:00 Nairobi time. The 
 ## Payments
 
 Bumu Paygo uses Africa's Talking for SMS and Safaricom Daraja for money movement. Daraja handles customer STK Push payment prompts, C2B Paybill confirmations, and optional finance B2C commission payouts.
+
+For M-Pesa testing, use the Daraja flow that matches the payment direction:
+
+1. Customer to business collection uses STK Push or Paybill C2B.
+2. Business to agent payout uses B2C and the commission payout callback.
+3. If you type payment amounts in the app, use numbers like `20` or `KES 20`; the app now strips common currency symbols before saving.
 
 For next-of-kin SMS acceptance, set your Africa's Talking incoming SMS callback URL to:
 

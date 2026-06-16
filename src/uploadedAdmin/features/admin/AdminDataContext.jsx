@@ -16,6 +16,16 @@ const defaultState = {
   users: []
 };
 
+function parseJsonResponse(text) {
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text.slice(0, 200) };
+  }
+}
+
 async function apiRequest(path, { method = "GET", body } = {}) {
   const token = getAdminToken();
   const response = await fetch(path, {
@@ -28,7 +38,7 @@ async function apiRequest(path, { method = "GET", body } = {}) {
     ...(body ? { body: JSON.stringify(body) } : {})
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  const data = parseJsonResponse(text);
 
   if (!response.ok) {
     throw new Error(data.message || `Admin request failed with HTTP ${response.status}.`);

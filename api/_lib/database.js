@@ -33,6 +33,18 @@ function nonEmpty(value) {
   return String(value || '').trim();
 }
 
+function parseMoneyValue(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : NaN;
+  }
+
+  const match = String(value ?? '')
+    .replace(/,/g, '')
+    .match(/-?\d+(?:\.\d+)?/);
+
+  return match ? Number(match[0]) : NaN;
+}
+
 function formatDate(value) {
   if (!value) return '';
   return new Date(value).toLocaleDateString('en-GB', {
@@ -1524,6 +1536,116 @@ export async function createAgentCustomerMessage(user, customerId, body) {
   return { notification: notification.data };
 }
 
+export async function resendNextOfKinAcceptance(user, customerId) {
+  const agent = await findAgentForAuthUser(user);
+  if (!agent) {
+    const error = new Error('Agent profile is not connected yet.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (agent.status !== 'active') {
+    const error = new Error('Your agent account is waiting for admin approval.');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const agentCode = agent.agent_code || agent.agent_id;
+  let customerRequest = getSupabase()
+    .from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .limit(1);
+
+  customerRequest = agentCode
+    ? customerRequest.eq('agent_id', agentCode)
+    : customerRequest.eq('agent_name', agent.full_name || agent.agent_name);
+
+  const customer = await customerRequest.maybeSingle();
+  if (customer.error) throw mapSupabaseError(customer.error);
+  if (!customer.data) {
+    const error = new Error('Customer was not found for this agent.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const nextOfKinPhone = nonEmpty(customer.data.next_of_kin_phone);
+  if (!nextOfKinPhone) {
+    const error = new Error('This customer does not have a next-of-kin phone number yet.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (customer.data.next_of_kin_otp_status === 'verified') {
+    const error = new Error('Next-of-kin has already accepted this application.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const nextOfKinOtp = createOtp();
+  const nextOfKinOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const otpUpdate = await getSupabase()
+    .from('customers')
+    .update({
+      next_of_kin_otp_hash: hashOtp(nextOfKinPhone, nextOfKinOtp),
+      next_of_kin_otp_expires_at: nextOfKinOtpExpiresAt,
+      next_of_kin_otp_sent_at: null,
+      next_of_kin_otp_status: 'sent'
+    })
+    .eq('id', customer.data.id)
+    .select()
+    .single();
+
+  if (otpUpdate.error) throw mapSupabaseError(otpUpdate.error);
+
+  const acceptUrl = `${publicAppBaseUrl()}/?next-of-kin=1&customer=${encodeURIComponent(customer.data.id)}&otp=${encodeURIComponent(nextOfKinOtp)}`;
+  const otpDelivery = await sendNextOfKinAcceptanceSms({
+    phone: nextOfKinPhone,
+    otp: nextOfKinOtp,
+    customerName: customer.data.customer_name || customer.data.customerName || 'Customer',
+    acceptUrl
+  }).catch((deliveryError) => ({
+    configured: true,
+    delivered: false,
+    provider: 'africastalking',
+    error: deliveryError.message
+  }));
+
+  const sentAt = new Date().toISOString();
+  const statusUpdate = await getSupabase()
+    .from('customers')
+    .update({
+      next_of_kin_otp_sent_at: otpDelivery.delivered ? sentAt : null,
+      next_of_kin_otp_status: otpDelivery.delivered ? 'sent' : 'failed'
+    })
+    .eq('id', customer.data.id)
+    .select()
+    .single();
+
+  if (statusUpdate.error) throw mapSupabaseError(statusUpdate.error);
+
+  await getSupabase().from('agent_notifications').insert({
+    agent_name: agent.full_name || agent.agent_name,
+    agent_code: agentCode || null,
+    customer_id: customer.data.id,
+    customer_name: customer.data.customer_name || customer.data.customerName || 'Customer',
+    message: otpDelivery.delivered
+      ? `Next-of-kin acceptance SMS resent for ${customer.data.customer_name || 'customer'}.`
+      : `Next-of-kin SMS resend failed for ${customer.data.customer_name || 'customer'}.`,
+    status: otpDelivery.delivered ? 'read' : 'queued',
+    source_portal: 'agent'
+  }).catch(() => null);
+
+  return {
+    customer: statusUpdate.data,
+    delivered: Boolean(otpDelivery.delivered),
+    otpDelivery,
+    message: otpDelivery.delivered
+      ? 'Next-of-kin acceptance SMS resent.'
+      : 'Next-of-kin SMS resend attempted but delivery failed.'
+  };
+}
+
 export async function createAgentCustomer(user, body) {
   const agent = await findAgentForAuthUser(user);
   if (!agent) {
@@ -2196,8 +2318,10 @@ export async function completeAgentTask(user, taskId) {
 }
 
 export async function createManualPayment(body) {
-  const amount = Number(body.depositCredit || body.deposit_credit || 0) + Number(body.paygoPayment || body.paygo_payment || 0);
-  const totalPayable = Number(body.totalPayable || body.total_payable || 0);
+  const depositCredit = parseMoneyValue(body.depositCredit || body.deposit_credit || 0);
+  const paygoPayment = parseMoneyValue(body.paygoPayment || body.paygo_payment || 0);
+  const amount = depositCredit + paygoPayment;
+  const totalPayable = parseMoneyValue(body.totalPayable || body.total_payable || 0);
   const customerName = nonEmpty(body.customerName || body.customer_name);
   const customerPhone = nonEmpty(body.customerPhone || body.customer_phone);
   const productType = nonEmpty(body.productType || body.product_type || body.assetType || body.asset_type);
@@ -2235,12 +2359,14 @@ export async function createManualPayment(body) {
     serial_number: serialNumber,
     chassis_number: body.chassisNumber || body.chassis_number || null,
     total_payable: totalPayable,
-    paid_amount: Number(body.paidAmount || body.paid_amount || amount),
+    paid_amount: Number.isFinite(parseMoneyValue(body.paidAmount || body.paid_amount))
+      ? parseMoneyValue(body.paidAmount || body.paid_amount)
+      : amount,
     balance: Math.max(totalPayable - amount, 0),
     due_date: body.dueDate || body.due_date || null,
     registration_status: body.registrationStatus || body.registration_status || 'registered',
-    deposit_credit: Number(body.depositCredit || body.deposit_credit || 0),
-    paygo_payment: Number(body.paygoPayment || body.paygo_payment || 0),
+    deposit_credit: depositCredit,
+    paygo_payment: paygoPayment,
     date: body.date || new Date().toISOString(),
     receipt: body.receipt || body.receiptNumber || body.receipt_number || `MAN-${Date.now()}`,
     method: body.method || 'manual',
