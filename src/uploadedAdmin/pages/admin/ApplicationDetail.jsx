@@ -6,6 +6,7 @@ import { DataTable } from "../../components/ui/DataTable.jsx";
 import { OtpActionButton } from "../../components/ui/OtpActionButton.jsx";
 import { PageHeader } from "../../components/ui/PageHeader.jsx";
 import { StatusBadge } from "../../components/ui/StatusBadge.jsx";
+import { useAuth } from "../../features/auth/AuthContext.jsx";
 import { useAdminData } from "../../features/admin/AdminDataContext.jsx";
 import { getApplicationApprovalBlockers } from "../../lib/admin/applicationChecks.js";
 import { findAgent, findBike, findCustomer } from "../../lib/admin/lookups.js";
@@ -23,6 +24,7 @@ export default function ApplicationDetail() {
     updateApplicationStatus,
     updateApplicationVerification
   } = useAdminData();
+  const { user } = useAuth();
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
   const [documentPreview, setDocumentPreview] = useState(null);
@@ -158,22 +160,36 @@ export default function ApplicationDetail() {
   }
 
   async function runLocalVerification() {
-    const nextVerification = buildLocalVerification(verification);
+    const checkedAt = new Date().toISOString();
+    const checkedBy = user?.name || user?.email || "Admin";
+    const nextVerification = {
+      ...buildLocalVerification(verification),
+      checkedAt,
+      checkedBy
+    };
     setVerification(nextVerification);
     try {
       await updateApplicationVerification(application.id, nextVerification);
       setMessage("Local screening checks completed.");
-      setVerificationMessage("Local checks completed and saved to this application.");
+      setVerificationMessage(`Local checks completed and saved on ${checkedAt}.`);
     } catch (error) {
       setMessage(error.message || "Could not save verification checks.");
     }
   }
 
   async function saveVerification() {
+    const checkedAt = new Date().toISOString();
+    const checkedBy = user?.name || user?.email || "Admin";
+    const nextVerification = {
+      ...verification,
+      checkedAt,
+      checkedBy
+    };
+    setVerification(nextVerification);
     try {
-      await updateApplicationVerification(application.id, verification);
+      await updateApplicationVerification(application.id, nextVerification);
       setMessage("Verification checklist saved.");
-      setVerificationMessage("Verification checklist saved.");
+      setVerificationMessage(`Verification checklist saved on ${checkedAt}.`);
     } catch (error) {
       setMessage(error.message || "Could not save verification checklist.");
     }
@@ -402,12 +418,7 @@ export default function ApplicationDetail() {
           />
         </label>
         <div className="decision-actions">
-          <OtpActionButton
-            className="button success"
-            label={`approve ${application.id}`}
-            disabled={submittingDecision}
-            onVerified={() => requestDecision("approved")}
-          >
+          <OtpActionButton className="button success" label={`approve ${application.id}`} disabled={submittingDecision} onVerified={() => requestDecision("approved")}>
             {submittingDecision ? "Working..." : "Approve"}
           </OtpActionButton>
           <OtpActionButton className="button warning" disabled={submittingDecision} label={`request information for ${application.id}`} onVerified={() => requestDecision("info_required")}>

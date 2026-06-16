@@ -5,6 +5,7 @@ import { ConfirmDialog } from "../../uploadedAdmin/components/ui/ConfirmDialog.j
 import { OtpActionButton } from "../../uploadedAdmin/components/ui/OtpActionButton.jsx";
 import { PageHeader } from "../../uploadedAdmin/components/ui/PageHeader.jsx";
 import { StatusBadge } from "../../uploadedAdmin/components/ui/StatusBadge.jsx";
+import { useAuth } from "../../uploadedAdmin/features/auth/AuthContext.jsx";
 import { useAdminData } from "../../uploadedAdmin/features/admin/AdminDataContext.jsx";
 import { getApplicationApprovalBlockers } from "../../uploadedAdmin/lib/admin/applicationChecks.js";
 import { findAgent, findBike, findCustomer } from "../../uploadedAdmin/lib/admin/lookups.js";
@@ -17,11 +18,14 @@ export default function BackOfficeApplicationDetail() {
     applications,
     bikes,
     customers,
+    updateApplicationBikeAssignment,
     updateApplicationStatus,
     updateApplicationVerification
   } = useAdminData();
+  const { user } = useAuth();
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
+  const [selectedBikeId, setSelectedBikeId] = useState("");
   const [pendingDecision, setPendingDecision] = useState(null);
   const [submittingDecision, setSubmittingDecision] = useState(false);
 
@@ -32,9 +36,16 @@ export default function BackOfficeApplicationDetail() {
   );
   const agent = findAgent(agents, application?.agentId);
   const bike = findBike(bikes, application?.bikeId);
+  const assignableBikes = bikes.filter(
+    (item) =>
+      item.id === application?.bikeId ||
+      item.status === "available" ||
+      (item.status === "assigned" && (!item.assignedAgentId || item.assignedAgentId === agent?.id))
+  );
   const [verification, setVerification] = useState(() => buildVerificationState(application, customer));
 
   useEffect(() => {
+    setSelectedBikeId(application?.bikeId || "");
     setVerification(buildVerificationState(application, customer));
   }, [application, customer]);
 
@@ -93,7 +104,13 @@ export default function BackOfficeApplicationDetail() {
   }
 
   async function runLocalVerification() {
-    const nextVerification = buildLocalVerification(verification);
+    const checkedAt = new Date().toISOString();
+    const checkedBy = user?.name || user?.email || "Back office";
+    const nextVerification = {
+      ...buildLocalVerification(verification),
+      checkedAt,
+      checkedBy
+    };
     setVerification(nextVerification);
     try {
       await updateApplicationVerification(application.id, nextVerification);
@@ -104,11 +121,33 @@ export default function BackOfficeApplicationDetail() {
   }
 
   async function saveVerification() {
+    const checkedAt = new Date().toISOString();
+    const checkedBy = user?.name || user?.email || "Back office";
+    const nextVerification = {
+      ...verification,
+      checkedAt,
+      checkedBy
+    };
+    setVerification(nextVerification);
     try {
-      await updateApplicationVerification(application.id, verification);
+      await updateApplicationVerification(application.id, nextVerification);
       setMessage("Screening checklist saved.");
     } catch (error) {
       setMessage(error.message || "Could not save screening checklist.");
+    }
+  }
+
+  async function saveBikeAssignment() {
+    const selectedBike = findBike(bikes, selectedBikeId);
+    try {
+      await updateApplicationBikeAssignment(application.id, selectedBikeId);
+      setMessage(
+        selectedBike
+          ? `${selectedBike.serialNumber} reserved for this customer.`
+          : "Bike reservation removed from this application."
+      );
+    } catch (error) {
+      setMessage(error.message || "Could not save bike assignment.");
     }
   }
 
@@ -158,6 +197,22 @@ export default function BackOfficeApplicationDetail() {
             <div><dt>Submitted</dt><dd>{application.submittedAt || "Recent submission"}</dd></div>
             <div><dt>Customer OTP</dt><dd><StatusBadge status={application.customerOtpVerified ? "verified" : "not_verified"} /></dd></div>
           </dl>
+          <div className="bike-assignment-form">
+            <label>
+              Reserve bike
+              <select value={selectedBikeId} onChange={(event) => setSelectedBikeId(event.target.value)}>
+                <option value="">No bike assigned</option>
+                {assignableBikes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.serialNumber} - {item.model} ({item.status})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="button secondary" type="button" onClick={saveBikeAssignment}>
+              Save bike reservation
+            </button>
+          </div>
         </article>
       </div>
 
@@ -196,6 +251,12 @@ export default function BackOfficeApplicationDetail() {
           </div>
           <ShieldCheck size={23} />
         </div>
+
+        {verification.checkedAt ? (
+          <div className="alert soft">
+            Last saved by {verification.checkedBy || "unknown"} on {verification.checkedAt}.
+          </div>
+        ) : null}
 
         <div className="verification-layout">
           <div className="verification-form">
@@ -310,7 +371,9 @@ function buildVerificationState(application, customer) {
       (application?.nextOfKinOtpVerified ? "verified" : "failed"),
     phoneDuplicate: application?.verification?.phoneDuplicate || "clear",
     simOwnership: application?.verification?.simOwnership || "otp_only",
-    officerNotes: application?.verification?.officerNotes || ""
+    officerNotes: application?.verification?.officerNotes || "",
+    checkedAt: application?.verification?.checkedAt || "",
+    checkedBy: application?.verification?.checkedBy || ""
   };
 }
 

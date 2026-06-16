@@ -104,12 +104,12 @@ export default function Applications() {
               <OtpActionButton className="button secondary" disabled={Boolean(submittingId)} label={`approve ${row.id}`} onVerified={() => quickDecision(row, "approved")}>
                 {submittingId === row.id ? "Working..." : "Approve"}
               </OtpActionButton>
-              <button type="button" disabled={Boolean(submittingId)} onClick={() => quickDecision(row, "info_required")}>
+              <OtpActionButton className="button warning" disabled={Boolean(submittingId)} label={`request information for ${row.id}`} onVerified={() => quickDecision(row, "info_required")}>
                 Info
-              </button>
-              <button type="button" disabled={Boolean(submittingId)} onClick={() => quickDecision(row, "rejected")}>
+              </OtpActionButton>
+              <OtpActionButton className="button danger" disabled={Boolean(submittingId)} label={`reject ${row.id}`} onVerified={() => quickDecision(row, "rejected")}>
                 Reject
-              </button>
+              </OtpActionButton>
             </>
           ) : null}
         </div>
