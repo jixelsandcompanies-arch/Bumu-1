@@ -77,10 +77,24 @@ export default async function handler(req, res) {
     if (updated.error) throw updated.error;
 
     if (Object.prototype.hasOwnProperty.call(update, 'product_id')) {
-      await getSupabase()
+      const previouslyAssigned = await getSupabase()
         .from('inventory_products')
-        .update({ assigned_customer_id: null, status: 'assigned' })
+        .select('id,assigned_agent_id')
         .eq('assigned_customer_id', current.data.customer_id);
+
+      if (previouslyAssigned.error) throw previouslyAssigned.error;
+
+      await Promise.all((previouslyAssigned.data || []).map(async (product) => {
+        const nextStatus = product.assigned_agent_id ? 'assigned' : 'available';
+        const cleared = await getSupabase()
+          .from('inventory_products')
+          .update({ assigned_customer_id: null, status: nextStatus })
+          .eq('id', product.id)
+          .select()
+          .maybeSingle();
+        if (cleared.error) throw cleared.error;
+        return cleared.data;
+      }));
 
       if (update.product_id) {
         const product = await getSupabase()
